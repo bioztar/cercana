@@ -13,6 +13,8 @@ type Props = {
   size?: 'big' | 'compact';
   idleLabel?: string;
   disabled?: boolean;
+  /** false = skip uploadMedia and hand back the local file uri (AssistantChat: local-only, no network). */
+  upload?: boolean;
 };
 
 const HOLD_MS = 700; // held at least this long → release stops; a shorter press is a tap and toggles
@@ -22,7 +24,7 @@ const HOLD_MS = 700; // held at least this long → release stops; a shorter pre
  * again to stop. Uploads to `media` and hands back url + seconds + transcript (empty if the device
  * cannot transcribe).
  */
-export function VoiceRecorder({ onDone, onError, size = 'big', idleLabel, disabled }: Props) {
+export function VoiceRecorder({ onDone, onError, size = 'big', idleLabel, disabled, upload = true }: Props) {
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const [recording, setRecording] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -74,7 +76,7 @@ export function VoiceRecorder({ onDone, onError, size = 'big', idleLabel, disabl
       await recorder.stop();
       await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
       if (!recorder.uri) throw new Error('Nothing was recorded. Please try again.');
-      const url = await uploadMedia(recorder.uri, 'audio');
+      const url = upload ? await uploadMedia(recorder.uri, 'audio') : recorder.uri;
       active.current = false;
       setBusy(false);
       onDone({ url, seconds, transcript: heard.trim() });

@@ -17,6 +17,7 @@ import { PatientPeople } from './PatientPeople';
 import { PatientCalendar } from './PatientCalendar';
 import { ChatsPlaceholder } from './ChatsPlaceholder';
 import { TalkToFamily } from './TalkToFamily';
+import { AssistantChat } from './AssistantChat';
 import type { PatientTab } from '../components/FamilyTabBar';
 import { colors, fonts, MAX_WIDTH, type } from '../theme';
 
@@ -68,6 +69,7 @@ export function PatientHome({
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [sending, setSending] = useState(false);
+  const [chatting, setChatting] = useState(false);
   const [summaries, setSummaries] = useState<Record<string, CommentSummary>>({});
 
   useEffect(() => {
@@ -194,7 +196,12 @@ export function PatientHome({
 
       <Modal visible={sending} animationType="slide" onRequestClose={() => setSending(false)}>
         <TalkToFamily circleId={session.circleId} patientName={session.patientName}
-          onSent={() => setSending(false)} onCancel={() => setSending(false)} />
+          onSent={() => setSending(false)} onCancel={() => setSending(false)}
+          onOpenAssistant={() => { setSending(false); setChatting(true); }} />
+      </Modal>
+
+      <Modal visible={chatting} animationType="slide" onRequestClose={() => setChatting(false)}>
+        <AssistantChat people={people} events={events} onBack={() => setChatting(false)} />
       </Modal>
     </View>
   );
