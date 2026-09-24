@@ -195,8 +195,10 @@ export async function listMoments(_circleId: string, personId?: string, limit = 
 }
 
 export async function addMoment(circleId: string, m: MomentInput): Promise<void> {
-  moments = [...moments, { ...m, id: uuidv4(), circle_id: circleId, created_at: new Date().toISOString() }];
+  const row: Moment = { ...m, id: uuidv4(), circle_id: circleId, created_at: new Date().toISOString() };
+  moments = [...moments, row];
   emitChange();
+  listeners.forEach((l) => l.onMomentInsert?.(row));
 }
 
 /** Demo has no storage bucket: the local/blob URI is used directly for this session. */
@@ -247,8 +249,10 @@ export async function listComments(momentId: string): Promise<Comment[]> {
 }
 
 export async function addComment(_circleId: string, c: CommentInput): Promise<void> {
-  comments = [...comments, { ...c, id: uuidv4(), circle_id: CIRCLE.id, created_at: new Date().toISOString() }];
+  const row: Comment = { ...c, id: uuidv4(), circle_id: CIRCLE.id, created_at: new Date().toISOString() };
+  comments = [...comments, row];
   emitChange();
+  listeners.forEach((l) => l.onCommentInsert?.(row));
 }
 
 export async function commentSummaries(_circleId: string): Promise<Record<string, CommentSummary>> {
@@ -344,6 +348,15 @@ export async function getBriefSettings(_circleId: string): Promise<BriefSettings
 export async function updateBriefSettings(_circleId: string, settings: BriefSettings): Promise<void> {
   briefSettings = settings;
   emitChange();
+}
+
+/** Demo-only, button-free way to see an arrival: Pedro's voice note lands a few seconds after
+ * `?demo=patient` loads, so ArrivalOverlay can be screenshotted without a second device. */
+export async function demoTriggerArrival(): Promise<void> {
+  await addMoment(CIRCLE.id, {
+    person_id: null, author_person_id: 'pedro', author: 'Pedro',
+    body: 'On our way, see you soon!', photo_url: null, audio_url: img('v_pedro.mp3'),
+  });
 }
 
 // ---- boot links (web only): ?demo=patient | family | join  [&person=anna] [&as=pedro] ---------------

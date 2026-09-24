@@ -204,3 +204,18 @@ export function showWebNotification(title: string, body: string): void {
   if (typeof document !== 'undefined' && !document.hidden) return;
   if (Notification.permission === 'granted') new Notification(title, { body });
 }
+
+/** An arrival (new moment/comment) so it shows even if the app is on another screen or just
+ * backgrounded. Native: fires immediately. Web: same as the ping fallback above. */
+export async function notifyArrival(title: string, body: string): Promise<void> {
+  if (!isNative) {
+    showWebNotification(title, body);
+    return;
+  }
+  try {
+    if (!(await ensurePermission())) return;
+    await Notifications.scheduleNotificationAsync({ content: { title, body }, trigger: null });
+  } catch (e) {
+    console.warn('arrival notification failed', e);
+  }
+}
