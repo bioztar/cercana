@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Image, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { EventRow, Moment, Person } from '../lib/types';
 import { comingUp } from '../lib/briefing';
 import { listMoments } from '../lib/api';
@@ -7,12 +7,21 @@ import { timeAgo } from '../lib/dates';
 import { say } from '../lib/speech';
 import { telUrl, whatsappUrl } from '../lib/util';
 import { Avatar, BigButton, ErrorText } from '../components/ui';
-import { VoicePlayer } from '../components/VoicePlayer';
+import { FeedItem } from '../components/FeedItem';
+import { authorOf } from '../lib/feed';
 import { colors, type } from '../theme';
 
-type Props = { person: Person; circleId: string; refreshKey: number; events: EventRow[]; onBack: () => void };
+type Props = {
+  person: Person;
+  people: Person[]; // to show each moment's author
+  circleId: string;
+  refreshKey: number;
+  events: EventRow[];
+  onOpenPerson: (id: string) => void;
+  onBack: () => void;
+};
 
-export function PersonScreen({ person, circleId, refreshKey, events, onBack }: Props) {
+export function PersonScreen({ person, people, circleId, refreshKey, events, onOpenPerson, onBack }: Props) {
   const upcoming = comingUp(
     events.filter((e) => e.person_ids.includes(person.id)).map((e) => ({ ...e, title: e.title ?? '(no title)' })),
     new Date(),
@@ -36,7 +45,9 @@ export function PersonScreen({ person, circleId, refreshKey, events, onBack }: P
     const now = new Date();
     const head = `${person.name}${person.relation ? ` is ${person.relation}` : ''}.`;
     const recent = moments.slice(0, 3).filter((m) => m.body);
-    const lines = recent.map((m) => `${timeAgo(new Date(m.created_at), now)}, ${m.author ?? 'someone'} said: ${m.body}`);
+    const lines = recent.map(
+      (m) => `${timeAgo(new Date(m.created_at), now)}, ${authorOf(m, people)?.name ?? m.author ?? 'someone'} said: ${m.body}`,
+    );
     say(lines.length ? `${head} Here is what happened lately. ${lines.join('. ')}.` : `${head} There is nothing new yet.`);
   };
 
@@ -71,14 +82,7 @@ export function PersonScreen({ person, circleId, refreshKey, events, onBack }: P
       <Text style={s.section}>Lately</Text>
       {moments.length === 0 && <Text style={s.body}>Nothing new yet.</Text>}
       {moments.map((m) => (
-        <View key={m.id} style={s.moment}>
-          <Text style={s.when}>
-            {timeAgo(new Date(m.created_at), new Date())}{m.author ? ` · from ${m.author}` : ''}
-          </Text>
-          {m.body ? <Text style={s.body}>{m.body}</Text> : null}
-          {m.photo_url ? <Image accessibilityLabel="Photo" source={{ uri: m.photo_url }} style={s.photo} resizeMode="cover" /> : null}
-          {m.audio_url ? <VoicePlayer url={m.audio_url} /> : null}
-        </View>
+        <FeedItem key={m.id} moment={m} people={people} onOpenPerson={onOpenPerson} />
       ))}
       <BigButton label="Back" tone="plain" onPress={onBack} style={{ marginTop: 24 }} />
     </ScrollView>

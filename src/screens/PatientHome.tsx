@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import type { EventRow, Person, Session } from '../lib/types';
+import type { EventRow, Moment, Person, Session } from '../lib/types';
+import { FeedItem } from '../components/FeedItem';
 import { buildBriefing, type BriefingEvent } from '../lib/briefing';
 import { birthdayPhrase, formatDate, greeting, upcomingBirthday } from '../lib/dates';
 import { getFlag, setFlag } from '../lib/session';
@@ -18,6 +19,7 @@ type Props = {
   session: Session;
   people: Person[];
   events: EventRow[];
+  moments: Moment[]; // the family feed, newest first
   loading: boolean;
   error: string | null;
   onOpenPerson: (id: string) => void;
@@ -39,7 +41,7 @@ function briefingEvents(events: EventRow[], people: Person[]): BriefingEvent[] {
   return [...merged.values()];
 }
 
-export function PatientHome({ session, people, events, loading, error, onOpenPerson, onSettings }: Props) {
+export function PatientHome({ session, people, events, moments, loading, error, onOpenPerson, onSettings }: Props) {
   const { width } = useWindowDimensions();
   const cols = width < 700 ? 2 : width < 1000 ? 3 : 4;
   // Pixel widths (not %): percent columns plus `gap` overflow the row and wrap early.
@@ -121,6 +123,15 @@ export function PatientHome({ session, people, events, loading, error, onOpenPer
         ))}
       </View>
 
+      {moments.length > 0 && (
+        <View style={s.feed}>
+          <Text style={s.feedTitle}>From your family</Text>
+          {moments.map((m) => (
+            <FeedItem key={m.id} moment={m} people={people} onOpenPerson={onOpenPerson} />
+          ))}
+        </View>
+      )}
+
       <HoldButton label="Settings (for family)" onComplete={onSettings} />
     </ScrollView>
   );
@@ -145,6 +156,6 @@ const s = StyleSheet.create({
   },
   name: { fontSize: type.name, fontWeight: '800', color: colors.ink, marginTop: 10, textAlign: 'center' },
   relation: { fontSize: type.label, color: colors.inkSoft, textAlign: 'center', marginTop: 2 },
-  settings: { alignSelf: 'center', minHeight: 64, justifyContent: 'center', marginTop: 32, paddingHorizontal: 24 },
-  settingsText: { fontSize: 20, color: colors.inkSoft, textDecorationLine: 'underline' },
+  feed: { marginTop: 32, gap: 14 },
+  feedTitle: { fontSize: type.title, fontWeight: '800', color: colors.ink },
 });

@@ -2,7 +2,7 @@
 import { getSupabase } from './supabase';
 import { generateCode, normalizeCode, isValidCode, urlHint, uuidv4 } from './util';
 import type {
-  CalendarPublic, Circle, EventRow, Moment, MomentInput, Person, PersonInput, Ping,
+  CalendarPublic, Circle, CreatedCircle, EventRow, LeadInput, Moment, MomentInput, Person, PersonInput, Ping,
 } from './types';
 
 function check<T>(res: { data: T | null; error: { message: string } | null }, what: string): T {
@@ -10,7 +10,11 @@ function check<T>(res: { data: T | null; error: { message: string } | null }, wh
   return res.data as T;
 }
 
-export async function createCircle(patientName: string): Promise<Circle> {
+/**
+ * Creates the circle and, when given, the lead's profile (role 'lead', unclaimed until the lead
+ * picks it on their own phone through the invite link).
+ */
+export async function createCircle(patientName: string, lead?: LeadInput): Promise<CreatedCircle> {
   const db = getSupabase();
   for (let attempt = 0; attempt < 5; attempt++) {
     const res = await db
@@ -18,10 +22,59 @@ export async function createCircle(patientName: string): Promise<Circle> {
       .insert({ code: generateCode(), patient_name: patientName })
       .select()
       .single();
-    if (!res.error) return res.data as Circle;
-    if (res.error.code !== '23505') throw new Error(`Could not create circle: ${res.error.message}`);
+    if (res.error) {
+      if (res.error.code !== '23505') throw new Error(`Could not create circle: ${res.error.message}`);
+      continue;
+    }
+    const circle = res.data as Circle;
+    if (!lead) return { ...circle, lead_id: null };
+    const made = await db
+      .from('people')
+      .insert({ circle_id: circle.id, name: lead.name, relation: lead.relation || null, role: 'lead', claimed: false })
+      .select()
+      .single();
+    if (made.error) {
+      await db.from('circles').delete().eq('id', circle.id); // do not leave a circle without its lead
+      throw new Error(`Could not create the lead profile: ${made.error.message}`);
+    }
+    return { ...circle, lead_id: (made.data as Person).id };
   }
   throw new Error('Could not create a unique circle code, try again');
+}
+
+/** Claim an unclaimed profile. Atomic: fails when someone else picked it first. */
+export async function claimPerson(personId: string): Promise<Person> {
+  const res = await getSupabase()
+    .from('people')
+    .update({ claimed: true })
+    .eq('id', personId)
+    .eq('claimed', false)
+    .select()
+    .maybeSingle();
+  const person = check(res, 'Could not claim profile') as Person | null;
+  if (!person) throw new Error('Someone already picked that profile. Please choose again.');
+  return person;
+}
+
+/** Best effort: frees the profile when a device leaves the circle, so it can be claimed again. */
+export async function unclaimPerson(personId: string): Promise<void> {
+  const res = await getSupabase().from('people').update({ claimed: false }).eq('id', personId);
+  if (res.error) console.warn('unclaimPerson failed', res.error.message);
+}
+
+export async function setPersonRole(personId: string, role: 'admin' | 'member'): Promise<void> {
+  check(await getSupabase().from('people').update({ role }).eq('id', personId), 'Could not change role');
+}
+
+/** Lead hand-over. The old lead is demoted first (one lead per circle is a unique index); rolls back on failure. */
+export async function transferLead(fromId: string, toId: string): Promise<void> {
+  const db = getSupabase();
+  check(await db.from('people').update({ role: 'admin' }).eq('id', fromId), 'Could not hand over lead');
+  const promoted = await db.from('people').update({ role: 'lead' }).eq('id', toId);
+  if (promoted.error) {
+    await db.from('people').update({ role: 'lead' }).eq('id', fromId);
+    throw new Error(`Could not hand over lead: ${promoted.error.message}`);
+  }
 }
 
 export async function findCircleByCode(input: string): Promise<Circle | null> {
@@ -40,8 +93,13 @@ export async function listPeople(circleId: string): Promise<Person[]> {
   return check(res, 'Could not load people') ?? [];
 }
 
-export async function savePerson(circleId: string, p: PersonInput): Promise<Person> {
-  const row = { ...p, circle_id: circleId };
+/** `initial` (role / claimed) applies to new profiles only; edits never change them. */
+export async function savePerson(
+  circleId: string,
+  p: PersonInput,
+  initial?: { claimed?: boolean },
+): Promise<Person> {
+  const row = p.id ? { ...p, circle_id: circleId } : { ...p, circle_id: circleId, ...initial };
   const q = getSupabase().from('people');
   const res = await (p.id ? q.update(row).eq('id', p.id) : q.insert(row)).select().single();
   return check(res, 'Could not save person') as Person;
@@ -53,9 +111,14 @@ export async function deletePerson(id: string): Promise<void> {
 
 export async function listMoments(circleId: string, personId?: string, limit = 50): Promise<Moment[]> {
   let q = getSupabase().from('moments').select().eq('circle_id', circleId);
-  if (personId) q = q.eq('person_id', personId);
+  // A person's slice of the feed: moments about them or posted by them.
+  if (personId) q = q.or(`person_id.eq.${personId},author_person_id.eq.${personId}`);
   const res = await q.order('created_at', { ascending: false }).limit(limit);
   return check(res, 'Could not load moments') ?? [];
+}
+
+export async function deleteMoment(id: string): Promise<void> {
+  check(await getSupabase().from('moments').delete().eq('id', id), 'Could not delete moment');
 }
 
 export async function addMoment(circleId: string, m: MomentInput): Promise<void> {

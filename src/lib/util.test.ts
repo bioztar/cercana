@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   generateCode, isValidCode, normalizeCode, whatsappUrl, telUrl,
-  normalizeBirthdayInput, birthdayToInput, spokenPing, urlHint, uuidv4,
+  normalizeBirthdayInput, birthdayToInput, spokenPing, urlHint, uuidv4, inviteUrl, parseJoinUrl,
 } from './util.ts';
 
 test('generateCode: 6 chars, no 0/O/1/I', () => {
@@ -51,6 +51,20 @@ test('urlHint never reveals a token', () => {
 test('uuidv4 shape', () => {
   assert.match(uuidv4(), /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   assert.notEqual(uuidv4(), uuidv4());
+});
+
+test('invite link round-trips', () => {
+  assert.equal(inviteUrl('k7m4qx'), 'https://cercana.pro7ocol.com/join/K7M4QX');
+  assert.equal(inviteUrl('K7M4QX', 'http://localhost:8081/'), 'http://localhost:8081/join/K7M4QX');
+  assert.equal(parseJoinUrl('/join/K7M4QX'), 'K7M4QX');
+  assert.equal(parseJoinUrl(inviteUrl('K7M4QX')), 'K7M4QX');
+  assert.equal(parseJoinUrl('https://cercana.pro7ocol.com/join/k7m4qx?utm=1'), 'K7M4QX');
+  assert.equal(parseJoinUrl('cercana://join/K7M4QX'), 'K7M4QX');
+  assert.equal(parseJoinUrl('/join/K7M4Q0'), null); // 0 is not in the code alphabet
+  assert.equal(parseJoinUrl('/join/'), null);
+  assert.equal(parseJoinUrl('/joined/K7M4QX'), null);
+  assert.equal(parseJoinUrl('/'), null);
+  assert.equal(parseJoinUrl(null), null);
 });
 
 test('spokenPing', () => {

@@ -1,7 +1,8 @@
 // In-memory fixtures behind EXPO_PUBLIC_DEMO=1 (see api.ts). Same signatures as api.real.ts.
 // State is replaced, never mutated. Nothing here runs unless the flag is set.
 import type {
-  CalendarPublic, Circle, EventRow, Moment, MomentInput, Person, PersonInput, Ping, Session,
+  CalendarPublic, Circle, CreatedCircle, EventRow, LeadInput, MemberRole, Moment, MomentInput, Person, PersonInput,
+  Ping, Session,
 } from './types';
 import type { FeedHandlers } from './api.real';
 import { normalizeCode, urlHint, uuidv4 } from './util';
@@ -18,26 +19,33 @@ const tomorrow = addDays(now(), 1);
 const untilSunday = (7 - now().getDay()) % 7; // days from today to the coming Sunday (0 if today is Sunday)
 
 const person = (id: string, name: string, relation: string, extra: Partial<Person> = {}): Person => ({
-  id, circle_id: CIRCLE.id, name, relation, phone: '+34600000000', photo_url: null, birthday: null, ...extra,
+  id, circle_id: CIRCLE.id, name, relation, phone: '+34600000000', photo_url: null, birthday: null,
+  role: 'member', claimed: false, ...extra,
 });
 
+// Roles for design review: Anna = lead, Pedro = admin, Carmen = member, Lucia = unclaimed (a child).
+// View family mode as someone else with /?demo=family&as=pedro|carmen|lucia.
 let people: Person[] = [
-  person('anna', 'Anna', 'your daughter', { birthday: '1975-03-05' }),
-  person('pedro', 'Pedro', 'your son', { birthday: '1978-11-20' }),
+  person('anna', 'Anna', 'your daughter', { birthday: '1975-03-05', role: 'lead', claimed: true }),
+  person('pedro', 'Pedro', 'your son', { birthday: '1978-11-20', role: 'admin', claimed: true }),
   person('lucia', 'Lucia', 'your granddaughter', {
     birthday: `2010-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`,
   }),
-  person('carmen', 'Carmen', 'your sister', { birthday: '1950-07-14' }),
+  person('carmen', 'Carmen', 'your sister', { birthday: '1950-07-14', claimed: true }),
 ];
 
-const moment = (id: string, person_id: string, author: string, body: string, days: number): Moment => ({
-  id, circle_id: CIRCLE.id, person_id, author, body, photo_url: null, audio_url: null, created_at: isoDaysAgo(days),
+// `about` = who it concerns, `by` = who posted it (both people ids)
+const moment = (id: string, about: string, by: string, body: string, days: number): Moment => ({
+  id, circle_id: CIRCLE.id, person_id: about, author_person_id: by,
+  author: people.find((p) => p.id === by)?.name ?? null, body, photo_url: null, audio_url: null,
+  created_at: isoDaysAgo(days),
 });
 
 let moments: Moment[] = [
-  moment('m1', 'pedro', 'Pedro', 'I called from work. I will visit you on Sunday and bring the cake.', 1),
-  moment('m2', 'lucia', 'Anna', 'Lucia got a nine in her maths exam!', 2),
-  moment('m3', 'anna', 'Anna', 'We had lunch at the beach. You loved the paella.', 3),
+  moment('m1', 'pedro', 'pedro', 'I called from work. I will visit you on Sunday and bring the cake.', 1),
+  moment('m2', 'lucia', 'anna', 'Lucia got a nine in her maths exam!', 2),
+  moment('m3', 'anna', 'anna', 'We had lunch at the beach. You loved the paella.', 3),
+  moment('m4', 'carmen', 'carmen', 'I made your favourite soup. I will bring it on Friday.', 5),
 ];
 
 let calendars: CalendarPublic[] = [
@@ -71,8 +79,37 @@ export function subscribeCircle(_circleId: string, h: FeedHandlers): () => void 
 }
 
 // ---- api surface ---------------------------------------------------------------------------------
-export async function createCircle(patientName: string): Promise<Circle> {
-  return { ...CIRCLE, patient_name: patientName };
+export async function createCircle(patientName: string, lead?: LeadInput): Promise<CreatedCircle> {
+  return { ...CIRCLE, patient_name: patientName, lead_id: lead ? 'demo-lead' : null };
+}
+
+export async function claimPerson(personId: string): Promise<Person> {
+  const target = people.find((p) => p.id === personId);
+  if (!target || target.claimed) throw new Error('Someone already picked that profile. Please choose again.');
+  const claimed = { ...target, claimed: true };
+  people = people.map((p) => (p.id === personId ? claimed : p));
+  emitChange();
+  return claimed;
+}
+
+export async function unclaimPerson(personId: string): Promise<void> {
+  people = people.map((p) => (p.id === personId ? { ...p, claimed: false } : p));
+  emitChange();
+}
+
+export async function setPersonRole(personId: string, role: Exclude<MemberRole, 'lead'>): Promise<void> {
+  people = people.map((p) => (p.id === personId ? { ...p, role } : p));
+  emitChange();
+}
+
+export async function transferLead(fromId: string, toId: string): Promise<void> {
+  people = people.map((p) => (p.id === fromId ? { ...p, role: 'admin' } : p.id === toId ? { ...p, role: 'lead' } : p));
+  emitChange();
+}
+
+export async function deleteMoment(id: string): Promise<void> {
+  moments = moments.filter((m) => m.id !== id);
+  emitChange();
 }
 
 export async function findCircleByCode(input: string): Promise<Circle | null> {
@@ -83,9 +120,12 @@ export async function listPeople(_circleId: string): Promise<Person[]> {
   return [...people].sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function savePerson(circleId: string, p: PersonInput): Promise<Person> {
-  const saved: Person = { ...p, id: p.id ?? uuidv4(), circle_id: circleId };
-  people = p.id ? people.map((x) => (x.id === p.id ? saved : x)) : [...people, saved];
+export async function savePerson(circleId: string, p: PersonInput, initial?: { claimed?: boolean }): Promise<Person> {
+  const existing = p.id ? people.find((x) => x.id === p.id) : undefined;
+  const saved: Person = existing
+    ? { ...existing, ...p, id: existing.id }
+    : { role: 'member', claimed: initial?.claimed ?? false, ...p, id: uuidv4(), circle_id: circleId };
+  people = existing ? people.map((x) => (x.id === saved.id ? saved : x)) : [...people, saved];
   emitChange();
   return saved;
 }
@@ -97,7 +137,7 @@ export async function deletePerson(id: string): Promise<void> {
 
 export async function listMoments(_circleId: string, personId?: string, limit = 50): Promise<Moment[]> {
   return moments
-    .filter((m) => !personId || m.person_id === personId)
+    .filter((m) => !personId || m.person_id === personId || m.author_person_id === personId)
     .sort((a, b) => b.created_at.localeCompare(a.created_at))
     .slice(0, limit);
 }
@@ -146,15 +186,27 @@ export async function listEvents(_circleId: string): Promise<EventRow[]> {
   }));
 }
 
-// ---- boot links: ?demo=patient | ?demo=family [&person=anna] (web only) ---------------------------
-export function demoBoot(): { session: Session; personId?: string } | null {
+// ---- boot links (web only): ?demo=patient | family | join  [&person=anna] [&as=pedro] ---------------
+export type DemoBoot = { session: Session | null; personId?: string; joinCode?: string };
+
+export function demoBoot(): DemoBoot | null {
   const search = (globalThis as { location?: { search?: string } }).location?.search;
   if (!search) return null;
   const q = new URLSearchParams(search);
-  const role = q.get('demo');
-  if (role !== 'patient' && role !== 'family') return null;
-  const session: Session = role === 'patient'
-    ? { role, circleId: CIRCLE.id, code: CIRCLE.code, patientName: 'Maria', memberName: 'Maria' }
-    : { role, circleId: CIRCLE.id, code: CIRCLE.code, patientName: 'Maria', memberName: 'Anna', relation: 'daughter' };
-  return { session, personId: q.get('person') ?? undefined };
+  const kind = q.get('demo');
+  if (kind === 'join') return { session: null, joinCode: CIRCLE.code }; // the "Which one are you?" screen
+  if (kind === 'patient') {
+    return {
+      session: { role: 'patient', circleId: CIRCLE.id, code: CIRCLE.code, patientName: 'Maria', memberName: 'Maria' },
+      personId: q.get('person') ?? undefined,
+    };
+  }
+  if (kind !== 'family') return null;
+  const me = people.find((p) => p.id === q.get('as')) ?? people[0];
+  return {
+    session: {
+      role: 'family', circleId: CIRCLE.id, code: CIRCLE.code, patientName: 'Maria',
+      memberName: me.name, memberId: me.id, relation: me.relation ?? undefined,
+    },
+  };
 }

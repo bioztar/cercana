@@ -4,16 +4,26 @@ import {
   RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder,
 } from 'expo-audio';
 import type { Moment, Person } from '../lib/types';
-import { addMoment, listMoments, uploadMedia } from '../lib/api';
+import { addMoment, deleteMoment, listMoments, uploadMedia } from '../lib/api';
+import { can, type Actor } from '../lib/permissions';
+import { confirmDelete } from '../components/confirm';
 import { timeAgo } from '../lib/dates';
 import { pickAndUploadPhoto } from '../lib/media';
 import { BigButton, ErrorText, Field } from '../components/ui';
 import { VoicePlayer } from '../components/VoicePlayer';
 import { colors } from '../theme';
 
-type Props = { circleId: string; authorName: string; people: Person[]; version: number };
+type Props = {
+  circleId: string;
+  actor: Actor;
+  authorName: string;
+  authorId: string | null; // the poster's claimed profile, shown as the face in the patient's feed
+  people: Person[];
+  version: number;
+};
 
-export function MomentsTab({ circleId, authorName, people, version }: Props) {
+export function MomentsTab({ circleId, actor, authorName, authorId, people, version }: Props) {
+  const canDelete = can(actor, { type: 'moment.delete' });
   const [target, setTarget] = useState<string | null>(null); // null = everyone
   const [body, setBody] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
@@ -58,10 +68,18 @@ export function MomentsTab({ circleId, authorName, people, version }: Props) {
 
   const post = () => guard(async () => {
     if (!body.trim() && !photo && !audio) throw new Error('Add some text, a photo or a voice note.');
+    if (!can(actor, { type: 'moment.post' })) throw new Error('You cannot post moments.');
     await addMoment(circleId, {
-      person_id: target, author: authorName, body: body.trim() || null, photo_url: photo, audio_url: audio,
+      person_id: target, author_person_id: authorId, author: authorName,
+      body: body.trim() || null, photo_url: photo, audio_url: audio,
     });
     setBody(''); setPhoto(null); setAudio(null);
+    setMoments(await listMoments(circleId, undefined, 30));
+  });
+
+  const removeMoment = (id: string) => guard(async () => {
+    if (!(await confirmDelete('Delete this moment?'))) return;
+    await deleteMoment(id);
     setMoments(await listMoments(circleId, undefined, 30));
   });
 
@@ -95,6 +113,9 @@ export function MomentsTab({ circleId, authorName, people, version }: Props) {
           {m.body ? <Text style={s.body}>{m.body}</Text> : null}
           {m.photo_url ? <Image source={{ uri: m.photo_url }} style={s.photo} accessibilityLabel="Photo" /> : null}
           {m.audio_url ? <VoicePlayer url={m.audio_url} /> : null}
+          {canDelete ? (
+            <BigButton label="Delete moment" tone="danger" onPress={() => removeMoment(m.id)} disabled={busy} />
+          ) : null}
         </View>
       ))}
     </View>

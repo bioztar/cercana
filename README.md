@@ -20,6 +20,34 @@ note), attach calendars, and send pings.
 First launch asks *"Who is using this phone?"*: **"This phone is for [name]"** creates a circle and
 shows a join code; **"I'm family"** joins with that code.
 
+## Invite, roles and the family feed
+
+**Invite link.** `https://cercana.pro7ocol.com/join/<CODE>` (base URL is `DEFAULT_APP_URL` in `src/lib/util.ts`; on
+native the deep link is `cercana://join/<CODE>`, or type the code after choosing "I'm family").
+The invite screen shows the patient's name and *"Which one are you?"*: pick an unclaimed profile,
+or "I'm not on the list" to add yourself (name, relation, phone, photo). Claiming stores the profile
+id on the device. No password, no email. "Share invite" uses the OS share sheet (native),
+`navigator.share` or clipboard (web). Leaving the circle frees the profile again.
+
+**Roles** (`src/lib/permissions.ts`, the one place every check lives, unit-tested):
+
+| | lead (exactly one) | admin | member | patient phone |
+|---|---|---|---|---|
+| edit own profile | yes | yes | yes | no |
+| edit any profile, add people, invite, refresh calendars, delete moments | yes | yes | no | no |
+| calendars | any | any | only ones linked to themselves | no |
+| post moments and pings | yes | yes | yes | no |
+| make/unmake admins, hand over lead, remove people | yes | no | no | no |
+
+The person who sets the circle up (on the patient's phone, "This phone is for …") becomes the lead.
+A profile nobody claimed (grandkid, nurse) is just a profile. **Enforcement is UI-only this week**
+(no login, demo RLS): a determined visitor with the anon key can still write anything. The next
+step swaps in real auth + RLS and reuses the same `can(actor, action)` vocabulary.
+
+**Family feed.** The patient home shows "From your family": every moment, newest first, with the
+author's face, name and relation; tap the author for their card. A person's card shows the same
+feed filtered to moments by or about them.
+
 ## Run
 
 ```bash
@@ -30,8 +58,8 @@ npx expo start              # press i (iOS simulator / Expo Go / dev build) or w
 
 Without those two settings the app shows a full-screen message naming the missing one.
 
-**Demo mode (no backend needed):** on the web, open `/?demo=patient`, `/?demo=patient&person=anna`
-or `/?demo=family` in **any** build, including production. Data is in-memory sample fixtures, a
+**Demo mode (no backend needed):** on the web, open `/?demo=patient`, `/?demo=patient&person=anna`,
+`/?demo=family` (add `&as=pedro|carmen|lucia` to see another role), or `/?demo=join` in **any** build, including production. Data is in-memory sample fixtures, a
 "Demo — sample family" ribbon is shown, sending a ping fires the patient overlay locally, and demo
 never reads or writes the visitor's real session. `EXPO_PUBLIC_DEMO=1` at build time turns the
 same mode on for the whole build (offline demos, screenshots).

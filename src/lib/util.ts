@@ -75,6 +75,21 @@ export function uuidv4(random: () => number = Math.random): string {
   });
 }
 
+export const DEFAULT_APP_URL = 'https://cercana.pro7ocol.com';
+
+/** https://cercana.pro7ocol.com/join/K7M4QX */
+export function inviteUrl(code: string, base: string = DEFAULT_APP_URL): string {
+  return `${base.replace(/\/+$/, '')}/join/${normalizeCode(code)}`;
+}
+
+/** Circle code from a web path or deep link ("/join/K7M4QX", "https://…/join/K7M4QX?x", "cercana://join/K7M4QX"). */
+export function parseJoinUrl(url: string | null | undefined): string | null {
+  const m = /(?:^|\/)join\/([A-Za-z0-9-]{6,8})(?:[/?#]|$)/.exec(url ?? '');
+  if (!m) return null;
+  const code = normalizeCode(m[1]);
+  return isValidCode(code) ? code : null;
+}
+
 export function spokenPing(fromName: string, message: string): string {
   return `${fromName} says: ${message}`;
 }

@@ -5,9 +5,10 @@ import { addCalendar, deleteCalendar, listCalendars, syncCalendars } from '../li
 import { timeAgo } from '../lib/dates';
 import { BigButton, ErrorText, Field } from '../components/ui';
 import { confirmDelete } from '../components/confirm';
+import { can, type Actor } from '../lib/permissions';
 import { colors } from '../theme';
 
-type Props = { circleId: string; people: Person[]; onSynced: () => void };
+type Props = { circleId: string; actor: Actor; people: Person[]; onSynced: () => void };
 
 function syncedAgo(iso: string, now = new Date()): string {
   const mins = Math.round((now.getTime() - new Date(iso).getTime()) / 60_000);
@@ -17,7 +18,9 @@ function syncedAgo(iso: string, now = new Date()): string {
   return timeAgo(new Date(iso), now);
 }
 
-export function CalendarsTab({ circleId, people, onSynced }: Props) {
+export function CalendarsTab({ circleId, actor, people, onSynced }: Props) {
+  // Staff may link a calendar to anyone; a member only to themselves (permissions.ts decides).
+  const allowedPeople = people.filter((p) => can(actor, { type: 'calendar.add', personIds: [p.id] }));
   const [calendars, setCalendars] = useState<CalendarPublic[]>([]);
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -62,7 +65,8 @@ export function CalendarsTab({ circleId, people, onSynced }: Props) {
     return (
       <AddCalendar
         circleId={circleId}
-        people={people}
+        actor={actor}
+        people={allowedPeople}
         onClose={() => setAdding(false)}
         onAdded={() => { setAdding(false); void load(); onSynced(); }}
       />
@@ -77,8 +81,14 @@ export function CalendarsTab({ circleId, people, onSynced }: Props) {
         Paste a calendar's public ICS address (Google: "Secret address in iCal format", iCloud: public calendar
         link, Outlook: published calendar). Its events then appear on the linked people's cards.
       </Text>
-      <BigButton label="Add a calendar" onPress={() => setAdding(true)} />
-      {calendars.length > 0 && <BigButton label="Refresh calendars" tone="plain" onPress={refresh} busy={busy} />}
+      {allowedPeople.length > 0 ? (
+        <BigButton label="Add a calendar" onPress={() => setAdding(true)} />
+      ) : (
+        <Text style={s.sub}>Claim your profile to add your own calendar.</Text>
+      )}
+      {calendars.length > 0 && can(actor, { type: 'calendar.refresh' }) && (
+        <BigButton label="Refresh calendars" tone="plain" onPress={refresh} busy={busy} />
+      )}
       <ErrorText message={error} />
       {calendars.map((c) => (
         <View key={c.id} style={s.row}>
@@ -92,9 +102,11 @@ export function CalendarsTab({ circleId, people, onSynced }: Props) {
               {c.person_ids.length ? `For: ${c.person_ids.map(nameOf).join(', ')}` : 'Not linked to anyone yet'}
             </Text>
           </View>
-          <Pressable onPress={() => remove(c)} accessibilityRole="button" style={s.del}>
-            <Text style={s.delText}>Remove</Text>
-          </Pressable>
+          {can(actor, { type: 'calendar.remove', personIds: c.person_ids }) ? (
+            <Pressable onPress={() => remove(c)} accessibilityRole="button" style={s.del}>
+              <Text style={s.delText}>Remove</Text>
+            </Pressable>
+          ) : null}
         </View>
       ))}
       {calendars.length === 0 && <Text style={s.sub}>No calendars yet.</Text>}
@@ -102,10 +114,10 @@ export function CalendarsTab({ circleId, people, onSynced }: Props) {
   );
 }
 
-function AddCalendar(props: { circleId: string; people: Person[]; onClose: () => void; onAdded: () => void }) {
+function AddCalendar(props: { circleId: string; actor: Actor; people: Person[]; onClose: () => void; onAdded: () => void }) {
   const [label, setLabel] = useState('');
   const [url, setUrl] = useState('');
-  const [chosen, setChosen] = useState<string[]>([]);
+  const [chosen, setChosen] = useState<string[]>(props.people.length === 1 ? [props.people[0].id] : []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -116,6 +128,7 @@ function AddCalendar(props: { circleId: string; people: Person[]; onClose: () =>
     if (!label.trim()) return setError('Give the calendar a name, e.g. "Anna\'s calendar".');
     if (!/^(https?|webcal):\/\//i.test(url.trim())) return setError('The address must start with https:// or webcal://');
     if (chosen.length === 0) return setError('Tick at least one person this calendar belongs to.');
+    if (!can(props.actor, { type: 'calendar.add', personIds: chosen })) return setError('You can only add calendars that belong to you.');
     setBusy(true);
     setError(null);
     try {

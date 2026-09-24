@@ -7,6 +7,11 @@ const impl: typeof real = demo ? fixtures : real;
 
 export const createCircle = impl.createCircle;
 export const findCircleByCode = impl.findCircleByCode;
+export const claimPerson = impl.claimPerson;
+export const unclaimPerson = impl.unclaimPerson;
+export const setPersonRole = impl.setPersonRole;
+export const transferLead = impl.transferLead;
+export const deleteMoment = impl.deleteMoment;
 export const listPeople = impl.listPeople;
 export const savePerson = impl.savePerson;
 export const deletePerson = impl.deletePerson;
