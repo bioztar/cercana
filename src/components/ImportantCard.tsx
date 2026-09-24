@@ -23,10 +23,21 @@ export function ImportantCard({ event, due, onOpenCheck, now = new Date() }: Pro
       onPress={due ? onOpenCheck : undefined}
       style={s.card}
     >
-      <Text style={s.badge}>Important</Text>
+      <ImportantBadge />
       <Text style={s.title}>{cardText(event, now)}</Text>
       {due ? <BigButton label="Did you go?" tone="terracotta" onPress={onOpenCheck} style={s.btn} /> : null}
     </Pressable>
+  );
+}
+
+/** Small "Important" pill for Mom's feed and calendar (Vitaly, 2026-09-24 14:50). Exported so
+ * cercana-design can drop it into FeedItem/CalendarTab next to important events — flagged in the
+ * mission Progress, since those files aren't ours to restructure. */
+export function ImportantBadge() {
+  return (
+    <View style={s.pill}>
+      <Text style={s.pillText}>Important</Text>
+    </View>
   );
 }
 
@@ -35,7 +46,11 @@ const s = StyleSheet.create({
     backgroundColor: colors.peachSoft, borderRadius: 20, padding: 18, marginBottom: 24,
     borderWidth: 2, borderColor: colors.terracotta,
   },
-  badge: { fontSize: 16, fontWeight: '800', color: colors.terracottaDark, marginBottom: 6 },
-  title: { fontSize: 24, fontWeight: '800', color: colors.ink },
+  title: { fontSize: 24, fontWeight: '800', color: colors.ink, marginTop: 6 },
   btn: { marginTop: 14 },
+  pill: {
+    alignSelf: 'flex-start', backgroundColor: colors.peach, borderRadius: 999,
+    paddingHorizontal: 10, paddingVertical: 3,
+  },
+  pillText: { fontSize: 13, fontWeight: '800', color: colors.terracottaDark },
 });

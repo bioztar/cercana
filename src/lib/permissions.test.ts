@@ -38,6 +38,15 @@ test('editBrief: Mom (patient device), lead/admin — not plain members or an un
   assert.equal(check(drifter, { type: 'editBrief' }), false);
 });
 
+test('viewCheckin: creator + lead/admin only, never a plain member or the patient device', () => {
+  assert.equal(check(lead, { type: 'viewCheckin', creatorId: 'M' }), true); // lead sees any
+  assert.equal(check(admin, { type: 'viewCheckin', creatorId: 'M' }), true);
+  assert.equal(check(member, { type: 'viewCheckin', creatorId: 'M' }), true); // creator sees their own
+  assert.equal(check(member, { type: 'viewCheckin', creatorId: 'X' }), false); // not the creator
+  assert.equal(check(drifter, { type: 'viewCheckin', creatorId: null }), false);
+  assert.equal(check(patient, { type: 'viewCheckin', creatorId: 'M' }), false);
+});
+
 test('adding people, inviting, refreshing calendars, deleting moments: staff only', () => {
   for (const type of ['person.add', 'invite.share', 'calendar.refresh', 'moment.delete'] as const) {
     assert.equal(check(lead, { type }), true, `lead ${type}`);

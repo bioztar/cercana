@@ -4,8 +4,8 @@ import { generateCode, normalizeCode, isValidCode, urlHint, uuidv4 } from './uti
 import { summarizeComments } from './voice';
 import type {
   BriefSettings, CalendarPublic, Checkin, CheckinAnswer, Circle, Comment, CommentInput, CommentSummary,
-  CreatedCircle, DeviceEventRow, EventRow, ImportantEvent, ImportantInput, LeadInput, Moment, MomentInput,
-  NewEventInput, Person, PersonInput, Ping,
+  CreatedCircle, DeviceCalendarLink, DeviceEventRow, EventRow, ImportantEvent, ImportantInput, LeadInput,
+  Moment, MomentInput, NewEventInput, Person, PersonInput, Ping,
 } from './types';
 
 function check<T>(res: { data: T | null; error: { message: string } | null }, what: string): T {
@@ -345,11 +345,16 @@ export async function submitCheckin(
 
 // ---- Device calendar sync (cercana-care) --------------------------------------------------------
 
-/** Creates a `source: device` calendar (no ICS url) and links the people who usually take part. */
-export async function addDeviceCalendar(circleId: string, label: string, personIds: string[]): Promise<string> {
+/** Creates a `source: device` calendar (no ICS url) and links the people who usually take part.
+ * `deviceCalendarId` (the OS-level calendar id) is kept in `url_hint` so later syncs can re-fetch
+ * events from it — device calendars have no secret to protect there, unlike ICS urls. */
+export async function addDeviceCalendar(circleId: string, label: string, deviceCalendarId: string, personIds: string[]): Promise<string> {
   const db = getSupabase();
   const id = uuidv4();
-  check(await db.from('calendars').insert({ id, circle_id: circleId, label, source: 'device' }), 'Could not save calendar');
+  check(
+    await db.from('calendars').insert({ id, circle_id: circleId, label, source: 'device', url_hint: deviceCalendarId }),
+    'Could not save calendar',
+  );
   if (personIds.length > 0) {
     check(
       await db.from('calendar_people').insert(personIds.map((person_id) => ({ calendar_id: id, person_id }))),
@@ -357,6 +362,17 @@ export async function addDeviceCalendar(circleId: string, label: string, personI
     );
   }
   return id;
+}
+
+/** Connected device calendars, for re-syncing on app open / pull-to-refresh (see CalendarConnect.tsx). */
+export async function listDeviceCalendars(circleId: string): Promise<DeviceCalendarLink[]> {
+  const res = await getSupabase()
+    .from('calendars_public')
+    .select('id, url_hint')
+    .eq('circle_id', circleId)
+    .eq('source', 'device');
+  const rows = (check(res, 'Could not load device calendars') ?? []) as { id: string; url_hint: string | null }[];
+  return rows.filter((r): r is { id: string; url_hint: string } => !!r.url_hint).map((r) => ({ id: r.id, device_calendar_id: r.url_hint }));
 }
 
 /** Upserts device events (by uid + start) into an app/device calendar. Client-writable per migration 01. */

@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  answerHeadline, cardText, checkQuestion, defaultReminders, deliveryOf, dueCheckin, importantPhrase,
-  nextImportant, notificationPlan, statusText, todaysImportantSentences,
+  answerHeadline, cardText, checkQuestion, defaultReminders, deliveryOf, dueCheckin, hasNotAnswered, importantPhrase,
+  nextImportant, notificationPlan, reAskAt, statusText, todaysImportantSentences,
 } from './important.ts';
 import type { Checkin, ImportantEvent } from './types.ts';
 
@@ -63,6 +63,16 @@ test('status text and delivery', () => {
   assert.equal(deliveryOf(e.reminders[0], new Date(2026, 8, 28, 20, 1)), 'delivered');
 });
 
+test('reAskAt / hasNotAnswered: re-ask 1 h after the check reminder; "Mom hasn\'t answered" once it passes', () => {
+  const e = ev('e', start); // check reminder at Tue 12:30
+  assert.deepEqual(reAskAt(e), new Date(2026, 8, 29, 13, 30));
+  assert.equal(hasNotAnswered(e, null, new Date(2026, 8, 29, 13, 29)), false);
+  assert.equal(hasNotAnswered(e, null, new Date(2026, 8, 29, 13, 30)), true);
+  assert.equal(hasNotAnswered(e, checkin('e'), new Date(2026, 8, 29, 14, 0)), false); // answered
+  assert.equal(statusText(e, null, new Date(2026, 8, 29, 13, 0)), 'Waiting for Mom’s answer');
+  assert.equal(statusText(e, null, new Date(2026, 8, 29, 13, 30)), 'Mom hasn’t answered');
+});
+
 test('todaysImportantSentences: only today\'s events, sorted, none for other days', () => {
   const today1 = ev('e1', new Date(2026, 8, 28, 8, 0));
   const today2 = ev('e2', new Date(2026, 8, 28, 16, 0));
@@ -74,14 +84,16 @@ test('todaysImportantSentences: only today\'s events, sorted, none for other day
   assert.deepEqual(todaysImportantSentences([tomorrow], now), []);
 });
 
-test('notificationPlan: future reminders of unanswered events only, sorted, stable ids', () => {
+test('notificationPlan: future reminders of unanswered events only, sorted, stable ids, incl. re-ask', () => {
   const e = ev('e', start);
   const plan = notificationPlan([e, ev('done', start)], [checkin('done')], new Date(2026, 8, 29, 8, 0));
-  assert.deepEqual(plan.map((p) => p.id), ['imp-e-on_day', 'imp-e-check']);
+  assert.deepEqual(plan.map((p) => p.id), ['imp-e-on_day', 'imp-e-check', 'imp-e-re_ask']);
   assert.equal(plan[0].title, 'Today: Cardiologist appointment');
   assert.equal(plan[1].title, 'Did you go to the doctor?');
+  assert.equal(plan[2].kind, 're_ask');
+  assert.deepEqual(plan[2].at, new Date(2026, 8, 29, 13, 30));
   const all = notificationPlan([e], [], now);
-  assert.equal(all.length, 3);
+  assert.equal(all.length, 4);
   assert.equal(all[0].title, 'Tomorrow: Cardiologist appointment');
   assert.equal(all[0].body, 'Cardiologist appointment, Tomorrow at 10:30 am. Reminder from your family.');
 });

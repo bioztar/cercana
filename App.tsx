@@ -18,7 +18,7 @@ import {
   registerForPush, requestWebNotificationPermission, scheduleImportantReminders, scheduleMorningBrief,
   showWebNotification,
 } from './src/lib/notify';
-import { cardText, dueCheckin, nextImportant, todaysImportantSentences } from './src/lib/important';
+import { cardText, dueCheckin, hasNotAnswered, nextImportant, todaysImportantSentences } from './src/lib/important';
 import { ImportantCard } from './src/components/ImportantCard';
 import { briefNotificationBody, buildBriefing, countNewPhotos, mergeBriefingEvents, newPhotosPhrase, todaySentences } from './src/lib/briefing';
 import { birthdayPhrase, upcomingBirthday } from './src/lib/dates';
@@ -36,6 +36,7 @@ import { PingOverlay } from './src/screens/PingOverlay';
 import { MomCheck } from './src/screens/MomCheck';
 import { ImportantCreate } from './src/screens/ImportantCreate';
 import { ImportantStatus } from './src/screens/ImportantStatus';
+import { CalendarConnect, syncAllDeviceCalendars } from './src/screens/CalendarConnect';
 import { FamilyHome } from './src/screens/FamilyHome';
 import { Settings } from './src/screens/Settings';
 import { Thread } from './src/screens/Thread';
@@ -60,7 +61,8 @@ type Route =
   | { name: 'eventVoice' }
   | { name: 'eventConfirm'; transcript: string }
   | { name: 'important-create' } // cercana-care: temporary top-level entry point — FamilyHome/CalendarsTab
-  | { name: 'important-status'; id: string }; // aren't ours to restructure; a real tab lands with cercana-design's merge.
+  | { name: 'important-status'; id: string } // aren't ours to restructure; a real tab lands with cercana-design's merge.
+  | { name: 'calendar-connect' };
 
 initNotifications();
 let spokeMorningBriefDemo = false; // mirrors PatientHome's spokeThisOpen: demo speaks the brief once
@@ -188,6 +190,12 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
   }, [session.circleId]);
   useEffect(() => { void reloadImportant(); }, [reloadImportant, version]);
 
+  // cercana-care: re-sync connected iPhone calendars on family app open (iOS only; no-op elsewhere).
+  useEffect(() => {
+    if (isPatient) return;
+    void syncAllDeviceCalendars(session.circleId).then(() => reloadEvents());
+  }, [isPatient, session.circleId]);
+
   const [momCheckEvent, setMomCheckEvent] = useState<ImportantEvent | null>(null);
   const [tick, setTick] = useState(0); // forces the due check below to re-run as the clock passes reminder times
   useEffect(() => {
@@ -305,15 +313,23 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
     body = ev ? (
       <View style={s.panel}>
         <ImportantStatus event={ev} checkin={checkins.find((c) => c.important_event_id === ev.id) ?? null}
-          people={people} onBack={home} />
+          people={people} canView={can(actor, { type: 'viewCheckin', creatorId: ev.created_by_person_id })} onBack={home} />
       </View>
     ) : null;
+  } else if (!isPatient && route.name === 'calendar-connect') {
+    body = (
+      <View style={s.panel}>
+        <CalendarConnect circleId={session.circleId} people={people} onClose={home}
+          onConnected={() => { void reloadEvents(); home(); }} />
+      </View>
+    );
   } else if (!isPatient) {
     body = (
       <View style={{ gap: 16 }}>
         <ImportantPanel events={important} checkins={checkins}
           onNew={() => setRoute({ name: 'important-create' })}
-          onOpen={(id) => setRoute({ name: 'important-status', id })} />
+          onOpen={(id) => setRoute({ name: 'important-status', id })}
+          onConnectCalendar={() => setRoute({ name: 'calendar-connect' })} />
         <FamilyHome session={session} actor={actor} people={people} events={events} moments={moments} error={error}
           version={version} reload={reload} reloadEvents={reloadEvents} onSettings={() => setRoute({ name: 'settings' })} />
       </View>
@@ -392,22 +408,33 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
 
 /** Temporary family-side entry point for important events (see the Route comment above). */
 function ImportantPanel(
-  { events, checkins, onNew, onOpen }: { events: ImportantEvent[]; checkins: Checkin[]; onNew: () => void; onOpen: (id: string) => void },
+  { events, checkins, onNew, onOpen, onConnectCalendar }: {
+    events: ImportantEvent[]; checkins: Checkin[]; onNew: () => void; onOpen: (id: string) => void; onConnectCalendar: () => void;
+  },
 ) {
   const next = nextImportant(events, new Date());
+  const now = new Date();
+  const answered = next ? checkins.find((c) => c.important_event_id === next.id) : undefined;
   return (
     <View style={s.panel}>
       <Text style={s.panelTitle}>Important events</Text>
       {next ? (
         <Pressable onPress={() => onOpen(next.id)} accessibilityRole="button" style={s.panelRow}>
-          <Text style={s.panelRowText}>{cardText(next, new Date())}</Text>
-          {checkins.some((c) => c.important_event_id === next.id) ? <Text style={s.panelDone}>✓ answered</Text> : null}
+          <Text style={s.panelRowText}>{cardText(next, now)}</Text>
+          {answered ? (
+            <Text style={s.panelDone}>✓ answered</Text>
+          ) : hasNotAnswered(next, null, now) ? (
+            <Text style={s.panelWarn}>Mom hasn't answered</Text>
+          ) : null}
         </Pressable>
       ) : (
         <Text style={s.panelEmpty}>No important events yet.</Text>
       )}
       <Pressable onPress={onNew} accessibilityRole="button" style={s.panelAdd}>
         <Text style={s.panelAddText}>+ New important event</Text>
+      </Pressable>
+      <Pressable onPress={onConnectCalendar} accessibilityRole="button" style={s.panelAdd}>
+        <Text style={s.panelAddText}>+ Connect iPhone calendar</Text>
       </Pressable>
     </View>
   );
@@ -424,6 +451,7 @@ const s = StyleSheet.create({
   panelRow: { paddingVertical: 6 },
   panelRowText: { fontSize: 18, fontWeight: '700', color: colors.ink },
   panelDone: { fontSize: 14, color: colors.green, fontWeight: '700', marginTop: 2 },
+  panelWarn: { fontSize: 14, color: colors.terracottaDark, fontWeight: '700', marginTop: 2 },
   panelEmpty: { fontSize: 16, color: colors.inkSoft },
   panelAdd: { marginTop: 10, minHeight: 44, justifyContent: 'center' },
   panelAddText: { fontSize: 16, color: colors.terracotta, fontWeight: '700' },

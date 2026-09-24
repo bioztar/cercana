@@ -150,3 +150,7 @@ export type DeviceEventRow = {
 
 /** The scheduled morning brief, per circle (`circles.brief_time`/`brief_enabled`). `brief_time` is "HH:MM". */
 export type BriefSettings = { brief_time: string; brief_enabled: boolean };
+
+/** A connected iPhone calendar: our row id plus the device-local calendar id (stored in
+ * `calendars.url_hint` for source:'device' rows) needed to re-sync it later. */
+export type DeviceCalendarLink = { id: string; device_calendar_id: string };

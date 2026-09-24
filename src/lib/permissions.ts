@@ -28,7 +28,8 @@ export type Action =
   | { type: 'moment.post' }
   | { type: 'moment.delete' }
   | { type: 'ping.send' }
-  | { type: 'editBrief' }; // morning brief settings: Mom (patient device) or lead/admin
+  | { type: 'editBrief' } // morning brief settings: Mom (patient device) or lead/admin
+  | { type: 'viewCheckin'; creatorId: string | null }; // Mom's "Did you go?" answer: creator + lead/admin only
 
 export type ActionType = Action['type'];
 
@@ -72,6 +73,9 @@ export function can(actor: Actor, action: Action): boolean {
     case 'moment.post':
     case 'ping.send':
       return true;
+
+    case 'viewCheckin':
+      return isStaff(actor) || (actor.id !== null && actor.id === action.creatorId);
   }
 }
 

@@ -101,24 +101,42 @@ export const REMINDER_LABEL: Record<ReminderKind, string> = {
 export type Delivery = 'delivered' | 'scheduled';
 export const deliveryOf = (r: Reminder, now: Date): Delivery => (new Date(r.at) <= now ? 'delivered' : 'scheduled');
 
+/** 1 h after the check-in reminder — when an unanswered event gets a second "Did you go?" prompt
+ * (Vitaly, 2026-09-24 14:50). Null when the event has no check reminder. */
+export function reAskAt(e: ImportantEvent): Date | null {
+  const check = e.reminders.find((r) => r.kind === 'check');
+  return check ? new Date(new Date(check.at).getTime() + HOUR) : null;
+}
+
+/** True once the re-ask time has passed with still no answer — shown to the family so someone can follow up. */
+export function hasNotAnswered(e: ImportantEvent, checkin: Checkin | null, now: Date): boolean {
+  if (checkin) return false;
+  const at = reAskAt(e);
+  return !!at && at <= now;
+}
+
 /** One line for the family status screen. */
 export function statusText(e: ImportantEvent, checkin: Checkin | null, now: Date): string {
   if (checkin) return answerHeadline(checkin.answer);
+  if (hasNotAnswered(e, checkin, now)) return 'Mom hasn’t answered';
   const check = e.reminders.find((r) => r.kind === 'check');
   if (check && new Date(check.at) <= now) return 'Waiting for Mom’s answer';
   return 'Reminders are set';
 }
+
+export type NotificationKind = ReminderKind | 're_ask';
 
 export type PlannedNotification = {
   id: string; // stable, prefixed `imp-`, so re-scheduling only touches our own
   at: Date;
   title: string;
   body: string;
-  kind: ReminderKind;
+  kind: NotificationKind;
   eventId: string;
 };
 
-/** Future reminders of unanswered events, soonest first, capped for the iOS notification limit. */
+/** Future reminders of unanswered events, soonest first, capped for the iOS notification limit.
+ * Adds one re-ask per event 1 h after its check-in reminder, if still unanswered by then. */
 export function notificationPlan(events: ImportantEvent[], checkins: Checkin[], now: Date): PlannedNotification[] {
   const answered = new Set(checkins.map((c) => c.important_event_id));
   const out: PlannedNotification[] = [];
@@ -133,6 +151,13 @@ export function notificationPlan(events: ImportantEvent[], checkins: Checkin[], 
         : r.kind === 'on_day' ? [`Today: ${e.title}`, `${e.title}, ${when.replace(/^Today/, 'today')}.`]
         : [checkQuestion(e.title), 'Your family will see your answer.'];
       out.push({ id: `imp-${e.id}-${r.kind}`, at, title, body, kind: r.kind, eventId: e.id });
+    }
+    const reAsk = reAskAt(e);
+    if (reAsk && reAsk > now) {
+      out.push({
+        id: `imp-${e.id}-re_ask`, at: reAsk, title: checkQuestion(e.title),
+        body: 'Just checking — your family will see your answer.', kind: 're_ask', eventId: e.id,
+      });
     }
   }
   return out.sort((a, b) => a.at.getTime() - b.at.getTime()).slice(0, MAX_SCHEDULED);

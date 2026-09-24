@@ -2,8 +2,8 @@
 // State is replaced, never mutated. Nothing here runs unless the flag is set.
 import type {
   BriefSettings, CalendarPublic, Checkin, CheckinAnswer, Circle, Comment, CommentInput, CommentSummary,
-  CreatedCircle, DeviceEventRow, EventRow, ImportantEvent, ImportantInput, LeadInput, MemberRole, Moment,
-  MomentInput, NewEventInput, Person, PersonInput, Ping, Session,
+  CreatedCircle, DeviceCalendarLink, DeviceEventRow, EventRow, ImportantEvent, ImportantInput, LeadInput,
+  MemberRole, Moment, MomentInput, NewEventInput, Person, PersonInput, Ping, Session,
 } from './types';
 import type { FeedHandlers } from './api.real';
 import { defaultReminders } from './important';
@@ -308,13 +308,17 @@ export async function submitCheckin(
 
 // ---- device calendar sync (cercana-care) — demo has no real iPhone calendars to read -------------
 
-export async function addDeviceCalendar(circleId: string, label: string, personIds: string[]): Promise<string> {
+export async function addDeviceCalendar(circleId: string, label: string, deviceCalendarId: string, personIds: string[]): Promise<string> {
   const id = uuidv4();
-  calendars = [...calendars, { id, circle_id: circleId, label, url_hint: 'iPhone', last_synced_at: new Date().toISOString(), last_error: null, person_ids: personIds }];
+  calendars = [...calendars, { id, circle_id: circleId, label, url_hint: deviceCalendarId, last_synced_at: new Date().toISOString(), last_error: null, person_ids: personIds }];
   return id;
 }
 
 export async function upsertDeviceEvents(_circleId: string, _calendarId: string, _rows: DeviceEventRow[]): Promise<void> {}
+
+export async function listDeviceCalendars(_circleId: string): Promise<DeviceCalendarLink[]> {
+  return []; // demo has no real iPhone to read a device calendar id from
+}
 
 // ---- scheduled morning brief (cercana-care) --------------------------------------------------------
 

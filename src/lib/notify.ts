@@ -126,7 +126,7 @@ export async function scheduleImportantReminders(events: ImportantEvent[], check
 /** The important_event id to open MomCheck for, when a tapped notification was a check-in prompt. */
 export function checkinEventFromNotificationData(data: unknown): string | null {
   const d = data as { impKind?: string; impEventId?: string } | undefined;
-  return d?.impKind === 'check' && d.impEventId ? d.impEventId : null;
+  return (d?.impKind === 'check' || d?.impKind === 're_ask') && d.impEventId ? d.impEventId : null;
 }
 
 /** Native: (re)schedules the daily morning-brief notification at `brief.brief_time`, cancelling
