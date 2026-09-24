@@ -1,4 +1,6 @@
 -- Cercana demo family "Maria's family" (code ABUELA). Fictional people, generated faces.
+-- Dates are relative to the day you run it: Lucia's birthday is tomorrow, the blood test is this morning.
+-- Phone numbers are NOT in this public file; add them live after seeding (see demo/README.md).
 delete from circles where code = 'ABUELA';
 with c as (
   insert into circles (code, patient_name) values ('ABUELA', 'Maria') returning id
@@ -9,7 +11,7 @@ with c as (
     ('Anna',   'your daughter',      'anna.jpg',   '1976-03-14', 'lead'),
     ('Pedro',  'your son',           'pedro.jpg',  '1979-06-02', 'admin'),
     ('Carmen', 'your sister',        'carmen.jpg', '1950-11-20', 'member'),
-    ('Lucia',  'your granddaughter', 'lucia.jpg',  '2010-09-25', 'member'),
+    ('Lucia',  'your granddaughter', 'lucia.jpg',  ((current_date + 1) - interval '16 years')::date::text, 'member'),
     ('Diego',  'your grandson',      'diego.jpg',  '2017-05-09', 'member'),
     ('Rosa',   'your carer',         'rosa.jpg',   null,         'admin')
   ) v(name, rel, img, bday, role)
@@ -42,5 +44,18 @@ with c as (
     (cal.label = 'Family' and p.name in ('Pedro', 'Diego', 'Rosa'))
   returning 1
 )
+), imp as (
+  -- A check-in that is already due: "Blood test this morning", 09:00–09:30 Madrid, created by Pedro.
+  -- The check reminder is 2 h after the end, so "Did you go?" shows on Maria's home from 11:30.
+  insert into important_events (circle_id, title, starts_at, ends_at, location, created_by_person_id, reminders)
+  select c.id, 'Blood test', t.s, t.e, 'Health centre', (select id from p where name = 'Pedro'),
+         jsonb_build_array(
+           jsonb_build_object('kind', 'evening_before', 'at', to_jsonb((current_date - 1 + time '20:00') at time zone 'Europe/Madrid')),
+           jsonb_build_object('kind', 'on_day', 'at', to_jsonb(t.s - interval '2 hours')),
+           jsonb_build_object('kind', 'check', 'at', to_jsonb(t.e + interval '2 hours')))
+  from c, (select (current_date + time '09:00') at time zone 'Europe/Madrid' as s,
+                  (current_date + time '09:30') at time zone 'Europe/Madrid' as e) t
+  returning 1
+)
 select (select count(*) from p) as people, (select count(*) from m) as moments,
-       (select count(*) from cal) as calendars, (select count(*) from cp) as links;
+       (select count(*) from cal) as calendars, (select count(*) from cp) as links, (select count(*) from imp) as important;

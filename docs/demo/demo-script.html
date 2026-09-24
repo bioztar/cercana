@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cercana — Demo Script</title>
+<style>
+  :root { --ink:#1F1B16; --muted:#5E574E; --bg:#F7F3EC; --card:#fff; --line:#E4DACB; --brand:#A34A24;
+          --peach:#FBEFE7; --zebra:#FBF7F1; --maria:#A34A24; --pedro:#234A70; --anna:#2F6B3A; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+    font:16.5px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  main { max-width:860px; margin:0 auto; padding:28px 18px 56px; }
+  h1 { font-size:1.9rem; line-height:1.2; margin:0 0 6px; }
+  h2 { font-size:1.25rem; margin:34px 0 10px; padding-left:12px; border-left:5px solid var(--brand); }
+  p, li { margin:6px 0; }
+  .cast { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:16px 0; }
+  .role { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 14px; border-top:5px solid; }
+  .role b { display:block; font-size:1.05rem; }
+  .role span { color:var(--muted); font-size:.92rem; }
+  .maria { border-top-color:var(--maria); } .pedro { border-top-color:var(--pedro); } .anna { border-top-color:var(--anna); }
+  .land { background:#EEF7F0; border:1px solid #B9DCC4; border-radius:14px; padding:12px 18px; }
+  .land ol { margin:6px 0 0; padding-left:22px; }
+  .tablewrap { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--line); font-size:.95rem; }
+  th, td { text-align:left; vertical-align:top; padding:9px 10px; border-bottom:1px solid var(--line); }
+  th { background:#F2E9DC; }
+  tbody tr:nth-child(even) { background:var(--zebra); }
+  td.t { font-variant-numeric:tabular-nums; white-space:nowrap; color:var(--muted); }
+  .tag { display:inline-block; padding:1px 8px; border-radius:999px; color:#fff; font-size:.78rem; font-weight:600; white-space:nowrap; }
+  .tag.maria { background:var(--maria); } .tag.pedro { background:var(--pedro); } .tag.anna { background:var(--anna); } .tag.v { background:var(--ink); }
+  td.say { font-style:italic; }
+  .callout { border-radius:14px; padding:12px 18px; margin:14px 0; border:1px solid; }
+  .warn { background:#FFF5E6; border-color:#F0CF97; }
+  .info { background:#EEF3FA; border-color:#BCD0E8; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.9em; background:#F2E9DC; padding:1px 5px; border-radius:5px; }
+  a { color:var(--brand); }
+  @media (max-width:640px) { .cast { grid-template-columns:1fr; } main { padding:18px 14px 40px; } }
+  @media print { body { background:#fff; font-size:11pt; } .role, .callout, table { page-break-inside:avoid; box-shadow:none; } a { color:var(--ink); } }
+</style>
+</head>
+<body>
+<main>
+<h1>Cercana — 4-minute demo</h1>
+<p style="color:var(--muted);margin:0">Two phones and a laptop · family code <code>ABUELA</code> · <a href="https://cercana.pro7ocol.com">https://cercana.pro7ocol.com</a></p>
+
+<div class="cast">
+  <div class="role maria"><b>Maria · Vitaly</b><span>79, memory loss · iPhone with the Cercana app</span></div>
+  <div class="role pedro"><b>Pedro · Andrey</b><span>her son · his phone (app, or Safari)</span></div>
+  <div class="role anna"><b>Anna · laptop</b><span>her daughter "in London" · the web app on the big screen</span></div>
+</div>
+
+<div class="land"><b>Land these three things</b>
+<ol>
+  <li><b>Maria never has to remember.</b> The phone tells her what her day holds and who everyone is.</li>
+  <li><b>Maria is not just a viewer.</b> She answers her family by voice.</li>
+  <li><b>The family knows she's OK.</b> "Did you go to the doctor?" comes back to them.</li>
+</ol></div>
+
+<h2>The run (≈ 4 min)</h2>
+<div class="tablewrap"><table>
+<thead><tr><th>Time</th><th>Who</th><th>Do</th><th>Say</th></tr></thead>
+<tbody>
+<tr><td class="t">0:00</td><td><span class="tag v">Vitaly</span></td><td>Hold up the phone.</td><td class="say">"Over 55 million people live with dementia. The hardest part for families isn't the big moments. It's that yesterday doesn't stick."</td></tr>
+<tr><td class="t">0:20</td><td><span class="tag maria">Maria</span></td><td>Tap <b>Hear today</b>. The phone speaks: Rosa visits, Anna in London, Lucia's birthday tomorrow, new photos.</td><td class="say">"Every morning at nine, Maria's phone tells her her day. She doesn't have to remember it."</td></tr>
+<tr><td class="t">0:50</td><td><span class="tag maria">Maria</span></td><td>Tap <b>Pedro</b> in the faces strip: "your son", Sunday lunch under <i>Coming up</i>. Tap <b>Call on WhatsApp</b>.</td><td class="say">"Who's who, and one tap to call." (Andrey's phone rings. Answer, wave, hang up.)</td></tr>
+<tr><td class="t">1:30</td><td><span class="tag pedro">Pedro</span></td><td>Post a photo with a line: "Diego's football match today ⚽".</td><td class="say">"The family posts like any family chat…"</td></tr>
+<tr><td class="t">1:45</td><td><span class="tag maria">Maria</span></td><td>It appears in <b>Feed</b>. Tap ▶ on Carmen's voice note.</td><td class="say">"…and it lands on Maria's phone as a story she can hear."</td></tr>
+<tr><td class="t">2:05</td><td><span class="tag maria">Maria</span></td><td>Tap <b>Comment</b> on Pedro's post, hold the big button: "Qué bien, see you Sunday!"</td><td class="say">"Maria answers. No typing, just her voice."</td></tr>
+<tr><td class="t">2:20</td><td><span class="tag pedro">Pedro</span></td><td>Show the comment arriving on his phone and play it.</td><td class="say">"Pedro hears his mum."</td></tr>
+<tr><td class="t">2:35</td><td><span class="tag anna">Anna</span></td><td><b>Ping</b> → "Thinking of you".</td><td class="say">"Anna is in London…"</td></tr>
+<tr><td class="t">2:40</td><td><span class="tag maria">Maria</span></td><td>The phone shows Anna's face full-screen and says <i>"Anna says: thinking of you."</i></td><td class="say">"…and her mum hears it."</td></tr>
+<tr><td class="t">3:00</td><td><span class="tag maria">Maria</span></td><td>Home shows <b>Blood test this morning: Did you go?</b> Tap <b>Yes, I went</b>.</td><td class="say">"Here is the care loop."</td></tr>
+<tr><td class="t">3:15</td><td><span class="tag anna">Anna</span></td><td>Open the important event: <b>"Mom went ✓"</b>. Then create <b>Cardiologist, Tuesday 10:30</b>: reminders the evening before and on the day, then "Did you go?".</td><td class="say">"The family doesn't have to chase. If she doesn't answer, Cercana asks again in an hour, then tells them."</td></tr>
+<tr><td class="t">3:45</td><td><span class="tag v">Vitaly</span></td><td>Point at Anna's card, <i>"Anna is in London until Sunday."</i></td><td class="say">"Anna didn't type that. It came from her own calendar. Maria never had to remember, and her family never had to chase."</td></tr>
+</tbody></table></div>
+
+<h2>Before the demo (15 minutes)</h2>
+<ul>
+  <li><b>helm re-seeds <code>ABUELA</code> on demo morning</b>: dates are relative (birthday "tomorrow", "Blood test this morning"). Tell helm the demo date. Re-seeding recreates the family, so <b>both phones and the laptop must re-join ABUELA afterwards</b>.</li>
+  <li><b>Maria's phone</b>:
+    <ul>
+      <li>Cercana joined with <code>ABUELA</code> as Maria.</li>
+      <li>Notifications and microphone allowed.</li>
+      <li><b>Silent switch off</b>, volume high, Focus / Do Not Disturb off.</li>
+      <li>App open on Home.</li>
+    </ul></li>
+  <li><b>Andrey's phone</b>:
+    <ul>
+      <li>Cercana app installed (plug into the Mac once), or Safari → <a href="https://cercana.pro7ocol.com/join/ABUELA">https://cercana.pro7ocol.com/join/ABUELA</a> → <b>Pedro</b>.</li>
+      <li>WhatsApp signed in on his number.</li>
+    </ul></li>
+  <li><b>Laptop</b>:
+    <ul>
+      <li>Chrome → <a href="https://cercana.pro7ocol.com/join/ABUELA">https://cercana.pro7ocol.com/join/ABUELA</a> → <b>Anna</b>.</li>
+      <li>Screen shared, sound on.</li>
+    </ul></li>
+  <li><b>Dry run once</b>, end to end.</li>
+</ul>
+
+<div class="callout warn"><b>If something misbehaves</b>
+<ul>
+  <li><b>Phone doesn't speak:</b> check the silent switch; tap <b>Hear today</b> again (speech needs a tap first).</li>
+  <li><b>Ping doesn't show:</b> Maria's app must be open; pull down to refresh. Push to a closed app isn't in this version.</li>
+  <li><b>WhatsApp doesn't ring:</b> use <b>Phone call</b> on the same card.</li>
+  <li><b>Anything else breaks:</b> open <a href="https://cercana.pro7ocol.com/?demo=patient">https://cercana.pro7ocol.com/?demo=patient</a> on any browser. It's the same app with the sample family.</li>
+</ul></div>
+
+<div class="callout info"><b>Don't demo yet</b>
+<ul>
+  <li>iPhone calendar connect: family side, iPhone app only; a mention is enough.</li>
+  <li>The new setup flow: still being built.</li>
+  <li>Transcripts of voice notes on iPhone: audio only in this version.</li>
+</ul></div>
+</main>
+</body>
+</html>
