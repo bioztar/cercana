@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Did you go to the doctor?</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&amp;family=Atkinson+Hyperlegible:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Atkinson Hyperlegible',system-ui,sans-serif;background:#F7F3EC;color:#1F1B16}
+a{color:#A34A24}a:hover{color:#7E3719}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; background: #F7F3EC; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; color: #1F1B16; overflow: hidden">
+<div style="padding: 52px 16px 14px 16px; display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid #E4DACB">
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 6px; min-height: 48px; width: 160px; font-size: 20px; font-weight: 700; text-decoration: none; color: #A34A24"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg><span>Feed</span></a>
+<span style="align-self: flex-start; padding: 3px 10px; border-radius: 12px; background: #F9E0DC; color: #8E2A1C; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 4v10M12 19v.5"></path></svg>Important</span>
+<h1 style="margin: 0; font-family: Fraunces, Georgia, serif; font-weight: 600; font-size: 30px; line-height: 1.2">Cardiologist appointment</h1>
+<p style="margin: 0; font-size: 19px; color: #5E574E">Today, 10:30 AM · added by Andrey</p>
+</div>
+<div style="flex-grow: 1; padding: 20px 16px; display: flex; flex-direction: column; gap: 12px">
+<sc-if value="{{ asking }}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-direction: column; gap: 12px">
+<h2 style="margin: 0 0 4px 0; font-family: Fraunces, Georgia, serif; font-weight: 600; font-size: 28px; line-height: 1.2">Did you go to the doctor?</h2>
+<button type="button" onClick="{{ yes }}" style="min-height: 72px; border: none; border-radius: 20px; background: #1F1B16; color: #FFFFFF; font-family: inherit; font-size: 23px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg><span>Yes, I went</span></button>
+<button type="button" onClick="{{ no }}" style="min-height: 64px; border: 2px solid #C9BBA6; border-radius: 20px; background: #FFFFFF; color: #1F1B16; font-family: inherit; font-size: 21px; font-weight: 700; cursor: pointer">No, I couldn’t make it</button>
+<button type="button" onClick="{{ moved }}" style="min-height: 64px; border: 2px solid #C9BBA6; border-radius: 20px; background: #FFFFFF; color: #1F1B16; font-family: inherit; font-size: 21px; font-weight: 700; cursor: pointer">It was rescheduled</button>
+</div>
+</sc-if>
+<sc-if value="{{ answered }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 14px">
+<div style="background: {{ doneBg }}; border-radius: 20px; padding: 18px; display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 24px; font-weight: 700; color: {{ doneFg }}">{{ doneTitle }}</span>
+<span style="font-size: 19px; line-height: 1.4">Andrey will see your answer</span>
+</div>
+<button type="button" style="min-height: 64px; border: 2px solid #A34A24; border-radius: 20px; background: #FFFFFF; color: #A34A24; font-family: inherit; font-size: 20px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><path d="M12 18v3"></path></svg><span>{{ voiceLabel }}</span></button>
+<button type="button" onClick="{{ again }}" style="min-height: 48px; border: none; background: transparent; font-family: inherit; font-size: 18px; font-weight: 700; color: #A34A24; cursor: pointer">Change answer</button>
+</div>
+</sc-if>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const s = this.state || {};
+    const a = s.a || '';
+    const map = {
+      yes: ['Noted: you went', '#E3F0E4', '#22552C', 'Tell us what the doctor said'],
+      no: ['Noted: you couldn’t make it', '#F9E0DC', '#8E2A1C', 'Tell us what happened'],
+      moved: ['Noted: rescheduled', '#EEF3F8', '#234A70', 'Say the new date']
+    };
+    const m = map[a] || map.yes;
+    return {
+      asking: !a,
+      answered: !!a,
+      doneTitle: m[0], doneBg: m[1], doneFg: m[2], voiceLabel: m[3],
+      yes: () => this.setState({ a: 'yes' }),
+      no: () => this.setState({ a: 'no' }),
+      moved: () => this.setState({ a: 'moved' }),
+      again: () => this.setState({ a: '' })
+    };
+  }
+}
+</script>
+</body>
+</html>
