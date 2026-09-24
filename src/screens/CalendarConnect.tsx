@@ -145,7 +145,7 @@ export async function syncDeviceCalendar(cal: Calendar.ExpoCalendar, calendarId:
   await upsertDeviceEvents(circleId, calendarId, toEventRows(events));
 }
 
-/** Re-syncs every connected device calendar. Call on app open and pull-to-refresh (family, iOS). */
+/** Re-syncs every connected device calendar. Called on app open and on return from background (family, iOS). */
 export async function syncAllDeviceCalendars(circleId: string): Promise<void> {
   if (Platform.OS !== 'ios') return;
   for (const link of await listDeviceCalendars(circleId)) {
