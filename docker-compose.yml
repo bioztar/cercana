@@ -1,0 +1,26 @@
+# Production web build behind Traefik on the VPS (uk-lon-1).
+# Deploy: git pull && docker compose up -d --build
+# EXPO_PUBLIC_* come from the gitignored .env next to this file (public anon values only).
+services:
+  web:
+    build:
+      context: .
+      args:
+        EXPO_PUBLIC_SUPABASE_URL: ${EXPO_PUBLIC_SUPABASE_URL:?set in .env}
+        EXPO_PUBLIC_SUPABASE_ANON_KEY: ${EXPO_PUBLIC_SUPABASE_ANON_KEY:?set in .env}
+    container_name: cercana-web
+    restart: unless-stopped
+    networks:
+      - traefik-public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      - "traefik.http.routers.cercana.rule=Host(`cercana.pro7ocol.com`)"
+      - "traefik.http.routers.cercana.entrypoints=websecure"
+      - "traefik.http.routers.cercana.tls=true"
+      - "traefik.http.routers.cercana.tls.certresolver=mytlschallenge"
+      - "traefik.http.services.cercana.loadbalancer.server.port=80"
+
+networks:
+  traefik-public:
+    external: true
