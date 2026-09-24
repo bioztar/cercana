@@ -33,3 +33,11 @@ export const addComment = impl.addComment;
 export const commentSummaries = impl.commentSummaries;
 export const ensureFamilyCalendar = impl.ensureFamilyCalendar;
 export const addEvent = impl.addEvent;
+
+// ---- cercana-care: important events, check-ins, device calendars --------------------------------
+export const listImportant = impl.listImportant;
+export const createImportant = impl.createImportant;
+export const listCheckins = impl.listCheckins;
+export const submitCheckin = impl.submitCheckin;
+export const addDeviceCalendar = impl.addDeviceCalendar;
+export const upsertDeviceEvents = impl.upsertDeviceEvents;

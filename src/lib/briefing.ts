@@ -155,13 +155,15 @@ export function buildBriefing(input: {
   now: Date;
   events: BriefingEvent[];
   birthdayPhrase?: string | null;
+  importantPhrase?: string | null; // next important event, see important.ts
 }): string {
-  const { patientName, now, events, birthdayPhrase } = input;
+  const { patientName, now, events, birthdayPhrase, importantPhrase } = input;
   const parts = [
     `${greeting(now)} ${patientName}.`,
     `Today is ${WEEKDAYS[now.getDay()]} the ${ordinal(now.getDate())}.`,
     ...todaySentences(events, now),
   ];
+  if (importantPhrase) parts.push(`${importantPhrase}.`);
   if (birthdayPhrase) parts.push(`${birthdayPhrase}.`);
   return parts.join(' ');
 }

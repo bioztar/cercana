@@ -3,8 +3,9 @@ import { getSupabase } from './supabase';
 import { generateCode, normalizeCode, isValidCode, urlHint, uuidv4 } from './util';
 import { summarizeComments } from './voice';
 import type {
-  CalendarPublic, Circle, Comment, CommentInput, CommentSummary, CreatedCircle, EventRow, LeadInput, Moment,
-  MomentInput, NewEventInput, Person, PersonInput, Ping,
+  CalendarPublic, Checkin, CheckinAnswer, Circle, Comment, CommentInput, CommentSummary, CreatedCircle,
+  DeviceEventRow, EventRow, ImportantEvent, ImportantInput, LeadInput, Moment, MomentInput, NewEventInput,
+  Person, PersonInput, Ping,
 } from './types';
 
 function check<T>(res: { data: T | null; error: { message: string } | null }, what: string): T {
@@ -291,8 +292,80 @@ export function subscribeCircle(circleId: string, h: FeedHandlers): () => void {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'people', filter }, () => h.onChange?.())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'moments', filter }, () => h.onChange?.())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'comments', filter }, () => h.onChange?.())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'important_events', filter }, () => h.onChange?.())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'checkins', filter }, () => h.onChange?.())
     .subscribe();
   return () => {
     void db.removeChannel(channel);
   };
+}
+
+// ---- Important events + "Did you go?" check-ins (cercana-care) ---------------------------------
+
+export async function listImportant(circleId: string): Promise<ImportantEvent[]> {
+  const res = await getSupabase()
+    .from('important_events')
+    .select()
+    .eq('circle_id', circleId)
+    .order('starts_at', { ascending: true });
+  return check(res, 'Could not load important events') ?? [];
+}
+
+export async function createImportant(circleId: string, input: ImportantInput): Promise<ImportantEvent> {
+  const res = await getSupabase()
+    .from('important_events')
+    .insert({ ...input, circle_id: circleId, for_person: 'mom' })
+    .select()
+    .single();
+  return check(res, 'Could not save the important event') as ImportantEvent;
+}
+
+export async function listCheckins(circleId: string): Promise<Checkin[]> {
+  const res = await getSupabase().from('checkins').select().eq('circle_id', circleId);
+  return check(res, 'Could not load check-ins') ?? [];
+}
+
+export async function submitCheckin(
+  circleId: string,
+  importantEventId: string,
+  answer: CheckinAnswer,
+  noteAudioUrl: string | null,
+): Promise<Checkin> {
+  const res = await getSupabase()
+    .from('checkins')
+    .upsert(
+      { circle_id: circleId, important_event_id: importantEventId, answer, note_audio_url: noteAudioUrl, answered_at: new Date().toISOString() },
+      { onConflict: 'important_event_id' },
+    )
+    .select()
+    .single();
+  return check(res, 'Could not save your answer') as Checkin;
+}
+
+// ---- Device calendar sync (cercana-care) --------------------------------------------------------
+
+/** Creates a `source: device` calendar (no ICS url) and links the people who usually take part. */
+export async function addDeviceCalendar(circleId: string, label: string, personIds: string[]): Promise<string> {
+  const db = getSupabase();
+  const id = uuidv4();
+  check(await db.from('calendars').insert({ id, circle_id: circleId, label, source: 'device' }), 'Could not save calendar');
+  if (personIds.length > 0) {
+    check(
+      await db.from('calendar_people').insert(personIds.map((person_id) => ({ calendar_id: id, person_id }))),
+      'Could not link calendar to people',
+    );
+  }
+  return id;
+}
+
+/** Upserts device events (by uid + start) into an app/device calendar. Client-writable per migration 01. */
+export async function upsertDeviceEvents(circleId: string, calendarId: string, rows: DeviceEventRow[]): Promise<void> {
+  if (rows.length === 0) return;
+  const res = await getSupabase()
+    .from('events')
+    .upsert(
+      rows.map((r) => ({ circle_id: circleId, calendar_id: calendarId, ...r })),
+      { onConflict: 'calendar_id,uid,starts_at' },
+    );
+  if (res.error) throw new Error(`Could not sync calendar events: ${res.error.message}`);
 }

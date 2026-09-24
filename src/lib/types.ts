@@ -107,3 +107,43 @@ export type NewEventInput = { title: string; starts_at: string; ends_at: string;
 
 /** A finished voice recording: uploaded url, length, and what the device heard (may be empty). */
 export type VoiceClip = { url: string; seconds: number; transcript: string };
+
+// ---- Important events + "Did you go?" check-ins (cercana-care) ---------------------------------
+export type ReminderKind = 'evening_before' | 'on_day' | 'check';
+export type Reminder = { kind: ReminderKind; at: string }; // at = ISO instant
+
+export type ImportantEvent = {
+  id: string;
+  circle_id: string;
+  title: string;
+  starts_at: string;
+  ends_at: string | null;
+  location: string | null;
+  for_person: 'mom'; // Mom only for now
+  created_by_person_id: string | null;
+  reminders: Reminder[];
+  created_at: string;
+};
+
+export type ImportantInput = Pick<ImportantEvent, 'title' | 'starts_at' | 'ends_at' | 'location' | 'created_by_person_id' | 'reminders'>;
+
+export type CheckinAnswer = 'went' | 'missed' | 'rescheduled';
+
+export type Checkin = {
+  id: string;
+  circle_id: string;
+  important_event_id: string;
+  answer: CheckinAnswer;
+  note_audio_url: string | null;
+  answered_at: string;
+};
+
+/** A phone calendar row ready to upsert into `events` (see src/lib/deviceCalendar.ts). */
+export type DeviceEventRow = {
+  uid: string;
+  title: string | null;
+  location: string | null;
+  starts_at: string;
+  ends_at: string | null;
+  all_day: boolean;
+};
