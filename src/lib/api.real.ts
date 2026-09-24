@@ -290,6 +290,7 @@ export function subscribeCircle(circleId: string, h: FeedHandlers): () => void {
     )
     .on('postgres_changes', { event: '*', schema: 'public', table: 'people', filter }, () => h.onChange?.())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'moments', filter }, () => h.onChange?.())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'comments', filter }, () => h.onChange?.())
     .subscribe();
   return () => {
     void db.removeChannel(channel);
