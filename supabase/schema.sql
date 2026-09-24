@@ -198,3 +198,5 @@ create policy "demo_events_select" on events for select to anon, authenticated u
 --        body := '{}'::jsonb
 --      ) $$
 -- );
+
+-- Later changes live in supabase/migrations/*.sql (applied in filename order, each idempotent).

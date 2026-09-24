@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
   }
 
   const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-  let q = db.from('calendars').select('id, circle_id, ics_url');
+  let q = db.from('calendars').select('id, circle_id, ics_url').eq('source', 'ics');
   if (input.calendar_id) q = q.eq('id', input.calendar_id);
   else if (input.circle_id) q = q.eq('circle_id', input.circle_id);
   const { data: calendars, error } = await q;
