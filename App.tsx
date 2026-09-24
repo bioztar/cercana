@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Linking, Platform, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { Fraunces_500Medium, Fraunces_600SemiBold } from '@expo-google-fonts/fraunces';
@@ -303,25 +303,25 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
     );
   } else if (!isPatient && route.name === 'important-create') {
     body = (
-      <View style={s.panel}>
+      <Panel>
         <ImportantCreate circleId={session.circleId} createdByPersonId={actor.kind === 'member' ? actor.id : null}
           onClose={home} onSaved={() => { void reloadImportant(); home(); }} />
-      </View>
+      </Panel>
     );
   } else if (!isPatient && route.name === 'important-status') {
     const ev = important.find((e) => e.id === route.id);
     body = ev ? (
-      <View style={s.panel}>
+      <Panel>
         <ImportantStatus event={ev} checkin={checkins.find((c) => c.important_event_id === ev.id) ?? null}
           people={people} canView={can(actor, { type: 'viewCheckin', creatorId: ev.created_by_person_id })} onBack={home} />
-      </View>
+      </Panel>
     ) : null;
   } else if (!isPatient && route.name === 'calendar-connect') {
     body = (
-      <View style={s.panel}>
+      <Panel>
         <CalendarConnect circleId={session.circleId} people={people} onClose={home}
           onConnected={() => { void reloadEvents(); home(); }} />
-      </View>
+      </Panel>
     );
   } else if (!isPatient) {
     body = (
@@ -437,6 +437,15 @@ function ImportantPanel(
         <Text style={s.panelAddText}>+ Connect iPhone calendar</Text>
       </Pressable>
     </View>
+  );
+}
+
+/** A full-screen card that scrolls: long content (an iPhone with a dozen calendars) must not push its buttons off-screen. */
+function Panel({ children }: { children: React.ReactNode }) {
+  return (
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
+      <View style={s.panel}>{children}</View>
+    </ScrollView>
   );
 }
 
