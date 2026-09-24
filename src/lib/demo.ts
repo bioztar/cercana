@@ -18,6 +18,7 @@ const isoDaysAgo = (n: number) => new Date(Date.now() - n * DAY).toISOString();
 const utcDay = (d: Date) => new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
 const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
 
+const tomorrow = addDays(now(), 1);
 const inThreeDays = addDays(now(), 3); // "Sunday" relative to whatever day the demo runs on
 
 // Same family, photos and captions as demo/seed-abuela.sql ("Maria's family", code ABUELA) —
