@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
+import { Text } from '../components/Text';
 import type { Session } from '../lib/types';
 import { inviteUrl } from '../lib/util';
 import { shareInvite, shareResultText } from '../lib/share';
 import { BigButton } from '../components/ui';
-import { colors, type } from '../theme';
+import { colors, type, fonts } from '../theme';
 
 type Props = { session: Session; canInvite: boolean; onBack: () => void; onLeave: () => void };
 
@@ -21,6 +22,11 @@ export function Settings({ session, canInvite, onBack, onLeave }: Props) {
           : `You are ${session.memberName}, family of ${session.patientName}.`}
       </Text>
       <Text style={s.body}>Circle code: {session.code}</Text>
+
+      {/* SLOT: cercana-care's <MorningBriefSettings /> (brief time + on/off + "Hear it now") renders
+          here for both roles — helm wires the import at merge once that component lands. */}
+      <Text style={s.slot}>Morning brief settings — coming soon</Text>
+
       {canInvite ? (
         <>
           <Text style={s.small}>{inviteUrl(session.code)}</Text>
@@ -36,8 +42,12 @@ export function Settings({ session, canInvite, onBack, onLeave }: Props) {
 
 const s = StyleSheet.create({
   wrap: { padding: 24, gap: 16, maxWidth: 640, width: '100%', alignSelf: 'center' },
-  title: { fontSize: type.title, fontWeight: '800', color: colors.ink },
+  title: { fontSize: type.title, fontFamily: fonts.display, color: colors.ink },
   body: { fontSize: type.body, color: colors.ink },
   small: { fontSize: 18, color: colors.inkSoft },
+  slot: {
+    fontSize: 16, color: colors.inkSoft, fontStyle: 'italic', borderWidth: 1, borderColor: colors.line,
+    borderRadius: 12, padding: 12,
+  },
   note: { fontSize: 20, color: colors.green, fontWeight: '700' },
 });

@@ -34,6 +34,7 @@ export type Moment = {
   author: string | null;
   body: string | null;
   photo_url: string | null;
+  photo_urls?: string[]; // extra photos beyond photo_url (shown as a 2-up row); not stored yet
   audio_url: string | null;
   created_at: string;
 };

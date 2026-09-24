@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '../components/Text';
 import type { EventRow, Moment, Person } from '../lib/types';
 import { comingUp } from '../lib/briefing';
 import { listMoments } from '../lib/api';
@@ -9,7 +10,7 @@ import { telUrl, whatsappUrl } from '../lib/util';
 import { Avatar, BigButton, ErrorText } from '../components/ui';
 import { FeedItem } from '../components/FeedItem';
 import { authorOf } from '../lib/feed';
-import { colors, type } from '../theme';
+import { colors, type, fonts } from '../theme';
 
 type Props = {
   person: Person;
@@ -93,11 +94,11 @@ const s = StyleSheet.create({
   wrap: { padding: 20, paddingBottom: 48, maxWidth: 760, width: '100%', alignSelf: 'center', gap: 16 },
   back: { alignSelf: 'flex-start', minWidth: 160 },
   hero: { alignItems: 'center', gap: 8 },
-  name: { fontSize: 48, fontWeight: '800', color: colors.ink, textAlign: 'center' },
+  name: { fontSize: 48, fontFamily: fonts.display, color: colors.ink, textAlign: 'center' },
   relation: { fontSize: type.title - 6, color: colors.inkSoft, textAlign: 'center' },
   actions: { gap: 12 },
   hint: { fontSize: 18, color: colors.inkSoft, textAlign: 'center' },
-  section: { fontSize: type.title, fontWeight: '800', color: colors.ink, marginTop: 16 },
+  section: { fontSize: type.title, fontFamily: fonts.display, color: colors.ink, marginTop: 16 },
   body: { fontSize: type.body, color: colors.ink, lineHeight: 32 },
   moment: { backgroundColor: colors.card, borderRadius: 16, padding: 16, gap: 10, borderWidth: 2, borderColor: colors.line },
   ongoing: { backgroundColor: colors.warm, borderColor: colors.terracotta },
