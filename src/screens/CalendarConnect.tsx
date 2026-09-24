@@ -137,23 +137,45 @@ export function CalendarConnect({ circleId, people, onClose, onConnected }: Prop
   );
 }
 
-/** Pushes the next `SYNC_DAYS` days of `cal`'s events into `events` (upsert by uid + start). */
-export async function syncDeviceCalendar(cal: Calendar.ExpoCalendar, calendarId: string, circleId: string): Promise<void> {
+/** Pushes the next `SYNC_DAYS` days of `cal`'s events into `events` (upsert by uid + start).
+ * Returns how many events the phone handed over. */
+export async function syncDeviceCalendar(cal: Calendar.ExpoCalendar, calendarId: string, circleId: string): Promise<number> {
   const from = new Date();
   const to = new Date(from.getTime() + SYNC_DAYS * 86_400_000);
   const events = await cal.listEvents(from, to);
   await upsertDeviceEvents(circleId, calendarId, toEventRows(events));
+  return events.length;
 }
+
+/** Outcome of the last iPhone sync on this phone, per calendar id ('*' = the sync could not start).
+ * Kept in memory only: device syncs run on the phone, so the server's last_synced_at/last_error
+ * (written by the ICS function) never cover them — this is what Settings → Calendars shows. */
+export type DeviceSyncStatus = { at: string; count: number | null; error: string | null };
+const deviceSyncStatus: Record<string, DeviceSyncStatus> = {};
+export const getDeviceSyncStatus = (calendarId: string): DeviceSyncStatus | null =>
+  deviceSyncStatus[calendarId] ?? deviceSyncStatus['*'] ?? null;
+
+const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** Re-syncs every connected device calendar. Called on app open and on return from background (family, iOS). */
 export async function syncAllDeviceCalendars(circleId: string): Promise<void> {
   if (Platform.OS !== 'ios') return;
-  for (const link of await listDeviceCalendars(circleId)) {
+  const at = new Date().toISOString();
+  let links: Awaited<ReturnType<typeof listDeviceCalendars>>;
+  try {
+    links = await listDeviceCalendars(circleId);
+    delete deviceSyncStatus['*'];
+  } catch (e) {
+    deviceSyncStatus['*'] = { at, count: null, error: errorText(e) };
+    return;
+  }
+  for (const link of links) {
     try {
       const cal = await Calendar.ExpoCalendar.get(link.device_calendar_id);
-      await syncDeviceCalendar(cal, link.id, circleId);
+      const count = await syncDeviceCalendar(cal, link.id, circleId);
+      deviceSyncStatus[link.id] = { at, count, error: null };
     } catch (e) {
-      console.warn('device calendar sync failed', link.id, e); // e.g. the calendar was removed on the phone
+      deviceSyncStatus[link.id] = { at, count: null, error: errorText(e) }; // e.g. the calendar was removed on the phone
     }
   }
 }

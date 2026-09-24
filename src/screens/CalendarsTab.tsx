@@ -8,6 +8,7 @@ import { BigButton, ErrorText, Field } from '../components/ui';
 import { confirmDelete } from '../components/confirm';
 import { can, type Actor } from '../lib/permissions';
 import { colors } from '../theme';
+import { getDeviceSyncStatus, syncAllDeviceCalendars } from './CalendarConnect';
 
 type Props = {
   circleId: string; actor: Actor; people: Person[]; onSynced: () => void;
@@ -21,6 +22,20 @@ function syncedAgo(iso: string, now = new Date()): string {
   if (mins < 60) return `${mins} min ago`;
   if (mins < 24 * 60) return `${Math.round(mins / 60)} h ago`;
   return timeAgo(new Date(iso), now);
+}
+
+/** Sync line under a calendar. iPhone calendars are synced by the phone, not the server, so their
+ * status comes from this phone's last run (getDeviceSyncStatus) — a failure used to be invisible. */
+function statusLine(c: CalendarPublic): string {
+  const device = c.source === 'device';
+  if (device) {
+    const st = getDeviceSyncStatus(c.id);
+    if (!st) return Platform.OS === 'ios' ? 'iPhone calendar · not synced on this phone yet' : 'iPhone calendar · synced from the phone that connected it';
+    if (st.error) return `iPhone calendar ✗ sync failed ${syncedAgo(st.at)}: ${st.error}`;
+    return `iPhone calendar ✓ synced ${syncedAgo(st.at)} · ${st.count} event${st.count === 1 ? '' : 's'} in the next 60 days`;
+  }
+  const state = c.last_error ? `✗ ${c.last_error}` : c.last_synced_at ? `✓ synced ${syncedAgo(c.last_synced_at)}` : '· not synced yet';
+  return `${c.url_hint ?? 'calendar'} ${state}`;
 }
 
 export function CalendarsTab({ circleId, actor, people, onSynced, onConnectDeviceCalendar }: Props) {
@@ -55,6 +70,7 @@ export function CalendarsTab({ circleId, actor, people, onSynced, onConnectDevic
 
   const refresh = () => guard(async () => {
     await syncCalendars({ circle_id: circleId });
+    await syncAllDeviceCalendars(circleId);
     await load();
     onSynced();
   });
@@ -102,10 +118,7 @@ export function CalendarsTab({ circleId, actor, people, onSynced, onConnectDevic
         <View key={c.id} style={s.row}>
           <View style={{ flex: 1 }}>
             <Text style={s.name}>{c.label}</Text>
-            <Text style={s.sub}>
-              {c.url_hint ?? 'calendar'}{' '}
-              {c.last_error ? `✗ ${c.last_error}` : c.last_synced_at ? `✓ synced ${syncedAgo(c.last_synced_at)}` : '· not synced yet'}
-            </Text>
+            <Text style={s.sub}>{statusLine(c)}</Text>
             <Text style={s.sub}>
               {c.person_ids.length ? `For: ${c.person_ids.map(nameOf).join(', ')}` : 'Not linked to anyone yet'}
             </Text>

@@ -61,6 +61,7 @@ export type CalendarPublic = {
   url_hint: string | null;
   last_synced_at: string | null;
   last_error: string | null;
+  source?: 'ics' | 'device' | 'app';
   person_ids: string[];
 };
 
