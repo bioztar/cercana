@@ -104,8 +104,17 @@ export function eventMoments(it: AgendaItem, moments: Moment[]): Moment[] {
   });
 }
 
-/** The event a moment is linked to (for the feed chip), by the same day + person rule. */
+/** The event a moment is linked to (for the feed chip), by the same day + person rule.
+ * Several events can match (e.g. a multi-day family calendar plus a same-day outing); prefer the
+ * one the moment is *about* over one it only shares an author with, then the shortest (most
+ * specific) span. */
 export function momentEvent(m: Moment, items: AgendaItem[]): AgendaItem | null {
   const d = startOfDay(new Date(m.created_at));
-  return items.find((it) => it.kind === 'event' && d >= it.firstDay && d <= it.lastDay && involves(it, m)) ?? null;
+  const candidates = items.filter((it) => it.kind === 'event' && d >= it.firstDay && d <= it.lastDay && involves(it, m));
+  const rank = (it: AgendaItem) => {
+    const about = !!m.person_id && it.personIds.includes(m.person_id) ? 0 : 1;
+    const span = daysBetween(it.firstDay, it.lastDay);
+    return about * 1000 + span;
+  };
+  return candidates.sort((a, b) => rank(a) - rank(b))[0] ?? null;
 }
