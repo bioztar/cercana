@@ -5,7 +5,7 @@ import type { BriefSettings, Checkin, CommentSummary, EventRow, ImportantEvent, 
 import { commentSummaries } from '../lib/api';
 import { dashboardImportant } from '../lib/dashboard';
 import { mergeBriefingEvents, timeLabel, todaySentences } from '../lib/briefing';
-import { cardText } from '../lib/important';
+import { cardText, todaysImportantSentences } from '../lib/important';
 import { commentText } from '../lib/voice';
 import { BigButton } from '../components/ui';
 import { VoicePlayer } from '../components/VoicePlayer';
@@ -39,6 +39,9 @@ export function FamilyDashboard({
   const rows = dashboardImportant(important, checkins, now);
   const [h, m] = briefSettings.brief_time.split(':').map(Number);
   const briefTime = timeLabel(new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m));
+  // Her own day is her important events; calendar events belong to other family members and are
+  // only news she hears in the brief — kept apart so "Anna is in London" doesn't read as hers.
+  const ownToday = todaysImportantSentences(important, now);
   const todays = todaySentences(mergeBriefingEvents(events, people), now, 4);
 
   // Her own posts ("Tell the family") plus her voice replies in others' comment threads — the
@@ -75,17 +78,23 @@ export function FamilyDashboard({
       </View>
 
       <View style={s.card}>
-        <Text style={s.cardTitle}>Her day</Text>
+        <Text style={s.cardTitle}>{patientName}'s day</Text>
         <View style={s.briefRow}>
           <Text style={s.body}>Brief at {briefTime}</Text>
           <Pressable accessibilityRole="button" onPress={onHearBrief} style={s.hearLink}>
             <Text style={s.hearLinkText}>🔊 Hear her brief</Text>
           </Pressable>
         </View>
-        {todays.length === 0 ? (
-          <Text style={s.empty}>Nothing on the calendar today.</Text>
+        {ownToday.length === 0 ? (
+          <Text style={s.empty}>Nothing on {patientName}'s calendar today.</Text>
         ) : (
-          todays.map((line, i) => <Text key={i} style={s.body}>{line}</Text>)
+          ownToday.map((line, i) => <Text key={i} style={s.body}>{line}</Text>)
+        )}
+        {todays.length > 0 && (
+          <View style={s.newsBlock}>
+            <Text style={s.subTitle}>Family news in her brief</Text>
+            {todays.map((line, i) => <Text key={i} style={s.body}>{line}</Text>)}
+          </View>
         )}
       </View>
 
@@ -116,6 +125,8 @@ const s = StyleSheet.create({
   rowStatusUrgent: { color: colors.danger },
   addBtn: { marginTop: 4 },
   briefRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 },
+  newsBlock: { gap: 6, borderTopWidth: 1, borderTopColor: colors.lineSoft, paddingTop: 8 },
+  subTitle: { fontSize: typeFamily.small, fontWeight: '700', color: colors.inkSoft },
   body: { fontSize: typeFamily.body, color: colors.ink },
   hearLink: { minHeight: 40, justifyContent: 'center' },
   hearLinkText: { fontSize: typeFamily.small, fontWeight: '700', color: colors.terracotta },
