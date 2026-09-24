@@ -25,6 +25,7 @@ type Props = {
 
 export function MomentsTab({ circleId, actor, authorName, authorId, people, version }: Props) {
   const canDelete = can(actor, { type: 'moment.delete' });
+  const [open, setOpen] = useState(false); // composer expanded
   const [target, setTarget] = useState<string | null>(null); // null = everyone
   const [body, setBody] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
@@ -74,9 +75,13 @@ export function MomentsTab({ circleId, actor, authorName, authorId, people, vers
       person_id: target, author_person_id: authorId, author: authorName,
       body: body.trim() || null, photo_url: photo, audio_url: audio,
     });
-    setBody(''); setPhoto(null); setAudio(null);
+    setBody(''); setPhoto(null); setAudio(null); setTarget(null); setOpen(false);
     setMoments(await listMoments(circleId, undefined, 30));
   });
+
+  const cancel = () => {
+    setBody(''); setPhoto(null); setAudio(null); setTarget(null); setError(null); setOpen(false);
+  };
 
   const removeMoment = (id: string) => guard(async () => {
     if (!(await confirmDelete('Delete this moment?'))) return;
@@ -88,26 +93,53 @@ export function MomentsTab({ circleId, actor, authorName, authorId, people, vers
 
   return (
     <View>
-      <Text style={s.label}>Who is this about?</Text>
-      <View style={s.chips}>
-        {[{ id: null, name: 'Everyone' }, ...people].map((p) => (
-          <Pressable key={p.id ?? 'all'} onPress={() => setTarget(p.id)} accessibilityRole="button"
-            style={[s.chip, target === p.id && s.chipOn]}>
-            <Text style={[s.chipText, target === p.id && { color: colors.white }]}>{p.name}</Text>
-          </Pressable>
-        ))}
-      </View>
-      <Field label="What happened?" value={body} onChangeText={setBody} multiline />
-      <View style={s.row}>
-        <BigButton label={photo ? 'Photo added ✓' : 'Add photo'} tone="plain" style={s.half}
-          onPress={() => guard(async () => { const u = await pickAndUploadPhoto(); if (u) setPhoto(u); })} disabled={busy || recording} />
-        <BigButton label={recording ? 'Stop recording' : audio ? 'Voice note added ✓' : 'Record voice note'}
-          tone={recording ? 'danger' : 'plain'} style={s.half} onPress={toggleRecord} disabled={busy && !recording} />
-      </View>
-      <ErrorText message={error} />
-      <BigButton label="Post" onPress={post} busy={busy && !recording} disabled={recording} />
+      {/* Collapsed by default so the feed stays in view; the full composer opens only on demand. */}
+      {!open ? (
+        <>
+          <View style={s.quickRow}>
+            <Pressable accessibilityRole="button" onPress={() => setOpen(true)} style={s.quick}>
+              <Text style={s.quickText}>✏️ Write</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" disabled={busy} style={s.quick}
+              onPress={() => guard(async () => { const u = await pickAndUploadPhoto(); if (u) { setPhoto(u); setOpen(true); } })}>
+              <Text style={s.quickText}>📷 Photo</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" disabled={busy} style={s.quick}
+              onPress={() => { setOpen(true); void toggleRecord(); }}>
+              <Text style={s.quickText}>🎙 Voice</Text>
+            </Pressable>
+          </View>
+          <ErrorText message={error} />
+        </>
+      ) : (
+        <View style={s.composer}>
+          <View style={s.composerHead}>
+            <Text style={s.label}>Who is this about?</Text>
+            <Pressable accessibilityRole="button" onPress={cancel} disabled={recording} style={s.cancel}>
+              <Text style={s.cancelText}>Cancel</Text>
+            </Pressable>
+          </View>
+          <View style={s.chips}>
+            {[{ id: null, name: 'Everyone' }, ...people].map((p) => (
+              <Pressable key={p.id ?? 'all'} onPress={() => setTarget(p.id)} accessibilityRole="button"
+                style={[s.chip, target === p.id && s.chipOn]}>
+                <Text style={[s.chipText, target === p.id && { color: colors.white }]}>{p.name}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <Field label="What happened?" value={body} onChangeText={setBody} multiline />
+          <View style={s.row}>
+            <BigButton label={photo ? 'Photo added ✓' : 'Add photo'} tone="plain" style={s.half}
+              onPress={() => guard(async () => { const u = await pickAndUploadPhoto(); if (u) setPhoto(u); })} disabled={busy || recording} />
+            <BigButton label={recording ? 'Stop recording' : audio ? 'Voice note added ✓' : 'Record voice note'}
+              tone={recording ? 'danger' : 'plain'} style={s.half} onPress={toggleRecord} disabled={busy && !recording} />
+          </View>
+          <ErrorText message={error} />
+          <BigButton label="Post" onPress={post} busy={busy && !recording} disabled={recording} />
+        </View>
+      )}
 
-      <Text style={[s.label, { marginTop: 24 }]}>Recent</Text>
+      <Text style={[s.label, { marginTop: 16 }]}>Recent</Text>
       {moments.map((m) => (
         <View key={m.id} style={s.moment}>
           <Text style={s.meta}>
@@ -129,6 +161,13 @@ export function MomentsTab({ circleId, actor, authorName, authorId, people, vers
 }
 
 const s = StyleSheet.create({
+  quickRow: { flexDirection: 'row', gap: 8 },
+  quick: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 24, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  quickText: { fontSize: 16, fontWeight: '700', color: colors.ink },
+  composer: { backgroundColor: colors.card, borderRadius: 14, padding: 12, borderWidth: 1, borderColor: colors.line },
+  composerHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  cancel: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8, marginBottom: 8 },
+  cancelText: { fontSize: 16, fontWeight: '700', color: colors.terracottaDark },
   label: { fontSize: 18, fontWeight: '600', color: colors.ink, marginBottom: 8 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
   chip: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 16, borderRadius: 24, borderWidth: 2, borderColor: colors.line, backgroundColor: colors.card },
