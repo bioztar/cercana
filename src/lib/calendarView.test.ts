@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { agenda, dateTile, dayHeading, eventMoments, groupByDay, momentEvent } from './calendarView.ts';
+import { agenda, dateTile, dayHeading, eventMoments, groupByDay, momentEvent, splitByPatient } from './calendarView.ts';
 import type { EventRow, Moment, Person } from './types.ts';
 
 const person = (id: string, birthday: string | null = null): Person => ({
@@ -73,4 +73,14 @@ test('event_id, when present, wins over the day+participant fallback', () => {
   const m = moment('m', new Date(2026, 8, 24, 15).toISOString(), 'lucia', 'anna', 'london');
   assert.equal(momentEvent(m, items)?.title, 'london');
   assert.deepEqual(eventMoments(items.find((i) => i.title === 'london')!, [m]).map((x) => x.id), ['m']);
+});
+
+test('splitByPatient: includesPatient or self-created goes to "for you", the rest to "family"; birthdays are always family', () => {
+  const forHer = { ...ev('lunch', 'c1', new Date(2026, 8, 24).toISOString(), null, []), includes_patient: true };
+  const selfMade = { ...ev('own', 'c1', new Date(2026, 8, 25).toISOString(), null, []), created_by_person_id: null };
+  const someoneElses = { ...ev('trip', 'c1', new Date(2026, 8, 26).toISOString(), null, []), created_by_person_id: 'anna' };
+  const items = agenda([forHer, selfMade, someoneElses], [{ id: 'p', circle_id: 'c', name: 'p', relation: null, phone: null, photo_url: null, birthday: '2000-09-27', role: 'member', claimed: true }], new Date(2026, 8, 1), new Date(2026, 9, 1));
+  const { forYou, family } = splitByPatient(items);
+  assert.deepEqual(forYou.map((i) => i.title).sort(), ['lunch', 'own']);
+  assert.deepEqual(family.map((i) => i.title).sort(), ['p’s birthday', 'trip']);
 });

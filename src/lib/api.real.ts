@@ -190,11 +190,15 @@ export async function addCalendar(
   label: string,
   icsUrl: string,
   personIds: string[],
+  includesPatientDefault = false,
 ): Promise<string | null> {
   const db = getSupabase();
   const id = uuidv4(); // client-side id: the row cannot be read back (select on calendars is revoked)
   check(
-    await db.from('calendars').insert({ id, circle_id: circleId, label, ics_url: icsUrl.trim(), url_hint: urlHint(icsUrl) }),
+    await db.from('calendars').insert({
+      id, circle_id: circleId, label, ics_url: icsUrl.trim(), url_hint: urlHint(icsUrl),
+      includes_patient: includesPatientDefault,
+    }),
     'Could not save calendar',
   );
   if (personIds.length > 0) {
@@ -222,7 +226,7 @@ export async function listEvents(circleId: string): Promise<EventRow[]> {
   const since = new Date(Date.now() - 2 * 86_400_000).toISOString();
   const res = await getSupabase()
     .from('events')
-    .select('id, calendar_id, uid, title, location, starts_at, ends_at, all_day')
+    .select('id, calendar_id, uid, title, location, starts_at, ends_at, all_day, created_by_person_id, includes_patient')
     .eq('circle_id', circleId)
     .gte('ends_at', since) // keeps multi-day events that began earlier but are still running
     .order('starts_at', { ascending: true })
@@ -277,6 +281,15 @@ export async function addEvent(
   }).select('id').single();
   const row = check(res, 'Could not save the event') as { id: string };
   return row.id;
+}
+
+/** The "<patient> takes part" toggle on EventDetail (Vitaly, 2026-09-24 15:50) — app/device events
+ * only; an ICS event's RLS write policy rejects this and the caller shows a friendly message. */
+export async function setEventIncludesPatient(eventId: string, includesPatient: boolean): Promise<void> {
+  check(
+    await getSupabase().from('events').update({ includes_patient: includesPatient }).eq('id', eventId),
+    'Could not update this event',
+  );
 }
 
 export type FeedHandlers = { onPing?: (p: Ping) => void; onChange?: () => void };

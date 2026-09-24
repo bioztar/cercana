@@ -85,17 +85,21 @@ let calendars: CalendarPublic[] = [
 ];
 
 const at = (d: Date, h: number, min = 0) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, min).toISOString();
-const event = (id: string, calendar_id: string, title: string, starts: string, ends: string, all_day: boolean, location: string | null = null) =>
-  ({ id, calendar_id, uid: id, title, location, starts_at: starts, ends_at: ends, all_day });
+const event = (
+  id: string, calendar_id: string, title: string, starts: string, ends: string, all_day: boolean,
+  location: string | null = null, includes_patient = false,
+): Omit<EventRow, 'person_ids'> =>
+  ({ id, calendar_id, uid: id, title, location, starts_at: starts, ends_at: ends, all_day, created_by_person_id: null, includes_patient });
 
 // Mirrors demo/assets/anna.ics + family-v2.ics, kept relative to "today" instead of their fixed
-// 2026-09-24 dates so the demo looks current on any day.
+// 2026-09-24 dates so the demo looks current on any day. "For you" vs "Family" (Vitaly, 15:50):
+// the Sunday lunch includes Carmen; Anna's own trip to London doesn't.
 let rawEvents = [
   event('e-london', 'cal-anna', 'In London', utcDay(now()).toISOString(), utcDay(addDays(now(), 4)).toISOString(), true),
   event('e-flight', 'cal-anna', 'Flying home to Madrid', at(inThreeDays, 18), at(inThreeDays, 20, 30), false),
   event(
     'e-lunch', 'cal-family', 'Sunday lunch with you — Pedro and Diego bring the cake',
-    at(inThreeDays, 13, 30), at(inThreeDays, 16, 30), false, 'Your home',
+    at(inThreeDays, 13, 30), at(inThreeDays, 16, 30), false, 'Your home', true,
   ),
 ];
 
@@ -213,7 +217,9 @@ export async function listCalendars(_circleId: string): Promise<CalendarPublic[]
   return calendars;
 }
 
-export async function addCalendar(circleId: string, label: string, icsUrl: string, personIds: string[]): Promise<string | null> {
+export async function addCalendar(
+  circleId: string, label: string, icsUrl: string, personIds: string[], _includesPatientDefault = false,
+): Promise<string | null> {
   calendars = [
     ...calendars,
     { id: uuidv4(), circle_id: circleId, label, url_hint: urlHint(icsUrl), last_synced_at: new Date().toISOString(), last_error: null, person_ids: personIds },
@@ -262,15 +268,25 @@ export async function ensureFamilyCalendar(_circleId: string): Promise<string> {
 }
 
 export async function addEvent(
-  _circleId: string, calendarId: string, input: NewEventInput, _createdByPersonId: string | null,
+  _circleId: string, calendarId: string, input: NewEventInput, createdByPersonId: string | null,
 ): Promise<string> {
   const id = uuidv4();
   rawEvents = [
     ...rawEvents,
-    { id, calendar_id: calendarId, uid: uuidv4(), title: input.title, location: null, starts_at: input.starts_at, ends_at: input.ends_at, all_day: input.all_day },
+    {
+      id, calendar_id: calendarId, uid: uuidv4(), title: input.title, location: null, starts_at: input.starts_at,
+      ends_at: input.ends_at, all_day: input.all_day, created_by_person_id: createdByPersonId,
+      includes_patient: createdByPersonId === null, // Carmen created it herself → it's for her
+    },
   ];
   emitChange();
   return id;
+}
+
+/** The "<patient> takes part" toggle on EventDetail (demo stand-in for api.real.ts). */
+export async function setEventIncludesPatient(eventId: string, includesPatient: boolean): Promise<void> {
+  rawEvents = rawEvents.map((e) => (e.id === eventId ? { ...e, includes_patient: includesPatient } : e));
+  emitChange();
 }
 
 // ---- important events + check-ins (cercana-care) -------------------------------------------------

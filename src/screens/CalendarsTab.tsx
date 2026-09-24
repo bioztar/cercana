@@ -126,6 +126,7 @@ function AddCalendar(props: { circleId: string; actor: Actor; people: Person[]; 
   const [label, setLabel] = useState('');
   const [url, setUrl] = useState('');
   const [chosen, setChosen] = useState<string[]>(props.people.length === 1 ? [props.people[0].id] : []);
+  const [includesPatient, setIncludesPatient] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -140,7 +141,7 @@ function AddCalendar(props: { circleId: string; actor: Actor; people: Person[]; 
     setBusy(true);
     setError(null);
     try {
-      const syncError = await addCalendar(props.circleId, label.trim(), url, chosen);
+      const syncError = await addCalendar(props.circleId, label.trim(), url, chosen, includesPatient);
       if (syncError) setError(`Saved, but the first sync failed: ${syncError}. Remove it and add it again with a corrected address.`);
       else props.onAdded();
     } catch (e) {
@@ -168,6 +169,12 @@ function AddCalendar(props: { circleId: string; actor: Actor; people: Person[]; 
         ))}
       </View>
       {props.people.length === 0 && <Text style={s.sub}>Add people first, then link a calendar to them.</Text>}
+      <Pressable onPress={() => setIncludesPatient((v) => !v)} accessibilityRole="checkbox"
+        accessibilityState={{ checked: includesPatient }} style={s.includesRow}>
+        <Text style={[s.chipText, includesPatient && { color: colors.terracotta }]}>
+          {includesPatient ? '✓ ' : ''}Its events usually include Carmen ("For you" by default)
+        </Text>
+      </Pressable>
       <ErrorText message={error} />
       <View style={{ gap: 12 }}>
         <BigButton label="Save and sync" onPress={save} busy={busy} />
@@ -192,4 +199,5 @@ const s = StyleSheet.create({
   chip: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 16, borderRadius: 24, borderWidth: 2, borderColor: colors.line, backgroundColor: colors.card },
   chipOn: { backgroundColor: colors.terracotta, borderColor: colors.terracotta },
   chipText: { fontSize: 18, fontWeight: '600', color: colors.ink },
+  includesRow: { minHeight: 48, justifyContent: 'center', marginBottom: 14 },
 });
