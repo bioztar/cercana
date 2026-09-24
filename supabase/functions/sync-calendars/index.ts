@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
   }
 
   const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-  let q = db.from('calendars').select('id, circle_id, ics_url').eq('source', 'ics');
+  let q = db.from('calendars').select('id, circle_id, ics_url, includes_patient').eq('source', 'ics');
   if (input.calendar_id) q = q.eq('id', input.calendar_id);
   else if (input.circle_id) q = q.eq('circle_id', input.circle_id);
   const { data: calendars, error } = await q;
@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
     try {
       const text = await fetchFeed(cal.ics_url);
       const events = expandIcs(ICAL, text, from, to);
-      const rows = events.map((e) => ({ ...e, calendar_id: cal.id, circle_id: cal.circle_id }));
+      const rows = events.map((e) => ({ ...e, calendar_id: cal.id, circle_id: cal.circle_id, includes_patient: cal.includes_patient ?? false }));
 
       const del = await db.from('events').delete().eq('calendar_id', cal.id);
       if (del.error) throw new Error(del.error.message);
