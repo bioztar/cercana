@@ -34,6 +34,8 @@ import { Share } from './src/screens/Share';
 import { PhotoPick } from './src/screens/PhotoPick';
 import { PhotoEvent } from './src/screens/PhotoEvent';
 import { PhotoSend } from './src/screens/PhotoSend';
+import { EventVoice } from './src/screens/EventVoice';
+import { EventConfirm } from './src/screens/EventConfirm';
 import { colors } from './src/theme';
 
 type Route =
@@ -45,7 +47,9 @@ type Route =
   | { name: 'share' }
   | { name: 'photoPick' }
   | { name: 'photoEvent'; photos: string[] }
-  | { name: 'photoSend'; photos: string[]; eventId: string | null; eventLabel: string | null };
+  | { name: 'photoSend'; photos: string[]; eventId: string | null; eventLabel: string | null }
+  | { name: 'eventVoice' }
+  | { name: 'eventConfirm'; transcript: string };
 
 initNotifications();
 
@@ -211,7 +215,16 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
   } else if (route.name === 'share') {
     body = (
       <Share circleId={session.circleId} patientName={session.patientName} onPosted={home}
-        onPhotos={() => setRoute({ name: 'photoPick' })} onEvent={home /* event flow lands next slice */} onCancel={home} />
+        onPhotos={() => setRoute({ name: 'photoPick' })} onEvent={() => setRoute({ name: 'eventVoice' })} onCancel={home} />
+    );
+  } else if (route.name === 'eventVoice') {
+    body = (
+      <EventVoice onDone={(transcript) => setRoute({ name: 'eventConfirm', transcript })} onCancel={home} />
+    );
+  } else if (route.name === 'eventConfirm') {
+    body = (
+      <EventConfirm circleId={session.circleId} createdByPersonId={actor.kind === 'member' ? actor.id : null}
+        transcript={route.transcript} onSaved={home} onBack={() => setRoute({ name: 'eventVoice' })} />
     );
   } else if (route.name === 'photoPick') {
     body = (
