@@ -92,20 +92,22 @@ export function longDate(d: Date): string {
   return `${WEEKDAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}`;
 }
 
-const involves = (it: AgendaItem, m: Pick<Moment, 'person_id' | 'author_person_id'>) =>
-  (!!m.person_id && it.personIds.includes(m.person_id)) ||
-  (!!m.author_person_id && it.personIds.includes(m.author_person_id));
+/** Same day as the event, and the event's participants include who the moment is *about*
+ * (never just who posted it — an author can be on an unrelated calendar too). */
+const involves = (it: AgendaItem, m: Pick<Moment, 'person_id' | 'created_at'>) => {
+  const d = startOfDay(new Date(m.created_at));
+  return d >= it.firstDay && d <= it.lastDay && !!m.person_id && it.personIds.includes(m.person_id);
+};
 
-/** Moments that belong to an event: posted on one of its days, by or about someone involved. */
+/** Moments that belong to an event: linked explicitly by `event_id` when present, else by the
+ * same-day-and-participant fallback. */
 export function eventMoments(it: AgendaItem, moments: Moment[]): Moment[] {
-  return moments.filter((m) => {
-    const d = new Date(m.created_at);
-    return startOfDay(d) >= it.firstDay && startOfDay(d) <= it.lastDay && involves(it, m);
-  });
+  return moments.filter((m) => (m.event_id ? m.event_id === it.eventId : involves(it, m)));
 }
 
-/** The event a moment is linked to (for the feed chip), by the same day + person rule. */
+/** The event a moment is linked to (for the feed chip): `event_id` when present (set once
+ * cercana-voice's column is populated), otherwise the same-day-and-participant fallback. */
 export function momentEvent(m: Moment, items: AgendaItem[]): AgendaItem | null {
-  const d = startOfDay(new Date(m.created_at));
-  return items.find((it) => it.kind === 'event' && d >= it.firstDay && d <= it.lastDay && involves(it, m)) ?? null;
+  if (m.event_id) return items.find((it) => it.eventId === m.event_id) ?? null;
+  return items.find((it) => it.kind === 'event' && involves(it, m)) ?? null;
 }

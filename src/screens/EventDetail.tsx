@@ -35,7 +35,12 @@ export function EventDetail({ eventId, events, people, moments, onBack, onOpenPe
   }
 
   const linked = eventMoments(item, moments).sort((a, b) => b.created_at.localeCompare(a.created_at));
-  const photos = linked.flatMap((m) => [m.photo_url, ...(m.photo_urls ?? [])]).filter((u): u is string => !!u);
+  // One stream, newest first, each photo tagged with its own author (Vitaly's decision 2026-09-24) —
+  // several people's photos of the same event interleave by moment, not grouped by person.
+  const photos = linked.flatMap((m) => {
+    const author = authorOf(m, people)?.name ?? m.author ?? 'Someone';
+    return [m.photo_url, ...(m.photo_urls ?? [])].filter((u): u is string => !!u).map((url) => ({ url, author }));
+  });
   const addedBy = linked.map((m) => authorOf(m, people)).find((p) => p);
   const commentTotal = linked.length; // stands in for a real comment count until cercana-voice's thread lands
 
@@ -58,7 +63,7 @@ export function EventDetail({ eventId, events, people, moments, onBack, onOpenPe
               if (!p) return null;
               return (
                 <Pressable key={id} accessibilityRole="button" onPress={() => onOpenPerson(p.id)} style={s.person}>
-                  <Avatar uri={p.photo_url} name={p.name} size={56} />
+                  <Avatar uri={p.photo_url} name={p.name} size={56} group={people.map((x) => x.name)} />
                   <Text style={s.personName}>{p.name}</Text>
                 </Pressable>
               );
@@ -69,17 +74,13 @@ export function EventDetail({ eventId, events, people, moments, onBack, onOpenPe
 
         {photos.length > 0 && (
           <>
-            <Text style={s.cardLabel}>
-              Photos · {photos.length}{addedBy ? ` · from ${addedBy.name}` : ''}
-            </Text>
-            <Image accessibilityLabel="Photo" source={{ uri: photos[0] }} style={s.mainPhoto} resizeMode="cover" />
-            {photos.length > 1 && (
-              <View style={s.row}>
-                {photos.slice(1, 3).map((u, i) => (
-                  <Image key={i} accessibilityLabel="Photo" source={{ uri: u }} style={s.smallPhoto} resizeMode="cover" />
-                ))}
+            <Text style={s.cardLabel}>Photos · {photos.length}</Text>
+            {photos.map((p, i) => (
+              <View key={i} style={s.photoRow}>
+                <Image accessibilityLabel={`Photo from ${p.author}`} source={{ uri: p.url }} style={s.streamPhoto} resizeMode="cover" />
+                <Text style={s.photoAuthor}>{p.author}</Text>
               </View>
-            )}
+            ))}
           </>
         )}
 
@@ -107,9 +108,9 @@ const s = StyleSheet.create({
   person: { alignItems: 'center', gap: 6, minWidth: 64 },
   personName: { fontSize: typeFamily.small, fontWeight: '700', color: colors.ink },
   body: { fontSize: typeFamily.body, color: colors.inkSoft },
-  mainPhoto: { width: '100%', height: 240, borderRadius: radius.lg, backgroundColor: colors.line },
-  row: { flexDirection: 'row', gap: 8 },
-  smallPhoto: { flex: 1, height: 130, borderRadius: radius.md, backgroundColor: colors.line },
+  photoRow: { gap: 6 },
+  streamPhoto: { width: '100%', height: 240, borderRadius: radius.lg, backgroundColor: colors.line },
+  photoAuthor: { fontSize: typeFamily.small, fontWeight: '700', color: colors.inkSoft },
   comments: { fontSize: typeFamily.label, fontWeight: '700', color: colors.terracotta },
   stickyBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, backgroundColor: colors.bg,

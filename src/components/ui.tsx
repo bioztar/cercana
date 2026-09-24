@@ -2,6 +2,7 @@ import React, { useContext } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native';
 import { Text } from './Text';
 import { FontsReady } from './Text';
+import { avatarInitials } from '../lib/avatar';
 import { colors, fonts, radius, TARGET, type } from '../theme';
 
 type BtnProps = {
@@ -38,13 +39,15 @@ export function BigButton({ label, onPress, tone = 'green', disabled, busy, styl
   );
 }
 
-export function Avatar({ uri, name, size }: { uri?: string | null; name: string; size: number }) {
+type AvatarProps = { uri?: string | null; name: string; size: number; group?: string[] };
+
+export function Avatar({ uri, name, size, group }: AvatarProps) {
   const box = { width: size, height: size, borderRadius: size / 2 };
   if (uri) return <Image accessibilityLabel={name} source={{ uri }} style={[box, { backgroundColor: colors.line }]} />;
   return (
     <View style={[box, s.avatarFallback]}>
       <Text style={{ fontSize: size / 2.5, fontWeight: '700', color: colors.terracottaDark }}>
-        {name.trim().charAt(0).toUpperCase() || '?'}
+        {avatarInitials(name, group)}
       </Text>
     </View>
   );

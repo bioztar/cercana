@@ -19,47 +19,44 @@ const utcDay = (d: Date) => new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.g
 const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
 
 const tomorrow = addDays(now(), 1);
-const untilSunday = (7 - now().getDay()) % 7; // days from today to the coming Sunday (0 if today is Sunday)
+const inThreeDays = addDays(now(), 3); // "Sunday" relative to whatever day the demo runs on
+
+// Same family, photos and captions as demo/seed-abuela.sql ("Maria's family", code ABUELA) —
+// keep the two in sync by hand; this is the in-memory stand-in for that seed.
+const MEDIA = 'https://xgelxazkvsgrhggmxlzz.supabase.co/storage/v1/object/public/media/demo/';
+const img = (file: string) => `${MEDIA}${file}`;
 
 const person = (id: string, name: string, relation: string, extra: Partial<Person> = {}): Person => ({
-  id, circle_id: CIRCLE.id, name, relation, phone: '+34600000000', photo_url: null, birthday: null,
+  id, circle_id: CIRCLE.id, name, relation, phone: null, photo_url: img(`${id}.jpg`), birthday: null,
   role: 'member', claimed: false, ...extra,
 });
 
-// Roles for design review: Anna = lead, Pedro = admin, Carmen = member, Lucia = unclaimed (a child).
-// View family mode as someone else with /?demo=family&as=pedro|carmen|lucia.
+// View family mode as someone else with /?demo=family&as=pedro|carmen|lucia|diego|rosa.
 let people: Person[] = [
-  person('anna', 'Anna', 'your daughter', { birthday: '1975-03-05', role: 'lead', claimed: true }),
-  person('pedro', 'Pedro', 'your son', { birthday: '1978-11-20', role: 'admin', claimed: true }),
-  person('lucia', 'Lucia', 'your granddaughter', {
-    birthday: `2010-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`,
-  }),
-  person('carmen', 'Carmen', 'your sister', { birthday: '1950-07-14', claimed: true }),
+  person('anna', 'Anna', 'your daughter', { birthday: '1976-03-14', role: 'lead', claimed: true }),
+  person('pedro', 'Pedro', 'your son', { birthday: '1979-06-02', role: 'admin', claimed: true }),
+  person('carmen', 'Carmen', 'your sister', { birthday: '1950-11-20', claimed: true }),
+  person('lucia', 'Lucia', 'your granddaughter', { birthday: '2010-09-25' }), // unclaimed: a child who doesn't use the app
+  person('diego', 'Diego', 'your grandson', { birthday: '2017-05-09' }), // unclaimed: a child who doesn't use the app
+  person('rosa', 'Rosa', 'your carer', { role: 'admin', claimed: true }),
 ];
 
-// `about` = who it concerns, `by` = who posted it (both people ids)
-const moment = (id: string, about: string, by: string, body: string, days: number): Moment => ({
+// `about`/`by` are people ids; `audio` mirrors the seed's optional voice note.
+const moment = (
+  id: string, about: string, by: string, body: string, photo: string, hoursAgo: number, audio: string | null = null,
+): Moment => ({
   id, circle_id: CIRCLE.id, person_id: about, author_person_id: by,
-  author: people.find((p) => p.id === by)?.name ?? null, body, photo_url: null, audio_url: null,
-  created_at: isoDaysAgo(days),
+  author: people.find((p) => p.id === by)?.name ?? null, body, photo_url: img(photo),
+  audio_url: audio ? img(audio) : null, created_at: isoDaysAgo(hoursAgo / 24),
 });
 
-// Tiny inline illustrations so the demo shows photos without any hosted assets.
-const scene = (sky: string, ground: string, accent: string) =>
-  `data:image/svg+xml;utf8,${encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 260"><rect width="400" height="260" fill="${sky}"/>` +
-      `<circle cx="330" cy="50" r="24" fill="#F2D27A"/><rect y="170" width="400" height="90" fill="${ground}"/>` +
-      `<circle cx="150" cy="140" r="34" fill="${accent}"/><rect x="128" y="170" width="44" height="60" rx="8" fill="${accent}"/></svg>`,
-  )}`;
-const PARK = scene('#D3E3EF', '#8FBF77', '#E8735A');
-const PARK2 = scene('#CFE0EC', '#9BC780', '#F2B84B');
-const HOUSE = scene('#D3E3EF', '#A6C88A', '#A34A24');
-
 let moments: Moment[] = [
-  { ...moment('m1', 'pedro', 'pedro', 'I called from work. I will visit you on Sunday and bring the cake.', 1), photo_url: HOUSE },
-  { ...moment('m2', 'lucia', 'anna', 'Lucia got a nine in her maths exam!', 0.1), photo_url: PARK, photo_urls: [PARK2, HOUSE] },
-  moment('m3', 'anna', 'anna', 'We had lunch at the beach. You loved the paella.', 3),
-  moment('m4', 'carmen', 'carmen', 'I made your favourite soup. I will bring it on Friday.', 5),
+  moment('m1', 'anna', 'anna', "Landed in London! Raining, of course. I'll call you tonight.", 'm_london.jpg', 2, 'v_anna.mp3'),
+  moment('m2', 'rosa', 'rosa', 'This morning we walked to the park and fed the pigeons. You laughed a lot.', 'm_park.jpg', 4),
+  moment('m3', 'diego', 'pedro', "Diego made you a drawing at school. We're coming on Sunday with the cake.", 'm_drawing.jpg', 24, 'v_pedro.mp3'),
+  moment('m4', 'carmen', 'carmen', "The geraniums on my balcony are blooming again, just like Mum's used to.", 'm_garden.jpg', 48, 'v_carmen.mp3'),
+  moment('m5', 'lucia', 'anna', 'Lucia got a nine in her maths exam! She turns 16 tomorrow.', 'm_exam.jpg', 72),
+  moment('m6', 'anna', 'anna', 'We had lunch at the beach. You loved the paella.', 'm_paella.jpg', 144),
 ];
 
 const comment = (
@@ -78,28 +75,30 @@ let comments: Comment[] = [
 
 let calendars: CalendarPublic[] = [
   {
-    id: 'cal-anna', circle_id: CIRCLE.id, label: "Anna's calendar", url_hint: '…/basic.ics',
+    id: 'cal-anna', circle_id: CIRCLE.id, label: "Anna's calendar", url_hint: 'anna.ics',
     last_synced_at: isoDaysAgo(0.003), last_error: null, person_ids: ['anna'],
   },
   {
-    id: 'cal-family', circle_id: CIRCLE.id, label: 'Family', url_hint: 'calendar.google.com',
-    last_synced_at: isoDaysAgo(0.003), last_error: null, person_ids: ['pedro', 'lucia'],
-  },
-  {
-    id: 'cal-walks', circle_id: CIRCLE.id, label: 'Walks', url_hint: null,
-    last_synced_at: null, last_error: null, person_ids: ['anna', 'lucia'],
+    id: 'cal-family', circle_id: CIRCLE.id, label: 'Family', url_hint: 'family.ics',
+    last_synced_at: isoDaysAgo(0.003), last_error: null, person_ids: ['pedro', 'diego', 'rosa'],
   },
 ];
 
-const at = (d: Date, h: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, 0).toISOString();
+const at = (d: Date, h: number, min = 0) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, min).toISOString();
 const event = (id: string, calendar_id: string, title: string, starts: string, ends: string, all_day: boolean, location: string | null = null) =>
   ({ id, calendar_id, uid: id, title, location, starts_at: starts, ends_at: ends, all_day });
 
+// Mirrors demo/assets/anna.ics + family.ics, kept relative to "today" instead of their fixed 2026-09-24
+// dates so the demo looks current on any day. `rosa-visits` is weekly Mon–Fri in the real .ics;
+// ponytail: shown here as a single instance today, add recurrence once the agenda view needs it.
 let rawEvents = [
-  event('e1', 'cal-anna', 'In London', utcDay(now()).toISOString(), utcDay(addDays(now(), untilSunday + 1)).toISOString(), true),
-  event('e2', 'cal-anna', 'Dentist', at(tomorrow, 16), at(tomorrow, 17), false, 'Calle Mayor 1'),
-  event('e3', 'cal-family', 'Family lunch', at(addDays(now(), untilSunday || 7), 14), at(addDays(now(), untilSunday || 7), 16), false, "Pedro's house"),
-  event('e4', 'cal-walks', 'Walk in the park', at(now(), 10), at(now(), 12), false, 'Retiro park'),
+  event('e-london', 'cal-anna', 'In London', utcDay(now()).toISOString(), utcDay(addDays(now(), 4)).toISOString(), true),
+  event('e-flight', 'cal-anna', 'Flying home to Madrid', at(inThreeDays, 18), at(inThreeDays, 20, 30), false),
+  event(
+    'e-lunch', 'cal-family', 'Sunday lunch with you — Pedro and Diego bring the cake',
+    at(inThreeDays, 13, 30), at(inThreeDays, 16, 30), false, 'Your home',
+  ),
+  event('e-rosa', 'cal-family', 'Rosa visits', at(now(), 9), at(now(), 13), false),
 ];
 
 // `check` reminder is overridden to a few minutes ago so the demo patient sees it due immediately,
