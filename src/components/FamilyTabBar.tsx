@@ -5,8 +5,9 @@ import { colors } from '../theme';
 
 export const FAMILY_TABS = ['Today', 'Feed', 'Calendar', 'People', 'Settings'] as const;
 export type FamilyTab = (typeof FAMILY_TABS)[number];
-/** The patient's bar is deliberately short: Settings stays behind the press-and-hold button on Home. */
-export const PATIENT_TABS = ['Home', 'Tell family'] as const;
+/** Andrey's original tab bar (Vitaly, 2026-09-24 15:50); "Tell family" became a floating "+" (15:55) —
+ * Settings stays behind the press-and-hold button on Feed, not a tab. */
+export const PATIENT_TABS = ['Feed', 'People', 'Calendar', 'Chats'] as const;
 export type PatientTab = (typeof PATIENT_TABS)[number];
 export type AppTab = FamilyTab | PatientTab;
 

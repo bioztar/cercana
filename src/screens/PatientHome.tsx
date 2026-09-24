@@ -17,15 +17,17 @@ import { PatientPeople } from './PatientPeople';
 import { PatientCalendar } from './PatientCalendar';
 import { ChatsPlaceholder } from './ChatsPlaceholder';
 import { TalkToFamily } from './TalkToFamily';
+import type { PatientTab } from '../components/FamilyTabBar';
 import { colors, fonts, MAX_WIDTH, type } from '../theme';
 
 const PAD = 20;
-const TABS = ['Feed', 'People', 'Calendar', 'Chats'] as const;
-type Tab = (typeof TABS)[number];
 let spokeThisOpen = false; // greeting/briefing is spoken once per app-open
 
 type Props = {
   session: Session;
+  /** Andrey's native tab bar (App.tsx) drives which tab is showing; drawn on web/Android, the
+   * system UITabBar on iOS. */
+  tab: PatientTab;
   people: Person[];
   events: EventRow[];
   moments: Moment[]; // the family feed, newest first
@@ -62,9 +64,8 @@ function briefingEvents(events: EventRow[], people: Person[]): BriefingEvent[] {
 
 export function PatientHome({
   session, people, events, moments, important, checkins, briefSettings, loading, error, onOpenPerson, onOpenEvent,
-  onOpenThread, onSettings, onSharePhotos, onAddEvent, importantCard,
+  onOpenThread, onSettings, onSharePhotos, onAddEvent, importantCard, tab,
 }: Props) {
-  const [tab, setTab] = useState<Tab>('Feed');
   const [menuOpen, setMenuOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [summaries, setSummaries] = useState<Record<string, CommentSummary>>({});
@@ -182,14 +183,6 @@ export function PatientHome({
       )}
       {tab === 'Chats' && <ChatsPlaceholder people={people} big />}
 
-      <View style={s.tabs}>
-        {TABS.map((t) => (
-          <Pressable key={t} accessibilityRole="tab" onPress={() => setTab(t)} style={s.tab}>
-            <Text style={[s.tabText, tab === t && s.tabTextOn]}>{t}</Text>
-          </Pressable>
-        ))}
-      </View>
-
       <Pressable accessibilityRole="button" accessibilityLabel="Send to family" onPress={() => setSending(true)} style={s.fab}>
         <Text style={s.fabIcon}>+</Text>
       </Pressable>
@@ -205,7 +198,7 @@ export function PatientHome({
 }
 
 const s = StyleSheet.create({
-  wrap: { padding: PAD, paddingBottom: 120, maxWidth: MAX_WIDTH, width: '100%', alignSelf: 'center', gap: 20 },
+  wrap: { padding: PAD, paddingBottom: 48, maxWidth: MAX_WIDTH, width: '100%', alignSelf: 'center', gap: 20 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingRight: 84 }, // clears the floating "+"
   menuBtn: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center' },
   menuIcon: { fontSize: 32, color: colors.ink },
@@ -217,10 +210,6 @@ const s = StyleSheet.create({
   bannerText: { flex: 1, flexShrink: 1, fontSize: 24, fontFamily: fonts.display, color: colors.ink, lineHeight: 31 },
   empty: { fontSize: type.body, color: colors.inkSoft, lineHeight: 32 },
   feed: { gap: 16 },
-  tabs: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.card, paddingBottom: 4 },
-  tab: { flex: 1, minHeight: 64, alignItems: 'center', justifyContent: 'center' },
-  tabText: { fontSize: 16, fontWeight: '700', color: colors.inkSoft },
-  tabTextOn: { color: colors.terracotta },
   fab: {
     position: 'absolute', top: 16, right: 16, width: 72, height: 72, borderRadius: 36,
     backgroundColor: colors.terracotta, alignItems: 'center', justifyContent: 'center',
