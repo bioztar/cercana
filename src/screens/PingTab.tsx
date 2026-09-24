@@ -4,7 +4,7 @@ import { sendPing } from '../lib/api';
 import { BigButton, ErrorText, Field } from '../components/ui';
 import { colors } from '../theme';
 
-const PRESETS = ['Thinking of you ❤️', 'Call me when you can', "Don't forget to eat lunch"];
+const PRESETS = ['Thinking of you', 'Call me when you can', "Don't forget to eat lunch"];
 
 export function PingTab({ circleId, fromName, patientName }: { circleId: string; fromName: string; patientName: string }) {
   const [message, setMessage] = useState('');

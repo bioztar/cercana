@@ -5,6 +5,7 @@ import type { Session } from '../lib/types';
 import { inviteUrl } from '../lib/util';
 import { shareInvite, shareResultText } from '../lib/share';
 import { BigButton } from '../components/ui';
+import { confirmAction } from '../components/confirm';
 import { colors, type, fonts } from '../theme';
 
 type Props = { session: Session; canInvite: boolean; onBack: () => void; onLeave: () => void };
@@ -12,6 +13,17 @@ type Props = { session: Session; canInvite: boolean; onBack: () => void; onLeave
 export function Settings({ session, canInvite, onBack, onLeave }: Props) {
   const [note, setNote] = useState<string | null>(null);
   const share = async () => setNote(shareResultText(await shareInvite(inviteUrl(session.code), session.patientName)));
+  const isPatient = session.role === 'patient';
+  // One tap here used to drop the session with no way back for the patient, so it always asks first.
+  const leave = async () => {
+    const ok = await confirmAction(
+      isPatient
+        ? `Reset this phone? It leaves ${session.patientName}'s family and goes back to the first screen. Photos and messages stay with the family.`
+        : `Leave ${session.patientName}'s family on this phone? You can join again later with the code ${session.code}.`,
+      isPatient ? 'Reset phone' : 'Leave',
+    );
+    if (ok) onLeave();
+  };
 
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={s.wrap}>
@@ -35,7 +47,7 @@ export function Settings({ session, canInvite, onBack, onLeave }: Props) {
         </>
       ) : null}
       <BigButton label="Back" tone="plain" onPress={onBack} />
-      <BigButton label="Switch role / leave circle" tone="danger" onPress={onLeave} />
+      <BigButton label={isPatient ? 'Reset this phone…' : 'Leave this family…'} tone="danger" onPress={leave} style={s.leave} />
     </ScrollView>
   );
 }
@@ -45,6 +57,7 @@ const s = StyleSheet.create({
   title: { fontSize: type.title, fontFamily: fonts.display, color: colors.ink },
   body: { fontSize: type.body, color: colors.ink },
   small: { fontSize: 18, color: colors.inkSoft },
+  leave: { marginTop: 32 }, // set apart from Back so it is not hit by mistake
   slot: {
     fontSize: 16, color: colors.inkSoft, fontStyle: 'italic', borderWidth: 1, borderColor: colors.line,
     borderRadius: 12, padding: 12,

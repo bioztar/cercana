@@ -110,12 +110,17 @@ export function MomentsTab({ circleId, actor, authorName, authorId, people, vers
       <Text style={[s.label, { marginTop: 24 }]}>Recent</Text>
       {moments.map((m) => (
         <View key={m.id} style={s.moment}>
-          <Text style={s.meta}>{nameOf(m.person_id)} · {m.author ?? 'someone'} · {timeAgo(new Date(m.created_at), new Date())}</Text>
+          <Text style={s.meta}>
+            About {nameOf(m.person_id)} · by {m.author ?? 'someone'} · {timeAgo(new Date(m.created_at), new Date())}
+          </Text>
           {m.body ? <Text style={s.body}>{m.body}</Text> : null}
           {m.photo_url ? <Image source={{ uri: m.photo_url }} style={s.photo} accessibilityLabel="Photo" /> : null}
           {m.audio_url ? <VoicePlayer url={m.audio_url} /> : null}
           {canDelete ? (
-            <BigButton label="Delete moment" tone="danger" onPress={() => removeMoment(m.id)} disabled={busy} />
+            <Pressable accessibilityRole="button" accessibilityLabel="Delete moment" onPress={() => removeMoment(m.id)}
+              disabled={busy} style={s.delete}>
+              <Text style={s.deleteText}>Delete</Text>
+            </Pressable>
           ) : null}
         </View>
       ))}
@@ -135,4 +140,7 @@ const s = StyleSheet.create({
   meta: { fontSize: 16, fontWeight: '700', color: colors.terracotta },
   body: { fontSize: 18, color: colors.ink },
   photo: { width: '100%', height: 220, borderRadius: 10, backgroundColor: colors.line },
+  // A quiet text action: a red button on every card made the feed read like a list of dangers.
+  delete: { alignSelf: 'flex-end', minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
+  deleteText: { fontSize: 16, fontWeight: '700', color: colors.terracottaDark, textDecorationLine: 'underline' },
 });

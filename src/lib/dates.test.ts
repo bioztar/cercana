@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  parseBirthday, daysUntil, nextOccurrence, ageTurning, birthdayPhrase, upcomingBirthday, timeAgo,
+  parseBirthday, daysUntil, nextOccurrence, ageTurning, birthdayPhrase, upcomingBirthday, timeAgo, formatBirthday,
 } from './dates.ts';
 
 const d = (y: number, m: number, day: number) => new Date(y, m - 1, day, 15, 30);
@@ -75,4 +75,11 @@ test('timeAgo', () => {
   assert.equal(timeAgo(d(2026, 9, 24), now), 'today');
   assert.equal(timeAgo(d(2026, 9, 23), now), 'yesterday');
   assert.equal(timeAgo(d(2026, 9, 21), now), '3 days ago');
+});
+
+test('formatBirthday: readable, year optional', () => {
+  assert.equal(formatBirthday('1975-03-05'), '5 March 1975');
+  assert.equal(formatBirthday('0004-11-20'), '20 November');
+  assert.equal(formatBirthday(null), null);
+  assert.equal(formatBirthday('garbage'), null);
 });

@@ -56,6 +56,7 @@ export function PatientHome({
   importantCard,
 }: Props) {
   const { width } = useWindowDimensions();
+  const narrow = width < 700;
   const [summaries, setSummaries] = useState<Record<string, CommentSummary>>({});
 
   useEffect(() => {
@@ -113,17 +114,17 @@ export function PatientHome({
   return (
     <View style={{ flex: 1 }}>
       <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={[s.wrap, onTellFamily && s.wrapWithBar]}>
-        <View style={[s.header, width < 700 && s.headerNarrow]}>
+        <View style={[s.header, narrow && s.headerNarrow]}>
           <View style={{ flex: 1 }}>
-            <Text style={s.hello}>{hello}</Text>
-            <Text style={s.date}>{dateLine}</Text>
+            <Text style={[s.hello, narrow && s.helloNarrow]}>{hello}</Text>
+            <Text style={[s.date, narrow && s.dateNarrow]}>{dateLine}</Text>
           </View>
           <BigButton label="🔊 Hear today" tone="terracotta" onPress={() => say(briefing())} />
         </View>
 
         {next && bannerText && (
           <Pressable accessibilityRole="button" accessibilityLabel={bannerText} onPress={() => onOpenPerson(next.person.id)} style={s.banner}>
-            <Avatar uri={next.person.photo_url} name={next.person.name} size={96} />
+            <Avatar uri={next.person.photo_url} name={next.person.name} size={narrow ? 72 : 96} />
             <Text style={s.bannerText}>{bannerText}</Text>
           </Pressable>
         )}
@@ -195,11 +196,15 @@ const s = StyleSheet.create({
   headerNarrow: { flexDirection: 'column', alignItems: 'stretch' },
   hello: { fontSize: type.huge, fontFamily: fonts.display, color: colors.ink, lineHeight: 56 },
   date: { fontSize: type.title, color: colors.inkSoft, fontFamily: fonts.display, marginTop: 4 },
+  // On a phone the full-size greeting pushed the faces below the first screen.
+  helloNarrow: { fontSize: 40, lineHeight: 46 },
+  dateNarrow: { fontSize: 28 },
   banner: {
     flexDirection: 'row', alignItems: 'center', gap: 16, backgroundColor: colors.peach,
     borderRadius: 20, padding: 16, borderWidth: 3, borderColor: colors.terracotta, minHeight: 64,
   },
-  bannerText: { flex: 1, flexShrink: 1, fontSize: 28, fontFamily: fonts.display, color: colors.ink, lineHeight: 36 },
+  // 24 px keeps long words ("granddaughter") inside the banner next to the 96 px face on a phone.
+  bannerText: { flex: 1, flexShrink: 1, fontSize: 24, fontFamily: fonts.display, color: colors.ink, lineHeight: 31 },
   empty: { fontSize: type.body, color: colors.inkSoft, lineHeight: 32 },
   strip: { gap: 20, paddingRight: 8 },
   face: { alignItems: 'center', width: 120 },

@@ -70,7 +70,7 @@ export function Join({ code, onDone, onCancel }: Props) {
       {!loading && circle && !creating ? (
         <View style={s.stack}>
           <Text style={s.title}>{circle.patient_name}'s family</Text>
-          <Text style={s.body}>Which one are you?</Text>
+          <Text style={s.body}>Which one are you? Tap your name.</Text>
           <ErrorText message={error} />
           {people.map((p) => (
             <View key={p.id} style={[s.row, picked === p.id && s.rowOn]}>
@@ -90,7 +90,7 @@ export function Join({ code, onDone, onCancel }: Props) {
             </View>
           ))}
           {people.length === 0 ? <Text style={s.sub}>Every profile is already taken.</Text> : null}
-          <BigButton label="I'm not on the list" tone="terracotta" onPress={() => setCreating(true)} />
+          <BigButton label="I'm not on the list" tone="outline" onPress={() => setCreating(true)} />
           <BigButton label="Back" tone="plain" onPress={onCancel} />
         </View>
       ) : null}

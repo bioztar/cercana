@@ -4,7 +4,8 @@ import { Text } from '../components/Text';
 import type { Person } from '../lib/types';
 import { setPersonRole, transferLead } from '../lib/api';
 import { ROLE_LABEL, can, type Actor } from '../lib/permissions';
-import { birthdayToInput, familyRelation } from '../lib/util';
+import { familyRelation } from '../lib/util';
+import { formatBirthday } from '../lib/dates';
 import { Avatar, BigButton, ErrorText } from '../components/ui';
 import { confirmAction } from '../components/confirm';
 import { colors } from '../theme';
@@ -72,7 +73,7 @@ export function PeopleTab({ circleId, patientName, actor, people, onChanged }: P
                   <Text style={[s.badge, p.role !== 'member' && s.badgeOn]}>{ROLE_LABEL[p.role]}</Text>
                 </View>
                 <Text style={s.sub}>
-                  {[familyRelation(p.relation, patientName), p.phone, p.birthday ? birthdayToInput(p.birthday) : null]
+                  {[familyRelation(p.relation, patientName), p.phone, formatBirthday(p.birthday)]
                     .filter(Boolean)
                     .join(' · ')}
                 </Text>
