@@ -10,6 +10,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.pro7ocol.cercana",
+      "appleTeamId": "H6MBTUJ4TQ",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Record a voice note for your family",
         "NSPhotoLibraryUsageDescription": "Choose a photo of a family member or a moment to share",

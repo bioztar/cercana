@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { createCircle } from '../lib/api';
+import { createCircle, findCircleByCode } from '../lib/api';
 import { shareInvite, shareResultText } from '../lib/share';
-import type { Session } from '../lib/types';
+import type { Circle, Session } from '../lib/types';
 import { inviteUrl, isValidCode, normalizeCode } from '../lib/util';
 import { BigButton, ErrorText, Field } from '../components/ui';
 import { colors, type } from '../theme';
 
-type Step = 'choose' | 'patient' | 'lead' | 'code' | 'family';
+type Step = 'choose' | 'patientPath' | 'patient' | 'existing' | 'confirm' | 'lead' | 'code' | 'family';
 
 type Props = {
   /** The patient's phone is set up: the lead created the circle here. */
@@ -22,6 +22,7 @@ export function Welcome({ onDone, onJoinCode }: Props) {
   const [leadName, setLeadName] = useState('');
   const [leadRelation, setLeadRelation] = useState('');
   const [code, setCode] = useState('');
+  const [found, setFound] = useState<Circle | null>(null);
   const [created, setCreated] = useState<Session | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -59,6 +60,23 @@ export function Welcome({ onDone, onJoinCode }: Props) {
     onJoinCode(c);
   };
 
+  const lookUp = async () => {
+    const c = normalizeCode(code);
+    if (!isValidCode(c)) return setError('The code has 6 letters and numbers, like K7M4QX.');
+    setBusy(true);
+    setError(null);
+    try {
+      const circle = await findCircleByCode(c);
+      if (!circle) return setError('That code was not found. Check it with your family.');
+      setFound(circle);
+      setStep('confirm');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const share = async () => {
     if (!created) return;
     setNote(shareResultText(await shareInvite(inviteUrl(created.code), created.patientName)));
@@ -70,8 +88,35 @@ export function Welcome({ onDone, onJoinCode }: Props) {
       {step === 'choose' && (
         <View style={s.stack}>
           <Text style={s.title}>Who is using this phone?</Text>
-          <BigButton label="This phone is for the person with memory loss" onPress={() => go('patient')} />
+          <BigButton label="This phone is for the person with memory loss" onPress={() => go('patientPath')} />
           <BigButton label="I'm family" tone="terracotta" onPress={() => go('family')} />
+        </View>
+      )}
+      {step === 'patientPath' && (
+        <View style={s.stack}>
+          <Text style={s.title}>Has your family already set up Cercana?</Text>
+          <BigButton label="Start a new family" onPress={() => go('patient')} />
+          <BigButton label="The family is already set up — enter the code" tone="terracotta" onPress={() => go('existing')} />
+          <BigButton label="Back" tone="plain" onPress={() => go('choose')} />
+        </View>
+      )}
+      {step === 'existing' && (
+        <View style={s.stack}>
+          <Text style={s.title}>Enter the family code</Text>
+          <Field label="Family code (6 characters)" value={code} onChangeText={setCode} autoFocus autoCapitalize="characters" autoCorrect={false} maxLength={8} />
+          <ErrorText message={error} />
+          <BigButton label="Continue" onPress={lookUp} busy={busy} />
+          <BigButton label="Back" tone="plain" onPress={() => go('patientPath')} disabled={busy} />
+        </View>
+      )}
+      {step === 'confirm' && found && (
+        <View style={s.stack}>
+          <Text style={s.title}>This is {found.patient_name}'s phone?</Text>
+          <BigButton
+            label="Yes"
+            onPress={() => onDone({ role: 'patient', circleId: found.id, code: found.code, patientName: found.patient_name, memberName: found.patient_name })}
+          />
+          <BigButton label="No" tone="plain" onPress={() => go('existing')} />
         </View>
       )}
       {step === 'patient' && (
@@ -80,7 +125,7 @@ export function Welcome({ onDone, onJoinCode }: Props) {
           <Field label="First name" value={patientName} onChangeText={setPatientName} autoFocus autoCapitalize="words" />
           <ErrorText message={error} />
           <BigButton label="Continue" onPress={patientNext} />
-          <BigButton label="Back" tone="plain" onPress={() => go('choose')} />
+          <BigButton label="Back" tone="plain" onPress={() => go('patientPath')} />
         </View>
       )}
       {step === 'lead' && (
