@@ -1,7 +1,9 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Text } from '../components/Text';
-import type { EventRow, Moment, Person, Session } from '../lib/types';
+import { commentSummaries } from '../lib/api';
+import { commentText } from '../lib/voice';
+import type { CommentSummary, EventRow, Moment, Person, Session } from '../lib/types';
 import { FeedItem } from '../components/FeedItem';
 import { buildBriefing, type BriefingEvent } from '../lib/briefing';
 import { agenda, momentEvent } from '../lib/calendarView';
@@ -25,6 +27,8 @@ type Props = {
   error: string | null;
   onOpenPerson: (id: string) => void;
   onOpenEvent?: (eventId: string) => void;
+  /** Opens the Thread screen for a moment (comments + Mom's voice reply). Nothing is drawn without it. */
+  onOpenThread?: (momentId: string) => void;
   onSettings: () => void;
   /** cercana-voice renders the "Tell the family" share flow; the sticky button is hidden without it. */
   onTellFamily?: () => void;
@@ -48,9 +52,17 @@ function briefingEvents(events: EventRow[], people: Person[]): BriefingEvent[] {
 }
 
 export function PatientHome({
-  session, people, events, moments, loading, error, onOpenPerson, onOpenEvent, onSettings, onTellFamily, importantCard,
+  session, people, events, moments, loading, error, onOpenPerson, onOpenEvent, onOpenThread, onSettings, onTellFamily,
+  importantCard,
 }: Props) {
   const { width } = useWindowDimensions();
+  const [summaries, setSummaries] = useState<Record<string, CommentSummary>>({});
+
+  useEffect(() => {
+    void commentSummaries(session.circleId).then(setSummaries).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch whenever the feed itself reloads
+  }, [session.circleId, moments]);
+
   const now = new Date();
   const hello = `${greeting(now)}, ${session.patientName}`;
   const dateLine = formatDate(now);
@@ -93,6 +105,10 @@ export function PatientHome({
   useEffect(() => {
     void scheduleBirthdayReminders(people);
   }, [people]);
+
+  /** Who wrote a comment, the way FeedItem's lastComment wants it. */
+  const commentAuthor = (c: CommentSummary['last']) =>
+    (c.author_person_id ? people.find((p) => p.id === c.author_person_id)?.name : null) ?? c.author_name ?? 'Someone';
 
   return (
     <View style={{ flex: 1 }}>
@@ -141,16 +157,22 @@ export function PatientHome({
         {moments.length > 0 && (
           <View style={s.feed}>
             <Text style={s.feedTitle}>Feed</Text>
-            {moments.map((m) => (
-              <FeedItem
-                key={m.id}
-                moment={m}
-                people={people}
-                onOpenPerson={onOpenPerson}
-                event={momentEvent(m, agendaItems)}
-                onOpenEvent={onOpenEvent ? (it) => it.eventId && onOpenEvent(it.eventId) : undefined}
-              />
-            ))}
+            {moments.map((m) => {
+              const summary = summaries[m.id];
+              return (
+                <FeedItem
+                  key={m.id}
+                  moment={m}
+                  people={people}
+                  onOpenPerson={onOpenPerson}
+                  event={momentEvent(m, agendaItems)}
+                  onOpenEvent={onOpenEvent ? (it) => it.eventId && onOpenEvent(it.eventId) : undefined}
+                  commentCount={summary?.count ?? 0}
+                  lastComment={summary ? { author: commentAuthor(summary.last), text: commentText(summary.last) } : undefined}
+                  onOpenThread={onOpenThread}
+                />
+              );
+            })}
           </View>
         )}
 

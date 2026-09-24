@@ -1,11 +1,12 @@
 // In-memory fixtures behind EXPO_PUBLIC_DEMO=1 (see api.ts). Same signatures as api.real.ts.
 // State is replaced, never mutated. Nothing here runs unless the flag is set.
 import type {
-  CalendarPublic, Circle, CreatedCircle, EventRow, LeadInput, MemberRole, Moment, MomentInput, Person, PersonInput,
-  Ping, Session,
+  CalendarPublic, Circle, Comment, CommentInput, CommentSummary, CreatedCircle, EventRow, LeadInput, MemberRole,
+  Moment, MomentInput, NewEventInput, Person, PersonInput, Ping, Session,
 } from './types';
 import type { FeedHandlers } from './api.real';
 import { normalizeCode, urlHint, uuidv4 } from './util';
+import { summarizeComments } from './voice';
 
 const CIRCLE: Circle = { id: 'demo-circle', code: 'K7M4QX', patient_name: 'Maria' };
 
@@ -59,6 +60,20 @@ let moments: Moment[] = [
   moment('m4', 'carmen', 'carmen', 'I made your favourite soup. I will bring it on Friday.', 5),
 ];
 
+const comment = (
+  id: string, moment_id: string, by: string | null, body: string | null, mins: number, audio_url: string | null = null,
+): Comment => ({
+  id, moment_id, circle_id: CIRCLE.id, author_person_id: by,
+  author_name: by ? people.find((p) => p.id === by)?.name ?? null : 'Maria',
+  body, audio_url, created_at: new Date(Date.now() - mins * 60_000).toISOString(),
+});
+
+let comments: Comment[] = [
+  comment('c1', 'm2', 'pedro', 'A champion in the making!', 90),
+  comment('c2', 'm2', null, null, 20, 'demo-audio://mom-reply'), // Mom's voice reply
+  comment('c3', 'm1', 'anna', 'Looking forward to Sunday!', 200),
+];
+
 let calendars: CalendarPublic[] = [
   {
     id: 'cal-anna', circle_id: CIRCLE.id, label: "Anna's calendar", url_hint: '…/basic.ics',
@@ -78,7 +93,7 @@ const at = (d: Date, h: number) => new Date(d.getFullYear(), d.getMonth(), d.get
 const event = (id: string, calendar_id: string, title: string, starts: string, ends: string, all_day: boolean, location: string | null = null) =>
   ({ id, calendar_id, uid: id, title, location, starts_at: starts, ends_at: ends, all_day });
 
-const rawEvents = [
+let rawEvents = [
   event('e1', 'cal-anna', 'In London', utcDay(now()).toISOString(), utcDay(addDays(now(), untilSunday + 1)).toISOString(), true),
   event('e2', 'cal-anna', 'Dentist', at(tomorrow, 16), at(tomorrow, 17), false, 'Calle Mayor 1'),
   event('e3', 'cal-family', 'Family lunch', at(addDays(now(), untilSunday || 7), 14), at(addDays(now(), untilSunday || 7), 16), false, "Pedro's house"),
@@ -200,6 +215,45 @@ export async function listEvents(_circleId: string): Promise<EventRow[]> {
     ...e,
     person_ids: calendars.find((c) => c.id === e.calendar_id)?.person_ids ?? [],
   }));
+}
+
+// ---- Thread comments + "Tell the family" (voice mission) --------------------------------------
+
+export async function listComments(momentId: string): Promise<Comment[]> {
+  return comments.filter((c) => c.moment_id === momentId).sort((a, b) => a.created_at.localeCompare(b.created_at));
+}
+
+export async function addComment(_circleId: string, c: CommentInput): Promise<void> {
+  comments = [...comments, { ...c, id: uuidv4(), circle_id: CIRCLE.id, created_at: new Date().toISOString() }];
+  emitChange();
+}
+
+export async function commentSummaries(_circleId: string): Promise<Record<string, CommentSummary>> {
+  return summarizeComments(comments);
+}
+
+const FAMILY_CAL_ID = 'cal-family-app';
+
+export async function ensureFamilyCalendar(_circleId: string): Promise<string> {
+  if (!calendars.some((c) => c.id === FAMILY_CAL_ID)) {
+    calendars = [
+      ...calendars,
+      { id: FAMILY_CAL_ID, circle_id: CIRCLE.id, label: 'Family events', url_hint: null, last_synced_at: null, last_error: null, person_ids: [] },
+    ];
+  }
+  return FAMILY_CAL_ID;
+}
+
+export async function addEvent(
+  _circleId: string, calendarId: string, input: NewEventInput, _createdByPersonId: string | null,
+): Promise<string> {
+  const id = uuidv4();
+  rawEvents = [
+    ...rawEvents,
+    { id, calendar_id: calendarId, uid: uuidv4(), title: input.title, location: null, starts_at: input.starts_at, ends_at: input.ends_at, all_day: input.all_day },
+  ];
+  emitChange();
+  return id;
 }
 
 // ---- boot links (web only): ?demo=patient | family | join  [&person=anna] [&as=pedro] ---------------
