@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { claimPerson, findCircleByCode, listPeople, savePerson } from '../lib/api';
 import { pickAndUploadPhoto } from '../lib/media';
+import { familyRelation } from '../lib/util';
 import type { Circle, Person, Session } from '../lib/types';
 import { Avatar, BigButton, ErrorText, Field } from '../components/ui';
 import { colors, type } from '../theme';
@@ -76,7 +77,7 @@ export function Join({ code, onDone, onCancel }: Props) {
                 <Avatar uri={p.photo_url} name={p.name} size={72} />
                 <View style={{ flex: 1 }}>
                   <Text style={s.name}>{p.name}</Text>
-                  {p.relation ? <Text style={s.sub}>{p.relation}</Text> : null}
+                  {p.relation ? <Text style={s.sub}>{familyRelation(p.relation, circle.patient_name)}</Text> : null}
                 </View>
               </Pressable>
               {picked === p.id ? (

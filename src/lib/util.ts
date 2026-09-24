@@ -75,6 +75,17 @@ export function uuidv4(random: () => number = Math.random): string {
   });
 }
 
+/**
+ * Relations are stored from the patient's view ("your son"). Family-facing screens show them
+ * third-person: "Maria's son". Anything not starting with "your " is returned as typed.
+ */
+export function familyRelation(relation: string | null | undefined, patientName: string): string | null {
+  const r = relation?.trim();
+  if (!r) return null;
+  const m = /^your\s+(.+)$/i.exec(r);
+  return m ? `${patientName}'s ${m[1]}` : r;
+}
+
 export const DEFAULT_APP_URL = 'https://cercana.pro7ocol.com';
 
 /** https://cercana.pro7ocol.com/join/K7M4QX */

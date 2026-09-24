@@ -62,7 +62,7 @@ export function FamilyHome({ session, actor, people, error, version, reload, rel
         ))}
       </View>
       <ErrorText message={error} />
-      {tab === 'People' && <PeopleTab circleId={session.circleId} actor={actor} people={people} onChanged={reload} />}
+      {tab === 'People' && <PeopleTab circleId={session.circleId} patientName={session.patientName} actor={actor} people={people} onChanged={reload} />}
       {tab === 'Calendars' && (
         <CalendarsTab circleId={session.circleId} actor={actor} people={people} onSynced={reloadEvents} />
       )}

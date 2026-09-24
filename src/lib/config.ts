@@ -2,12 +2,12 @@
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-/** Web only: `?demo=patient` / `?demo=family` in the URL switches demo mode on for that page load. */
+/** Web only: `?demo=patient|family|join` in the URL switches demo mode on for that page load. */
 function demoFromUrl(): boolean {
   try {
     const search = (globalThis as { location?: { search?: string } }).location?.search;
-    const role = search ? new URLSearchParams(search).get('demo') : null;
-    return role === 'patient' || role === 'family';
+    const kind = search ? new URLSearchParams(search).get('demo') : null;
+    return kind === 'patient' || kind === 'family' || kind === 'join';
   } catch {
     return false;
   }
