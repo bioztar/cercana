@@ -14,8 +14,8 @@ import { PeopleTab } from './PeopleTab';
 import { PingTab } from './PingTab';
 import { colors, fonts } from '../theme';
 
-const TABS = ['Feed', 'Calendar', 'People'] as const;
-type Tab = (typeof TABS)[number];
+/** The family tab bar's tabs this screen draws; Settings is its own route (see App.tsx / FamilyTabBar). */
+export type FamilyHomeTab = 'Today' | 'Feed' | 'Calendar' | 'People';
 const WIDE = 1000; // dashboard-beside-feed breakpoint (Vitaly, 2026-09-24 15:30)
 
 type Props = {
@@ -28,7 +28,7 @@ type Props = {
   version: number;
   reload: () => void;
   reloadEvents: () => void;
-  onSettings: () => void;
+  tab: FamilyHomeTab;
   // "<patient> today" dashboard (cercana-care's data, cercana-design's layout).
   important: ImportantEvent[];
   checkins: Checkin[];
@@ -40,16 +40,14 @@ type Props = {
 };
 
 export function FamilyHome({
-  session, actor, people, events, moments, error, version, reload, reloadEvents, onSettings,
+  session, actor, people, events, moments, error, version, reload, reloadEvents, tab,
   important, checkins, briefSettings, onNewImportant, onOpenImportant, onHearBrief, onConnectDeviceCalendar,
 }: Props) {
   const { width } = useWindowDimensions();
   const wide = width >= WIDE;
-  const [tab, setTab] = useState<Tab>('Feed');
   const [openEventId, setOpenEventId] = useState<string | null>(null);
   const [ping, setPing] = useState(false);
   const [note, setNote] = useState<string | null>(null);
-  const [dashboardOpen, setDashboardOpen] = useState(true); // phones: collapsible; wide screens: always shown
   const me = actor.kind === 'member' ? people.find((p) => p.id === actor.id) : undefined;
   const canInvite = can(actor, { type: 'invite.share' });
 
@@ -72,17 +70,13 @@ export function FamilyHome({
     );
   }
 
+  // Wide screens keep the dashboard in its own column, so "Today" there shows the feed beside it.
+  const content: FamilyHomeTab = wide && tab === 'Today' ? 'Feed' : tab;
   const tabs = (
     <>
-      <View style={s.tabs}>
-        {TABS.map((t) => (
-          <Pressable key={t} onPress={() => setTab(t)} accessibilityRole="tab" style={[s.tab, tab === t && s.tabOn]}>
-            <Text style={[s.tabText, tab === t && { color: colors.white }]}>{t}</Text>
-          </Pressable>
-        ))}
-      </View>
       <ErrorText message={error} />
-      {tab === 'Feed' && (
+      {content === 'Today' && dashboard}
+      {content === 'Feed' && (
         <MomentsTab
           circleId={session.circleId}
           actor={actor}
@@ -92,11 +86,11 @@ export function FamilyHome({
           version={version}
         />
       )}
-      {tab === 'Calendar' && (
+      {content === 'Calendar' && (
         <CalendarTab circleId={session.circleId} actor={actor} people={people} events={events}
           onOpenEvent={setOpenEventId} onSynced={reloadEvents} onConnectDeviceCalendar={onConnectDeviceCalendar} />
       )}
-      {tab === 'People' && (
+      {content === 'People' && (
         <PeopleTab circleId={session.circleId} patientName={session.patientName} actor={actor} people={people} onChanged={reload} />
       )}
     </>
@@ -120,9 +114,6 @@ export function FamilyHome({
               <Text style={s.settingsText}>Share invite</Text>
             </Pressable>
           ) : null}
-          <Pressable onPress={onSettings} accessibilityRole="button" style={s.settings}>
-            <Text style={s.settingsText}>Settings</Text>
-          </Pressable>
         </View>
       </View>
       {note ? <Text style={s.note}>{note}</Text> : null}
@@ -142,11 +133,7 @@ export function FamilyHome({
         </View>
       ) : (
         <>
-          <Pressable accessibilityRole="button" onPress={() => setDashboardOpen((v) => !v)} style={s.collapseRow}>
-            <Text style={s.collapseText}>{session.patientName} today</Text>
-            <Text style={s.collapseChevron}>{dashboardOpen ? '︿' : '﹀'}</Text>
-          </Pressable>
-          {dashboardOpen && <View style={{ marginBottom: 20 }}>{dashboard}</View>}
+          {tab === 'Today' ? <Text style={s.dashboardHeading}>{session.patientName} today</Text> : null}
           {tabs}
         </>
       )}
@@ -167,16 +154,6 @@ const s = StyleSheet.create({
   settingsText: { fontSize: 18, color: colors.terracotta, fontWeight: '700' },
   columns: { flexDirection: 'row', gap: 24, alignItems: 'flex-start' },
   leftCol: { width: 380, gap: 16 },
-  dashboardHeading: { fontSize: 28, fontFamily: fonts.display, color: colors.ink },
+  dashboardHeading: { fontSize: 28, fontFamily: fonts.display, color: colors.ink, marginBottom: 12 },
   rightCol: { flex: 1, minWidth: 0 },
-  collapseRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 48,
-    marginBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.line, paddingBottom: 8,
-  },
-  collapseText: { fontSize: 20, fontFamily: fonts.display, color: colors.ink },
-  collapseChevron: { fontSize: 20, color: colors.inkSoft },
-  tabs: { flexDirection: 'row', gap: 8, marginBottom: 20 },
-  tab: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 14, borderWidth: 2, borderColor: colors.line, backgroundColor: colors.card },
-  tabOn: { backgroundColor: colors.terracotta, borderColor: colors.terracotta },
-  tabText: { fontSize: 18, fontWeight: '700', color: colors.ink },
 });

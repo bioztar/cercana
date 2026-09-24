@@ -27,7 +27,7 @@ export function initNotifications(): void {
 /** Native: ask permission, get Expo push token, store in `devices`. Skips quietly without an EAS projectId. */
 export async function registerForPush(circleId: string, role: Role): Promise<void> {
   if (!isNative || !Device.isDevice) return;
-  const projectId = (Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)?.eas?.projectId;
+  const projectId = easProjectId();
   if (!projectId) {
     if (!warnedNoProject) {
       warnedNoProject = true;
@@ -44,6 +44,45 @@ export async function registerForPush(circleId: string, role: Role): Promise<voi
   } catch (e) {
     console.warn('push registration failed', e);
   }
+}
+
+export type NotificationStatus = {
+  /** OS permission on this phone ('unsupported' = web without the Notification API). */
+  permission: 'granted' | 'denied' | 'undetermined' | 'unsupported';
+  /** Push (messages while the app is closed) needs an EAS projectId in app.json. */
+  pushConfigured: boolean;
+};
+
+const easProjectId = () =>
+  (Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)?.eas?.projectId ?? null;
+
+/** What the Settings "Notifications" card shows. Never prompts. */
+export async function notificationStatus(): Promise<NotificationStatus> {
+  if (!isNative) {
+    const N = (globalThis as { Notification?: { permission: string } }).Notification;
+    const p = N?.permission;
+    return {
+      permission: !N ? 'unsupported' : p === 'granted' ? 'granted' : p === 'denied' ? 'denied' : 'undetermined',
+      pushConfigured: false,
+    };
+  }
+  const { status } = await Notifications.getPermissionsAsync();
+  return {
+    permission: status === 'granted' ? 'granted' : status === 'denied' ? 'denied' : 'undetermined',
+    pushConfigured: !!easProjectId(),
+  };
+}
+
+/** "Turn on": asks the OS (once — after a denial only iPhone Settings can change it), then registers for push. */
+export async function turnOnNotifications(circleId: string, role: Role): Promise<NotificationStatus> {
+  if (!isNative) {
+    const N = (globalThis as { Notification?: { requestPermission: () => Promise<string> } }).Notification;
+    await N?.requestPermission().catch(() => undefined);
+    return notificationStatus();
+  }
+  await Notifications.requestPermissionsAsync();
+  await registerForPush(circleId, role);
+  return notificationStatus();
 }
 
 /** Ping payload carried in the push `data`, so a tap can open the overlay. */
