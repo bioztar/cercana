@@ -1,13 +1,19 @@
 {
   "expo": {
-    "name": "cercana",
+    "name": "Cercana",
     "slug": "cercana",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.pro7ocol.cercana",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Record a voice note for your family",
+        "NSPhotoLibraryUsageDescription": "Choose a photo of a family member or a moment to share",
+        "NSCameraUsageDescription": "Take a photo of a family member or a moment to share"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +25,23 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
-    }
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-notifications",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Choose a photo of a family member or a moment to share",
+          "cameraPermission": "Take a photo of a family member or a moment to share"
+        }
+      ],
+      [
+        "expo-audio",
+        { "microphonePermission": "Record a voice note for your family" }
+      ]
+    ]
   }
 }
