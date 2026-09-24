@@ -22,6 +22,11 @@ export function Settings({ session, canInvite, onBack, onLeave }: Props) {
           : `You are ${session.memberName}, family of ${session.patientName}.`}
       </Text>
       <Text style={s.body}>Circle code: {session.code}</Text>
+
+      {/* SLOT: cercana-care's <MorningBriefSettings /> (brief time + on/off + "Hear it now") renders
+          here for both roles — helm wires the import at merge once that component lands. */}
+      <Text style={s.slot}>Morning brief settings — coming soon</Text>
+
       {canInvite ? (
         <>
           <Text style={s.small}>{inviteUrl(session.code)}</Text>
@@ -40,5 +45,9 @@ const s = StyleSheet.create({
   title: { fontSize: type.title, fontFamily: fonts.display, color: colors.ink },
   body: { fontSize: type.body, color: colors.ink },
   small: { fontSize: 18, color: colors.inkSoft },
+  slot: {
+    fontSize: 16, color: colors.inkSoft, fontStyle: 'italic', borderWidth: 1, borderColor: colors.line,
+    borderRadius: 12, padding: 12,
+  },
   note: { fontSize: 20, color: colors.green, fontWeight: '700' },
 });
