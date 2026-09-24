@@ -5,20 +5,25 @@ import { colors } from '../theme';
 
 export const FAMILY_TABS = ['Today', 'Feed', 'Calendar', 'People', 'Settings'] as const;
 export type FamilyTab = (typeof FAMILY_TABS)[number];
+/** The patient's bar is deliberately short: Settings stays behind the press-and-hold button on Home. */
+export const PATIENT_TABS = ['Home', 'Tell family'] as const;
+export type PatientTab = (typeof PATIENT_TABS)[number];
+export type AppTab = FamilyTab | PatientTab;
 
-type Props = { active: FamilyTab | null; onSelect: (tab: FamilyTab) => void };
+type Props<T extends AppTab> = { tabs: readonly T[]; active: T | null; onSelect: (tab: T) => void; large?: boolean };
 
-/** Family side: always on screen, on every route, so no screen is a dead end (Andrey, 2026-09-24). */
-export function FamilyTabBar({ active, onSelect }: Props) {
+/** Web / Android bar (iOS draws the native UITabBar, see NativeFamilyTabs.ios.tsx). On every route, so no
+ * screen is a dead end (Andrey, 2026-09-24). */
+export function FamilyTabBar<T extends AppTab>({ tabs, active, onSelect, large }: Props<T>) {
   return (
     <View style={s.bar} accessibilityRole="tablist">
-      {FAMILY_TABS.map((t) => {
+      {tabs.map((t) => {
         const on = t === active;
         return (
           <Pressable key={t} onPress={() => onSelect(t)} accessibilityRole="tab" accessibilityState={{ selected: on }}
-            style={s.tab}>
+            style={[s.tab, large && s.tabLarge]}>
             <View style={[s.pill, on && s.pillOn]}>
-              <Text style={[s.label, on && s.labelOn]} numberOfLines={1}>{t}</Text>
+              <Text style={[s.label, large && s.labelLarge, on && s.labelOn]} numberOfLines={1}>{t}</Text>
             </View>
           </Pressable>
         );
@@ -33,8 +38,10 @@ const s = StyleSheet.create({
     paddingHorizontal: 4, paddingTop: 6, paddingBottom: 6,
   },
   tab: { flex: 1, minHeight: 52, alignItems: 'center', justifyContent: 'center' },
+  tabLarge: { minHeight: 64 },
   pill: { paddingHorizontal: 6, paddingVertical: 8, borderRadius: 12, minWidth: 0 },
   pillOn: { backgroundColor: colors.peachSoft },
   label: { fontSize: 14, fontWeight: '700', color: colors.inkSoft },
+  labelLarge: { fontSize: 20 },
   labelOn: { color: colors.terracotta },
 });
