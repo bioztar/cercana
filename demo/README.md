@@ -1,17 +1,17 @@
-# demo/ — "Maria's family" (code ABUELA)
+# demo/ — "Carmen's family" (code ABUELA)
 
 A complete **fictional** family for demos. Faces, photos and voices are AI-generated
 (Picsart: flux-2-pro images, eleven-multilingual-v2 voices). No real people.
 
-| Person | Relation | Role | Notes |
+| Person | Relation to Carmen | Role | Notes |
 |---|---|---|---|
-| Maria | the patient | — | 79, Barcelona |
-| Anna | daughter | lead | "In London" until Sunday (anna.ics) |
-| Pedro | son | admin | Sunday lunch with the cake (family.ics) |
-| Carmen | sister | member | geraniums in Valencia |
-| Lucia | granddaughter | member | birthday 25 Sep — turns 16 |
-| Diego | grandson | member | 9, made a drawing |
-| Rosa | carer | admin | weekday visits 09:00–13:00 (family.ics) |
+| Carmen | the patient | — | 79, Barcelona (`carmen.jpg`) |
+| Pedro | son | lead | Sunday lunch with the cake (family-v2.ics), the park walk |
+| Anna | daughter-in-law (Pedro's wife) | admin | "In London" until Sunday (anna.ics) |
+| Diego | grandson (Pedro and Anna's son) | member | birthday 25 Sep — turns 10, made a drawing |
+
+Unused assets from the earlier cast (`lucia.jpg`, `rosa.jpg`, `m_exam.jpg`, `m_garden.jpg`, `v_carmen.mp3`) stay in
+the bucket for other demos.
 
 ## Re-seed
 
@@ -21,4 +21,4 @@ A complete **fictional** family for demos. Faces, photos and voices are AI-gener
 
 The seed points at the live project's public storage URLs; change the host if you re-seed elsewhere.
 Phone numbers are deliberately empty — add real ones (with consent) so WhatsApp calls ring a real phone.
-Lucia's birthday is fixed at 25 September; for a demo on another day, update her `birthday`.
+Diego's birthday is fixed at 25 September; for a demo on another day, update his `birthday`.
