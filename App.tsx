@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Linking, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, AppState, Linking, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { Fraunces_500Medium, Fraunces_600SemiBold } from '@expo-google-fonts/fraunces';
@@ -207,10 +207,21 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
   }, [session.circleId]);
   useEffect(() => { void reloadImportant(); }, [reloadImportant, version]);
 
-  // cercana-care: re-sync connected iPhone calendars on family app open (iOS only; no-op elsewhere).
+  // cercana-care: re-sync connected iPhone calendars on family app open and whenever the app
+  // comes back from the background (iOS only; no-op elsewhere). One sync at a time.
+  const deviceSyncing = useRef(false);
   useEffect(() => {
     if (isPatient) return;
-    void syncAllDeviceCalendars(session.circleId).then(() => reloadEvents());
+    const sync = () => {
+      if (deviceSyncing.current) return;
+      deviceSyncing.current = true;
+      void syncAllDeviceCalendars(session.circleId)
+        .then(() => reloadEvents())
+        .finally(() => { deviceSyncing.current = false; });
+    };
+    sync();
+    const sub = AppState.addEventListener('change', (state) => { if (state === 'active') sync(); });
+    return () => sub.remove();
   }, [isPatient, session.circleId]);
 
   const [momCheckEvent, setMomCheckEvent] = useState<ImportantEvent | null>(null);
