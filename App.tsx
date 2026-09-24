@@ -25,12 +25,13 @@ import { Welcome } from './src/screens/Welcome';
 import { Join } from './src/screens/Join';
 import { PatientHome } from './src/screens/PatientHome';
 import { PersonScreen } from './src/screens/PersonScreen';
+import { EventDetail } from './src/screens/EventDetail';
 import { PingOverlay } from './src/screens/PingOverlay';
 import { FamilyHome } from './src/screens/FamilyHome';
 import { Settings } from './src/screens/Settings';
 import { colors } from './src/theme';
 
-type Route = { name: 'home' } | { name: 'person'; id: string } | { name: 'settings' };
+type Route = { name: 'home' } | { name: 'person'; id: string } | { name: 'event'; id: string } | { name: 'settings' };
 
 initNotifications();
 
@@ -164,6 +165,7 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
 
   const home = () => setRoute({ name: 'home' });
   const openPerson = (id: string) => setRoute({ name: 'person', id });
+  const openEvent = (id: string) => setRoute({ name: 'event', id });
 
   let body: React.ReactNode;
   if (route.name === 'settings') {
@@ -172,8 +174,8 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
     );
   } else if (!isPatient) {
     body = (
-      <FamilyHome session={session} actor={actor} people={people} error={error} version={version} reload={reload}
-        reloadEvents={reloadEvents} onSettings={() => setRoute({ name: 'settings' })} />
+      <FamilyHome session={session} actor={actor} people={people} events={events} moments={moments} error={error}
+        version={version} reload={reload} reloadEvents={reloadEvents} onSettings={() => setRoute({ name: 'settings' })} />
     );
   } else if (route.name === 'person' && people.some((p) => p.id === route.id)) {
     const person = people.find((p) => p.id === route.id)!;
@@ -181,10 +183,15 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
       <PersonScreen person={person} circleId={session.circleId} refreshKey={version} events={events}
         people={people} onOpenPerson={openPerson} onBack={home} />
     );
+  } else if (route.name === 'event') {
+    body = (
+      <EventDetail eventId={route.id} events={events} people={people} moments={moments}
+        onBack={home} onOpenPerson={openPerson} />
+    );
   } else {
     body = (
       <PatientHome session={session} people={people} events={events} moments={moments} loading={loading} error={error}
-        onOpenPerson={openPerson} onSettings={() => setRoute({ name: 'settings' })} />
+        onOpenPerson={openPerson} onOpenEvent={openEvent} onSettings={() => setRoute({ name: 'settings' })} />
     );
   }
 

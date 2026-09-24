@@ -1,24 +1,27 @@
 import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../components/Text';
-import type { Person, Session } from '../lib/types';
+import type { EventRow, Moment, Person, Session } from '../lib/types';
 import { can, ROLE_LABEL, type Actor } from '../lib/permissions';
 import { shareInvite, shareResultText } from '../lib/share';
 import { inviteUrl } from '../lib/util';
 import { ErrorText } from '../components/ui';
-import { CalendarsTab } from './CalendarsTab';
+import { CalendarTab } from './CalendarTab';
+import { EventDetail } from './EventDetail';
 import { MomentsTab } from './MomentsTab';
 import { PeopleTab } from './PeopleTab';
 import { PingTab } from './PingTab';
 import { colors, fonts } from '../theme';
 
-const TABS = ['People', 'Calendars', 'Moments', 'Ping'] as const;
+const TABS = ['Feed', 'Calendar', 'People'] as const;
 type Tab = (typeof TABS)[number];
 
 type Props = {
   session: Session;
   actor: Actor;
   people: Person[];
+  events: EventRow[];
+  moments: Moment[];
   error: string | null;
   version: number;
   reload: () => void;
@@ -26,13 +29,24 @@ type Props = {
   onSettings: () => void;
 };
 
-export function FamilyHome({ session, actor, people, error, version, reload, reloadEvents, onSettings }: Props) {
-  const [tab, setTab] = useState<Tab>('People');
+export function FamilyHome({ session, actor, people, events, moments, error, version, reload, reloadEvents, onSettings }: Props) {
+  const [tab, setTab] = useState<Tab>('Feed');
+  const [openEventId, setOpenEventId] = useState<string | null>(null);
+  const [ping, setPing] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const me = actor.kind === 'member' ? people.find((p) => p.id === actor.id) : undefined;
   const canInvite = can(actor, { type: 'invite.share' });
 
   const share = async () => setNote(shareResultText(await shareInvite(inviteUrl(session.code), session.patientName)));
+
+  if (openEventId) {
+    return (
+      <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={s.wrap}>
+        <EventDetail eventId={openEventId} events={events} people={people} moments={moments}
+          onBack={() => setOpenEventId(null)} onOpenPerson={() => {}} />
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={s.wrap}>
@@ -44,6 +58,9 @@ export function FamilyHome({ session, actor, people, error, version, reload, rel
           </Text>
         </View>
         <View style={s.topActions}>
+          <Pressable onPress={() => setPing((v) => !v)} accessibilityRole="button" style={s.settings}>
+            <Text style={s.settingsText}>📣 Ping</Text>
+          </Pressable>
           {canInvite ? (
             <Pressable onPress={share} accessibilityRole="button" style={s.settings}>
               <Text style={s.settingsText}>Share invite</Text>
@@ -55,6 +72,11 @@ export function FamilyHome({ session, actor, people, error, version, reload, rel
         </View>
       </View>
       {note ? <Text style={s.note}>{note}</Text> : null}
+      {ping && (
+        <View style={s.pingPanel}>
+          <PingTab circleId={session.circleId} fromName={session.memberName} patientName={session.patientName} />
+        </View>
+      )}
       <View style={s.tabs}>
         {TABS.map((t) => (
           <Pressable key={t} onPress={() => setTab(t)} accessibilityRole="tab" style={[s.tab, tab === t && s.tabOn]}>
@@ -63,11 +85,7 @@ export function FamilyHome({ session, actor, people, error, version, reload, rel
         ))}
       </View>
       <ErrorText message={error} />
-      {tab === 'People' && <PeopleTab circleId={session.circleId} patientName={session.patientName} actor={actor} people={people} onChanged={reload} />}
-      {tab === 'Calendars' && (
-        <CalendarsTab circleId={session.circleId} actor={actor} people={people} onSynced={reloadEvents} />
-      )}
-      {tab === 'Moments' && (
+      {tab === 'Feed' && (
         <MomentsTab
           circleId={session.circleId}
           actor={actor}
@@ -77,8 +95,12 @@ export function FamilyHome({ session, actor, people, error, version, reload, rel
           version={version}
         />
       )}
-      {tab === 'Ping' && (
-        <PingTab circleId={session.circleId} fromName={session.memberName} patientName={session.patientName} />
+      {tab === 'Calendar' && (
+        <CalendarTab circleId={session.circleId} actor={actor} people={people} events={events}
+          onOpenEvent={setOpenEventId} onSynced={reloadEvents} />
+      )}
+      {tab === 'People' && (
+        <PeopleTab circleId={session.circleId} patientName={session.patientName} actor={actor} people={people} onChanged={reload} />
       )}
     </ScrollView>
   );
@@ -87,10 +109,11 @@ export function FamilyHome({ session, actor, people, error, version, reload, rel
 const s = StyleSheet.create({
   wrap: { padding: 20, paddingBottom: 48, maxWidth: 820, width: '100%', alignSelf: 'center' },
   top: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 12 },
-  topActions: { alignItems: 'flex-end' },
+  topActions: { alignItems: 'flex-end', gap: 4 },
   title: { fontSize: 28, fontFamily: fonts.display, color: colors.ink },
   sub: { fontSize: 16, color: colors.inkSoft, marginTop: 2 },
   note: { fontSize: 18, color: colors.green, fontWeight: '700', marginBottom: 12 },
+  pingPanel: { backgroundColor: colors.card, borderRadius: 16, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: colors.line },
   settings: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
   settingsText: { fontSize: 18, color: colors.terracotta, fontWeight: '700' },
   tabs: { flexDirection: 'row', gap: 8, marginBottom: 20 },
