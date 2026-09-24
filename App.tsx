@@ -303,10 +303,9 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
     home();
   };
   const activeFamilyTab: FamilyTab = route.name === 'settings' ? 'Settings' : familyTab;
-  // Carmen: the "Tell the family" flow (share → photos / event by voice) sits under its own tab.
-  const TELL_ROUTES: Route['name'][] = ['share', 'photoPick', 'photoEvent', 'photoSend', 'eventVoice', 'eventConfirm'];
-  const activePatientTab: PatientTab = TELL_ROUTES.includes(route.name) ? 'Tell family' : 'Home';
-  const selectPatientTab = (t: PatientTab) => (t === 'Tell family' ? setRoute({ name: 'share' }) : home());
+  // Carmen's tab bar (Vitaly, 2026-09-24 15:50/15:55): Feed/People/Calendar/Chats content switches
+  // inside PatientHome itself; "Tell family" became the floating "+" there, not a tab.
+  const [patientTab, setPatientTab] = useState<PatientTab>('Feed');
   const openPerson = (id: string) => setRoute({ name: 'person', id });
   const openEvent = (id: string) => setRoute({ name: 'event', id });
 
@@ -381,7 +380,7 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
     );
   } else if (route.name === 'photoPick') {
     body = (
-      <PhotoPick onNext={(photos) => setRoute({ name: 'photoEvent', photos })} onCancel={() => setRoute({ name: 'share' })} />
+      <PhotoPick onNext={(photos) => setRoute({ name: 'photoEvent', photos })} onCancel={home} />
     );
   } else if (route.name === 'photoEvent') {
     body = (
@@ -396,9 +395,11 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
     );
   } else {
     body = (
-      <PatientHome session={session} people={people} events={events} moments={moments} loading={loading} error={error}
+      <PatientHome session={session} people={people} events={events} moments={moments} important={important}
+        checkins={checkins} briefSettings={briefSettings} loading={loading} error={error} tab={patientTab}
         onOpenPerson={openPerson} onOpenEvent={openEvent} onOpenThread={(id) => setRoute({ name: 'thread', id })}
         onSettings={() => setRoute({ name: 'settings' })}
+        onSharePhotos={() => setRoute({ name: 'photoPick' })} onAddEvent={() => setRoute({ name: 'eventVoice' })}
         importantCard={
           <ImportantCard event={nextImportant(important, new Date())}
             due={!!dueCheckin(important, checkins, new Date())}
@@ -410,7 +411,7 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
   return (
     <View style={{ flex: 1 }}>
       {isPatient ? (
-        <NativeFamilyTabs tabs={PATIENT_TABS} active={activePatientTab} onSelect={selectPatientTab} large>{body}</NativeFamilyTabs>
+        <NativeFamilyTabs tabs={PATIENT_TABS} active={patientTab} onSelect={setPatientTab} large>{body}</NativeFamilyTabs>
       ) : (
         <NativeFamilyTabs tabs={FAMILY_TABS} active={activeFamilyTab} onSelect={selectFamilyTab}>{body}</NativeFamilyTabs>
       )}

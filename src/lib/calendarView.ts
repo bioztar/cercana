@@ -15,6 +15,8 @@ export type AgendaItem = {
   personIds: string[]; // who is involved
   location: string | null;
   eventId?: string;
+  createdByPersonId?: string | null; // events only: null = the patient created it herself
+  includesPatient?: boolean; // events only: "For you" vs "Family" (Vitaly, 2026-09-24 15:50)
 };
 
 const DAY = 86_400_000;
@@ -35,6 +37,7 @@ export function agenda(events: EventRow[], people: Person[], from: Date, to: Dat
       ...(prev ?? {
         key, kind: 'event' as const, title: e.title ?? '(no title)', firstDay: span.firstDay, lastDay: span.lastDay,
         allDay: e.all_day, start: span.start, location: e.location, eventId: e.id,
+        createdByPersonId: e.created_by_person_id, includesPatient: e.includes_patient,
       }),
       personIds: [...new Set([...(prev?.personIds ?? []), ...e.person_ids])],
     });
@@ -110,4 +113,14 @@ export function eventMoments(it: AgendaItem, moments: Moment[]): Moment[] {
 export function momentEvent(m: Moment, items: AgendaItem[]): AgendaItem | null {
   if (m.event_id) return items.find((it) => it.eventId === m.event_id) ?? null;
   return items.find((it) => it.kind === 'event' && involves(it, m)) ?? null;
+}
+
+/** "For you" (things that involve the patient) vs "Family" (everyone else's), for the Calendar
+ * screen (Vitaly, 2026-09-24 15:50). An event is "for you" when it's flagged `includesPatient` or
+ * the patient created it herself (`createdByPersonId === null`); birthdays are always "Family" —
+ * nobody's asked for a "your own birthday" case yet. Important events aren't `AgendaItem`s (they
+ * come from `important.ts`) and always belong in "For you"; the caller renders them separately. */
+export function splitByPatient(items: AgendaItem[]): { forYou: AgendaItem[]; family: AgendaItem[] } {
+  const isForYou = (it: AgendaItem) => it.kind === 'event' && (it.includesPatient === true || it.createdByPersonId === null);
+  return { forYou: items.filter(isForYou), family: items.filter((it) => !isForYou(it)) };
 }

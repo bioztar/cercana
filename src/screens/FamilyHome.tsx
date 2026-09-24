@@ -88,7 +88,8 @@ export function FamilyHome({
       )}
       {content === 'Calendar' && (
         <CalendarTab circleId={session.circleId} actor={actor} people={people} events={events}
-          onOpenEvent={setOpenEventId} onSynced={reloadEvents} onConnectDeviceCalendar={onConnectDeviceCalendar} />
+          important={important} checkins={checkins} onOpenEvent={setOpenEventId} onOpenImportant={onOpenImportant}
+          onSynced={reloadEvents} onConnectDeviceCalendar={onConnectDeviceCalendar} />
       )}
       {content === 'People' && (
         <PeopleTab circleId={session.circleId} patientName={session.patientName} code={session.code} actor={actor} people={people} onChanged={reload} />

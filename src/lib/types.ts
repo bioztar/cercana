@@ -74,6 +74,8 @@ export type EventRow = {
   ends_at: string | null;
   all_day: boolean;
   person_ids: string[]; // people whose calendars carry this event
+  created_by_person_id: string | null; // null = the patient created it herself (EventVoice)
+  includes_patient: boolean; // Calendar's "For you" vs "Family" split (Vitaly, 2026-09-24 15:50)
 };
 
 export type Session = {

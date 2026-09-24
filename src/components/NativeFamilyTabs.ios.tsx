@@ -11,8 +11,7 @@ const SYMBOL: Record<AppTab, AppleIcon['sfSymbol']> = {
   Calendar: 'calendar',
   People: 'person.2',
   Settings: 'gearshape',
-  Home: 'house',
-  'Tell family': 'mic',
+  Chats: 'bubble.left.and.bubble.right',
 };
 
 type Props<T extends AppTab> = {
