@@ -10,16 +10,26 @@ These rules come first. They override anything below, including the Expo templat
   - design work: `design/<topic>` → PR into `main`, files under `design/` only
   - code work: `<feature>` → PR into `main`
 - Never force-push, never delete `main`, never try to bypass protection.
-- **Don't merge your own PR.** Vitaly (`bioztar`) or helm (his orchestrator) reviews and
-  merges, then redeploys. GitHub doesn't block self-merge here (so helm isn't blocked
-  when it merges its own branches), so this rule is on you.
+- **Who merges:**
+  - **Andrey (`calledandrey`) may merge his own PRs** (Vitaly, 2026-09-24) — design PRs and
+    UI-fix PRs alike. Before merging a PR that touches app code, run the checks below and only
+    merge when all three are green; use "Create a merge commit" (not squash — parallel branches
+    rebase on top of `main`).
+  - Everything else is merged by Vitaly (`bioztar`) or helm (his orchestrator).
+  - After you merge, tell Vitaly (or helm) — the live site and phone builds are redeployed from
+    `main` by helm; merging alone does not deploy.
 - Pull before you start (`git pull --rebase origin main`) so your branch is current.
 
 ## Who owns what
 
-- **Andrey (`calledandrey`) — design.** Mockups made in Claude Design go into `design/`
-  (one folder per flow, PNGs at 390 px phone width and desktop, plus `notes.md`). See
-  `design/README.md`. Don't edit app code (`App.tsx`, `src/`, `supabase/`) in design PRs.
+- **Andrey (`calledandrey`) — design + UI fixes.** Mockups made in Claude Design go into
+  `design/` (one folder per flow, PNGs at 390 px phone width, plus `notes.md`). See
+  `design/README.md`. UI fixes may change app code (`App.tsx`, `src/screens/*`,
+  `src/components/*`, `src/theme.ts`) — keep them small and focused, one topic per PR.
+  Don't change `supabase/` (schema, migrations, functions) — ask helm, it applies them to the
+  live database.
+- Crewmates may be editing the same screens in parallel. Pull `main` right before you start and
+  again before merging; if your PR conflicts, rebase and keep both changes.
 - **Vitaly's crewmates (via helm) — code**: app, Supabase schema and functions, deploy.
 - Product concept: `family_memory_concept_for_designer.md`.
 
