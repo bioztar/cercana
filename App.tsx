@@ -9,7 +9,7 @@ import * as Notifications from 'expo-notifications';
 import { setAudioModeAsync } from 'expo-audio';
 import { demo, missingSettings } from './src/lib/config';
 import { demoBoot } from './src/lib/demo';
-import { getBriefSettings, listCheckins, listImportant, unclaimPerson } from './src/lib/api';
+import { findCircleByCode, getBriefSettings, listCheckins, listImportant, unclaimPerson } from './src/lib/api';
 import { DemoRibbon } from './src/components/DemoRibbon';
 import { clearSession, getFlag, loadSession, saveSession, setFlag } from './src/lib/session';
 import { useCircle } from './src/lib/useCircle';
@@ -110,6 +110,20 @@ function Root() {
     }
     void loadSession().then(setSession);
   }, []);
+
+  // The session caches `patientName` from whenever this device joined; Andrey's re-cast (Maria →
+  // Carmen) showed as "Family of Maria" until the app refreshed it (Vitaly, 2026-09-24 15:50).
+  useEffect(() => {
+    if (demo || !session) return;
+    void findCircleByCode(session.code).then((circle) => {
+      if (circle && circle.patient_name !== session.patientName) {
+        const updated = { ...session, patientName: circle.patient_name };
+        void saveSession(updated);
+        setSession(updated);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per session load, not on every session-derived update
+  }, [session?.code]);
 
   // Invite links: https://…/join/CODE on web, cercana://join/CODE on native.
   useEffect(() => {
@@ -345,7 +359,7 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
         onNewImportant={() => setRoute({ name: 'important-create' })}
         onOpenImportant={(id) => setRoute({ name: 'important-status', id })}
         onHearBrief={() => say(composeBrief(null).full)}
-        onConnectDeviceCalendar={() => setRoute({ name: 'calendar-connect' })} />
+        onConnectDeviceCalendar={() => setRoute({ name: 'calendar-connect' })} onSelectTab={setFamilyTab} />
     );
   } else if (route.name === 'person' && people.some((p) => p.id === route.id)) {
     const person = people.find((p) => p.id === route.id)!;

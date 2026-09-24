@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from './Text';
 import { colors } from '../theme';
 
-export const FAMILY_TABS = ['Today', 'Feed', 'Calendar', 'People', 'Settings'] as const;
+export const FAMILY_TABS = ['Today', 'Feed', 'Calendar', 'People', 'Chats', 'Settings'] as const;
 export type FamilyTab = (typeof FAMILY_TABS)[number];
 /** Andrey's original tab bar (Vitaly, 2026-09-24 15:50); "Tell family" became a floating "+" (15:55) —
  * Settings stays behind the press-and-hold button on Feed, not a tab. */
