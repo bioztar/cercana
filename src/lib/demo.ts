@@ -10,7 +10,7 @@ import { defaultReminders } from './important';
 import { normalizeCode, urlHint, uuidv4 } from './util';
 import { summarizeComments } from './voice';
 
-const CIRCLE: Circle = { id: 'demo-circle', code: 'K7M4QX', patient_name: 'Maria' };
+const CIRCLE: Circle = { id: 'demo-circle', code: 'K7M4QX', patient_name: 'Carmen' };
 
 const DAY = 86_400_000;
 const now = () => new Date();
@@ -21,7 +21,7 @@ const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), 
 const tomorrow = addDays(now(), 1);
 const inThreeDays = addDays(now(), 3); // "Sunday" relative to whatever day the demo runs on
 
-// Same family, photos and captions as demo/seed-abuela.sql ("Maria's family", code ABUELA) —
+// Same family, photos and captions as demo/seed-abuela.sql ("Carmen's family", code ABUELA) —
 // keep the two in sync by hand; this is the in-memory stand-in for that seed.
 const MEDIA = 'https://xgelxazkvsgrhggmxlzz.supabase.co/storage/v1/object/public/media/demo/';
 const img = (file: string) => `${MEDIA}${file}`;
@@ -31,19 +31,21 @@ const person = (id: string, name: string, relation: string, extra: Partial<Perso
   role: 'member', claimed: false, ...extra,
 });
 
-// View family mode as someone else with /?demo=family&as=pedro|carmen|lucia|diego|rosa.
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+// View family mode as someone else with /?demo=family&as=pedro|anna|diego.
 let people: Person[] = [
-  person('anna', 'Anna', 'your daughter', { birthday: '1976-03-14', role: 'lead', claimed: true }),
-  person('pedro', 'Pedro', 'your son', { birthday: '1979-06-02', role: 'admin', claimed: true }),
-  person('carmen', 'Carmen', 'your sister', { birthday: '1950-11-20', claimed: true }),
-  person('lucia', 'Lucia', 'your granddaughter', { birthday: '2010-09-25' }), // unclaimed: a child who doesn't use the app
-  person('diego', 'Diego', 'your grandson', { birthday: '2017-05-09' }), // unclaimed: a child who doesn't use the app
-  person('rosa', 'Rosa', 'your carer', { role: 'admin', claimed: true }),
+  person('pedro', 'Pedro', 'your son', { birthday: '1979-06-02', role: 'lead', claimed: true }),
+  person('anna', 'Anna', 'your daughter-in-law', { birthday: '1976-03-14', role: 'admin', claimed: true }),
+  // Turns 10 tomorrow, like the seed's `(current_date + 1) - interval '10 years'`.
+  person('diego', 'Diego', 'your grandson', {
+    birthday: `${tomorrow.getFullYear() - 10}-${pad2(tomorrow.getMonth() + 1)}-${pad2(tomorrow.getDate())}`,
+  }), // unclaimed: a child who doesn't use the app
 ];
 
-// `about`/`by` are people ids; `audio` mirrors the seed's optional voice note.
+// `about`/`by` are people ids (null `about` = about everyone); `audio` mirrors the seed's optional voice note.
 const moment = (
-  id: string, about: string, by: string, body: string, photo: string, hoursAgo: number, audio: string | null = null,
+  id: string, about: string | null, by: string, body: string, photo: string, hoursAgo: number, audio: string | null = null,
 ): Moment => ({
   id, circle_id: CIRCLE.id, person_id: about, author_person_id: by,
   author: people.find((p) => p.id === by)?.name ?? null, body, photo_url: img(photo),
@@ -52,25 +54,23 @@ const moment = (
 
 let moments: Moment[] = [
   moment('m1', 'anna', 'anna', "Landed in London! Raining, of course. I'll call you tonight.", 'm_london.jpg', 2, 'v_anna.mp3'),
-  moment('m2', 'rosa', 'rosa', 'This morning we walked to the park and fed the pigeons. You laughed a lot.', 'm_park.jpg', 4),
+  moment('m2', null, 'pedro', 'This morning we walked to the park and fed the pigeons. You laughed a lot.', 'm_park.jpg', 4),
   moment('m3', 'diego', 'pedro', "Diego made you a drawing at school. We're coming on Sunday with the cake.", 'm_drawing.jpg', 24, 'v_pedro.mp3'),
-  moment('m4', 'carmen', 'carmen', "The geraniums on my balcony are blooming again, just like Mum's used to.", 'm_garden.jpg', 48, 'v_carmen.mp3'),
-  moment('m5', 'lucia', 'anna', 'Lucia got a nine in her maths exam! She turns 16 tomorrow.', 'm_exam.jpg', 72),
-  moment('m6', 'anna', 'anna', 'We had lunch at the beach. You loved the paella.', 'm_paella.jpg', 144),
+  moment('m4', 'anna', 'anna', 'We had lunch at the beach. You loved the paella.', 'm_paella.jpg', 144),
 ];
 
 const comment = (
   id: string, moment_id: string, by: string | null, body: string | null, mins: number, audio_url: string | null = null,
 ): Comment => ({
   id, moment_id, circle_id: CIRCLE.id, author_person_id: by,
-  author_name: by ? people.find((p) => p.id === by)?.name ?? null : 'Maria',
+  author_name: by ? people.find((p) => p.id === by)?.name ?? null : 'Carmen',
   body, audio_url, created_at: new Date(Date.now() - mins * 60_000).toISOString(),
 });
 
 let comments: Comment[] = [
-  comment('c1', 'm2', 'pedro', 'A champion in the making!', 90),
-  comment('c2', 'm2', null, null, 20, 'demo-audio://mom-reply'), // Mom's voice reply
-  comment('c3', 'm1', 'anna', 'Looking forward to Sunday!', 200),
+  comment('c1', 'm2', 'anna', 'A champion in the making!', 90),
+  comment('c2', 'm2', null, null, 20, 'demo-audio://mom-reply'), // Carmen's voice reply
+  comment('c3', 'm1', 'pedro', 'Looking forward to Sunday!', 200),
 ];
 
 let calendars: CalendarPublic[] = [
@@ -79,8 +79,8 @@ let calendars: CalendarPublic[] = [
     last_synced_at: isoDaysAgo(0.003), last_error: null, person_ids: ['anna'],
   },
   {
-    id: 'cal-family', circle_id: CIRCLE.id, label: 'Family', url_hint: 'family.ics',
-    last_synced_at: isoDaysAgo(0.003), last_error: null, person_ids: ['pedro', 'diego', 'rosa'],
+    id: 'cal-family', circle_id: CIRCLE.id, label: 'Family', url_hint: 'family-v2.ics',
+    last_synced_at: isoDaysAgo(0.003), last_error: null, person_ids: ['pedro', 'diego'],
   },
 ];
 
@@ -88,9 +88,8 @@ const at = (d: Date, h: number, min = 0) => new Date(d.getFullYear(), d.getMonth
 const event = (id: string, calendar_id: string, title: string, starts: string, ends: string, all_day: boolean, location: string | null = null) =>
   ({ id, calendar_id, uid: id, title, location, starts_at: starts, ends_at: ends, all_day });
 
-// Mirrors demo/assets/anna.ics + family.ics, kept relative to "today" instead of their fixed 2026-09-24
-// dates so the demo looks current on any day. `rosa-visits` is weekly Mon–Fri in the real .ics;
-// ponytail: shown here as a single instance today, add recurrence once the agenda view needs it.
+// Mirrors demo/assets/anna.ics + family-v2.ics, kept relative to "today" instead of their fixed
+// 2026-09-24 dates so the demo looks current on any day.
 let rawEvents = [
   event('e-london', 'cal-anna', 'In London', utcDay(now()).toISOString(), utcDay(addDays(now(), 4)).toISOString(), true),
   event('e-flight', 'cal-anna', 'Flying home to Madrid', at(inThreeDays, 18), at(inThreeDays, 20, 30), false),
@@ -98,17 +97,18 @@ let rawEvents = [
     'e-lunch', 'cal-family', 'Sunday lunch with you — Pedro and Diego bring the cake',
     at(inThreeDays, 13, 30), at(inThreeDays, 16, 30), false, 'Your home',
   ),
-  event('e-rosa', 'cal-family', 'Rosa visits', at(now(), 9), at(now(), 13), false),
 ];
 
-// `check` reminder is overridden to a few minutes ago so the demo patient sees it due immediately,
-// regardless of when the demo happens to be opened (the mockups always show it due).
-const appt = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 10, 30).toISOString();
+// Blood test this morning, like the seed's `current_date + 09:00..09:30`. The `check` reminder is
+// overridden to a few minutes ago so the demo patient sees "Did you go?" due immediately, regardless
+// of when the demo happens to be opened.
+const bloodTestStart = new Date(now().getFullYear(), now().getMonth(), now().getDate(), 9, 0).toISOString();
+const bloodTestEnd = new Date(now().getFullYear(), now().getMonth(), now().getDate(), 9, 30).toISOString();
 let importantEvents: ImportantEvent[] = [
   {
-    id: 'imp-cardio', circle_id: CIRCLE.id, title: 'Cardiologist appointment', starts_at: appt, ends_at: null,
-    location: 'Calle Mayor 1', for_person: 'mom', created_by_person_id: 'anna',
-    reminders: defaultReminders(new Date(appt), null).map((r) =>
+    id: 'imp-blood', circle_id: CIRCLE.id, title: 'Blood test', starts_at: bloodTestStart, ends_at: bloodTestEnd,
+    location: 'Health centre', for_person: 'mom', created_by_person_id: 'pedro',
+    reminders: defaultReminders(new Date(bloodTestStart), new Date(bloodTestEnd)).map((r) =>
       r.kind === 'check' ? { ...r, at: new Date(Date.now() - 5 * 60_000).toISOString() } : r,
     ),
     created_at: isoDaysAgo(1),
@@ -341,7 +341,7 @@ export function demoBoot(): DemoBoot | null {
   if (kind === 'join') return { session: null, joinCode: CIRCLE.code }; // the "Which one are you?" screen
   if (kind === 'patient') {
     return {
-      session: { role: 'patient', circleId: CIRCLE.id, code: CIRCLE.code, patientName: 'Maria', memberName: 'Maria' },
+      session: { role: 'patient', circleId: CIRCLE.id, code: CIRCLE.code, patientName: 'Carmen', memberName: 'Carmen' },
       personId: q.get('person') ?? undefined,
     };
   }
@@ -349,7 +349,7 @@ export function demoBoot(): DemoBoot | null {
   const me = people.find((p) => p.id === q.get('as')) ?? people[0];
   return {
     session: {
-      role: 'family', circleId: CIRCLE.id, code: CIRCLE.code, patientName: 'Maria',
+      role: 'family', circleId: CIRCLE.id, code: CIRCLE.code, patientName: 'Carmen',
       memberName: me.name, memberId: me.id, relation: me.relation ?? undefined,
     },
   };

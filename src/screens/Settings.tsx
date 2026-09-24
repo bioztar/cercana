@@ -60,7 +60,7 @@ export function Settings({ session, canInvite, onBack, onLeave, canEditBrief, on
         <>
           <Text style={s.cardTitle}>Set up {session.patientName}'s phone</Text>
           <Text style={s.body}>1. On her phone, open Cercana.</Text>
-          <Text style={s.body}>2. Choose "This is the phone of the person we care for" and type the code above.</Text>
+          <Text style={s.body}>2. Choose "This is my phone" and type the code above.</Text>
         </>
       ) : null}
       <BigButton label="Back" tone="plain" onPress={onBack} />

@@ -14,7 +14,7 @@ type Step =
   | 'choose'
   | 'setupName' | 'setupLead' | 'invite' // "I'm setting up Cercana for someone in my family"
   | 'joinCode' | 'joinConfirm' // "I have an invite code or link" typed in (not via a link)
-  | 'patientCode' | 'patientConfirm'; // "This is the phone of the person we care for"
+  | 'patientCode' | 'patientConfirm'; // "This is my phone" (Andrey: Mom may read this screen herself)
 
 type Props = {
   /** The patient's phone is set up: it joined by code, this device becomes a patient session. */
@@ -102,7 +102,7 @@ export function Welcome({ onDone, onJoinCode }: Props) {
           <Text style={s.title}>Welcome</Text>
           <BigButton label="I'm setting up Cercana for someone in my family" onPress={() => go('setupName')} />
           <BigButton label="I have an invite code or link" tone="terracotta" onPress={() => go('joinCode')} />
-          <BigButton label="This is the phone of the person we care for" tone="plain" onPress={() => go('patientCode')} />
+          <BigButton label="This is my phone" tone="plain" onPress={() => go('patientCode')} />
         </View>
       )}
       {step === 'setupName' && (
@@ -135,7 +135,7 @@ export function Welcome({ onDone, onJoinCode }: Props) {
           <View style={s.card}>
             <Text style={s.cardTitle}>Set up {created.patientName}'s phone</Text>
             <Text style={s.body}>1. On her phone, open Cercana.</Text>
-            <Text style={s.body}>2. Choose "This is the phone of the person we care for" and type the code above.</Text>
+            <Text style={s.body}>2. Choose "This is my phone" and type the code above.</Text>
           </View>
           <BigButton label="Done" onPress={() => onDone(created)} />
         </View>
