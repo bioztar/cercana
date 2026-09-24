@@ -138,7 +138,10 @@ export function PatientHome({
             <Pressable accessibilityRole="button" accessibilityLabel="Menu" onPress={() => setMenuOpen(true)} style={s.menuBtn}>
               <Text style={s.menuIcon}>☰</Text>
             </Pressable>
-            <Text style={s.hello} numberOfLines={1}>{hello} · {compactDate}</Text>
+            <View style={s.helloBox}>
+              <Text style={s.hello}>{hello}</Text>
+              <Text style={s.helloDate}>{compactDate}</Text>
+            </View>
           </View>
 
           <ErrorText message={error} />
@@ -202,7 +205,9 @@ const s = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingRight: 84 }, // clears the floating "+"
   menuBtn: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center' },
   menuIcon: { fontSize: 32, color: colors.ink },
-  hello: { flex: 1, fontSize: 24, fontFamily: fonts.display, color: colors.ink },
+  helloBox: { flex: 1, minWidth: 0 },
+  hello: { fontSize: 24, lineHeight: 30, fontFamily: fonts.display, color: colors.ink, flexShrink: 1 },
+  helloDate: { fontSize: 18, lineHeight: 24, color: colors.inkSoft, marginTop: 2 },
   banner: {
     flexDirection: 'row', alignItems: 'center', gap: 16, backgroundColor: colors.peach,
     borderRadius: 20, padding: 16, borderWidth: 3, borderColor: colors.terracotta, minHeight: 64,
