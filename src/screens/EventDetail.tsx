@@ -1,10 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../components/Text';
 import type { EventRow, Moment, Person } from '../lib/types';
 import { agenda, eventMoments, longDate, type AgendaItem } from '../lib/calendarView';
 import { authorOf } from '../lib/feed';
-import { Avatar, BigButton } from '../components/ui';
+import { setEventIncludesPatient } from '../lib/api';
+import { Avatar, BigButton, ErrorText } from '../components/ui';
 import { colors, fonts, radius, TARGET, typeFamily } from '../theme';
 
 type Props = {
@@ -16,9 +17,17 @@ type Props = {
   onOpenPerson: (id: string) => void;
   /** cercana-voice/cercana-care may wire this to the photo-add flow; the button hides without it. */
   onAddPhotos?: () => void;
+  /** Family only (Vitaly, 2026-09-24 15:50): patient's own name, shown on the "<patient> takes
+   * part" toggle. Nothing renders without it — Mom's own EventDetail has no such control. */
+  patientName?: string;
+  onEventsChanged?: () => void;
 };
 
-export function EventDetail({ eventId, events, people, moments, onBack, onOpenPerson, onAddPhotos }: Props) {
+export function EventDetail({
+  eventId, events, people, moments, onBack, onOpenPerson, onAddPhotos, patientName, onEventsChanged,
+}: Props) {
+  const [toggling, setToggling] = useState(false);
+  const [toggleError, setToggleError] = useState<string | null>(null);
   const item = useMemo(() => {
     const now = new Date();
     const items = agenda(events, [], new Date(now.getFullYear() - 1, 0, 1), new Date(now.getFullYear() + 1, 11, 31));
@@ -43,6 +52,21 @@ export function EventDetail({ eventId, events, people, moments, onBack, onOpenPe
   });
   const addedBy = linked.map((m) => authorOf(m, people)).find((p) => p);
   const commentTotal = linked.length; // stands in for a real comment count until cercana-voice's thread lands
+
+  const toggleIncludesPatient = async () => {
+    if (!item.eventId) return;
+    setToggling(true);
+    setToggleError(null);
+    try {
+      await setEventIncludesPatient(item.eventId, !item.includesPatient);
+      onEventsChanged?.();
+    } catch {
+      // ICS events aren't client-writable (RLS rejects it) — the calendar's own default still applies.
+      setToggleError("This event syncs automatically and can't be changed here.");
+    } finally {
+      setToggling(false);
+    }
+  };
 
   return (
     <View style={{ flex: 1 }}>
@@ -71,6 +95,16 @@ export function EventDetail({ eventId, events, people, moments, onBack, onOpenPe
             {item.personIds.length === 0 && <Text style={s.body}>Nobody linked yet.</Text>}
           </View>
         </View>
+
+        {patientName && (
+          <View style={s.card}>
+            <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: !!item.includesPatient }}
+              onPress={toggleIncludesPatient} disabled={toggling} style={s.takesPartRow}>
+              <Text style={s.cardLabel}>{item.includesPatient ? '✓ ' : ''}{patientName} takes part</Text>
+            </Pressable>
+            <ErrorText message={toggleError} />
+          </View>
+        )}
 
         {photos.length > 0 && (
           <>
@@ -104,6 +138,7 @@ const s = StyleSheet.create({
   sub: { fontSize: typeFamily.body, color: colors.inkSoft },
   card: { backgroundColor: colors.card, borderRadius: radius.lg, padding: 16, gap: 12, borderWidth: 1, borderColor: colors.line },
   cardLabel: { fontSize: typeFamily.label, fontWeight: '700', color: colors.ink },
+  takesPartRow: { minHeight: TARGET },
   people: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
   person: { alignItems: 'center', gap: 6, minWidth: 64 },
   personName: { fontSize: typeFamily.small, fontWeight: '700', color: colors.ink },
