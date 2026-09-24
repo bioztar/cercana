@@ -3,97 +3,45 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cercana — Opening Slides</title>
+<title>Cercana — Opening Slide</title>
 <style>
-  :root { --ink:#1F1B16; --muted:#5E574E; --bg:#F7F3EC; --brand:#A34A24; --peach:#F6D2B8; --line:#E4DACB; }
+  :root { --ink:#1F1B16; --muted:#5E574E; --bg:#F7F3EC; --brand:#A34A24; --line:#E4DACB; --card:#FFFFFF; }
   * { box-sizing:border-box; }
-  html { scroll-snap-type:y mandatory; scroll-behavior:smooth; }
+  html, body { height:100%; }
   body { margin:0; background:var(--bg); color:var(--ink);
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
-  section { min-height:100vh; scroll-snap-align:start; display:flex; flex-direction:column; justify-content:center;
-    padding:6vh 9vw; position:relative; border-bottom:1px solid var(--line); }
+  main { min-height:100vh; display:flex; flex-direction:column; justify-content:center; padding:6vh 7vw 9vh; gap:5vh; }
   .serif { font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif; }
-  .kicker { color:var(--brand); font-weight:700; letter-spacing:.14em; text-transform:uppercase; font-size:clamp(14px,1.4vw,20px); margin:0 0 2vh; }
-  h1 { font-size:clamp(44px,7.5vw,120px); line-height:1.02; margin:0; font-weight:600; }
-  .big { font-size:clamp(88px,17vw,260px); line-height:.9; margin:0; font-weight:600; color:var(--brand); }
-  .label { font-size:clamp(26px,3.4vw,52px); line-height:1.2; margin:2vh 0 0; max-width:22ch; }
-  .sub { font-size:clamp(18px,2vw,30px); color:var(--muted); margin:3vh 0 0; max-width:40ch; line-height:1.4; }
-  .row { display:flex; gap:5vw; flex-wrap:wrap; align-items:flex-end; }
-  .stat { min-width:24vw; }
-  .stat .num { font-size:clamp(60px,9vw,150px); line-height:.95; font-weight:600; color:var(--brand); margin:0; }
-  .stat .txt { font-size:clamp(18px,2vw,30px); margin:1vh 0 0; max-width:18ch; line-height:1.3; }
-  .src { position:absolute; left:9vw; right:9vw; bottom:4vh; font-size:clamp(11px,.95vw,15px); color:var(--muted); }
-  .src a { color:var(--muted); }
-  ol.points { list-style:none; padding:0; margin:3vh 0 0; counter-reset:p; }
-  ol.points li { counter-increment:p; font-size:clamp(24px,3vw,46px); line-height:1.25; margin:2.2vh 0; padding-left:2.2em; position:relative; }
-  ol.points li::before { content:counter(p); position:absolute; left:0; top:.05em; width:1.5em; height:1.5em; border-radius:50%;
-    background:var(--brand); color:#fff; font-size:.7em; display:flex; align-items:center; justify-content:center; font-weight:700; }
-  .demo { background:var(--ink); color:var(--bg); }
-  .demo h1 { color:var(--bg); }
-  .demo .sub { color:#C9BBA6; }
-  .pill { display:inline-block; background:var(--brand); color:#fff; border-radius:999px; padding:.3em .9em; font-weight:700;
-    font-size:clamp(18px,2vw,30px); margin-top:4vh; }
-  .hint { position:fixed; right:2vw; bottom:2vh; font-size:12px; color:var(--muted); opacity:.6; }
-  @media print { html { scroll-snap-type:none; } section { page-break-after:always; min-height:auto; height:100vh; } .hint { display:none; } }
+  .kicker { color:var(--brand); font-weight:700; letter-spacing:.14em; text-transform:uppercase; font-size:clamp(13px,1.3vw,18px); margin:0 0 1.5vh; }
+  h1 { font-size:clamp(40px,6vw,96px); line-height:1.02; margin:0; font-weight:600; }
+  .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:2vw; }
+  .stat { background:var(--card); border:1px solid var(--line); border-radius:22px; padding:3.2vh 1.8vw; }
+  .num { font-size:clamp(42px,5.4vw,92px); line-height:.95; font-weight:600; color:var(--brand); margin:0; }
+  .txt { font-size:clamp(15px,1.45vw,24px); line-height:1.3; margin:1.4vh 0 0; }
+  .line { font-size:clamp(20px,2.2vw,36px); line-height:1.3; margin:0; max-width:70ch; }
+  .line b { color:var(--brand); }
+  .src { font-size:clamp(10px,.85vw,14px); color:var(--muted); margin:0; }
+  @media (max-width:800px) { .grid { grid-template-columns:1fr 1fr; } }
+  @media print { main { min-height:auto; height:100vh; } .stat { box-shadow:none; } }
 </style>
 </head>
 <body>
-
-<section>
-  <p class="kicker">Cercana</p>
-  <h1 class="serif">Yesterday<br>doesn't stick.</h1>
-  <p class="sub">A family memory companion for people living with Alzheimer's and short-term memory loss, and for the families around them.</p>
-</section>
-
-<section>
-  <p class="kicker">Today</p>
-  <p class="big serif">57 million</p>
-  <p class="label">people are living with dementia worldwide.</p>
-  <p class="sub">Nearly <b>10 million</b> new cases every year: one every ~3 seconds.</p>
-  <p class="src">Source: World Health Organization, Dementia fact sheet (2021 figures). <a href="https://www.who.int/news-room/fact-sheets/detail/dementia">who.int</a></p>
-</section>
-
-<section>
-  <p class="kicker">Tomorrow</p>
-  <p class="big serif">139 million</p>
-  <p class="label">by 2050, more than double today.</p>
-  <p class="sub">Alzheimer's disease accounts for 60–70% of cases.</p>
-  <p class="src">Sources: WHO; Alzheimer's Disease International. <a href="https://www.who.int/news-room/fact-sheets/detail/dementia">who.int</a> · <a href="https://www.alzint.org/about/dementia-facts-figures/dementia-statistics/">alzint.org</a></p>
-</section>
-
-<section>
-  <p class="kicker">Who carries it</p>
-  <div class="row">
-    <div class="stat"><p class="num serif">$1.3T</p><p class="txt">global cost of dementia every year, and <b>about half</b> of it is care given by family and friends</p></div>
-    <div class="stat"><p class="num serif">19 bn</p><p class="txt">hours of unpaid care by nearly <b>13 million</b> family caregivers, in the US alone, in one year</p></div>
+<main>
+  <div>
+    <p class="kicker">Cercana</p>
+    <h1 class="serif">Yesterday doesn't stick.</h1>
   </div>
-  <p class="src">Sources: WHO (2019 cost); Alzheimer's Association, 2025 Alzheimer's Disease Facts and Figures. <a href="https://www.alz.org/alzheimers-dementia/facts-figures">alz.org</a></p>
-</section>
 
-<section>
-  <p class="kicker">Why connection matters</p>
-  <p class="big serif">45%</p>
-  <p class="label">of dementia cases could be prevented or delayed.</p>
-  <p class="sub"><b>Social isolation</b> is one of the 14 risk factors we can change. Staying close to family isn't just kind. It's care.</p>
-  <p class="src">Source: Livingston et al., Dementia prevention, intervention, and care: 2024 report of the Lancet standing Commission. <a href="https://www.thelancet.com/commissions-do/dementia-prevention-intervention-and-care">thelancet.com</a></p>
-</section>
+  <div class="grid">
+    <div class="stat"><p class="num serif">57M</p><p class="txt">people live with dementia today</p></div>
+    <div class="stat"><p class="num serif">139M</p><p class="txt">by 2050, more than double</p></div>
+    <div class="stat"><p class="num serif">~50%</p><p class="txt">of its <b>$1.3 trillion</b> yearly cost is care given by family</p></div>
+    <div class="stat"><p class="num serif">45%</p><p class="txt">could be prevented or delayed, and <b>social isolation</b> is one of the risks we can change</p></div>
+  </div>
 
-<section>
-  <p class="kicker">What Cercana does</p>
-  <ol class="points serif">
-    <li><b>She never has to remember.</b> The phone tells her her day and who everyone is.</li>
-    <li><b>She's not just a viewer.</b> She answers her family by voice.</li>
-    <li><b>The family knows she's OK.</b> "Did you go to the doctor?" comes back to them.</li>
-  </ol>
-</section>
+  <p class="line serif">Staying close to family isn't just kind. <b>It's care.</b>&nbsp;&nbsp;Meet&nbsp;Carmen&nbsp;→</p>
 
-<section class="demo">
-  <p class="kicker" style="color:var(--peach)">Live</p>
-  <h1 class="serif">Meet Carmen.</h1>
-  <p class="sub">80, living with memory loss. Her son Pedro runs the family in the app. His wife Anna is away in London.</p>
-  <span class="pill">Live demo →</span>
-</section>
-
-<p class="hint">↓ / space to advance · Ctrl+Cmd+F full screen</p>
+  <p class="src">Sources: World Health Organization, Dementia fact sheet (who.int); Alzheimer's Disease International (alzint.org); Livingston et al., Lancet Commission on dementia prevention, intervention and care, 2024 (thelancet.com).</p>
+</main>
 </body>
 </html>
