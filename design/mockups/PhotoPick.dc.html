@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pick photos</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&amp;family=Atkinson+Hyperlegible:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Atkinson Hyperlegible',system-ui,sans-serif;background:#F7F3EC;color:#1F1B16}
+a{color:#A34A24}a:hover{color:#7E3719}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; background: #F7F3EC; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; color: #1F1B16; overflow: hidden">
+
+<div style="padding: 52px 16px 14px 16px; display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid #E4DACB">
+<a href="Share.dc.html" style="display: flex; align-items: center; gap: 6px; min-height: 48px; width: 140px; font-size: 20px; font-weight: 700; text-decoration: none; color: #A34A24">
+<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg>
+<span>Back</span>
+</a>
+<h1 style="margin: 0; font-family: Fraunces, Georgia, serif; font-weight: 600; font-size: 30px; line-height: 1.2">Which photos to share?</h1>
+<p style="margin: 0; font-size: 19px; color: #5E574E">Tap a photo to select it</p>
+</div>
+
+<div style="flex-grow: 1; padding: 16px; display: flex; flex-direction: column; gap: 10px; overflow: hidden">
+<span style="font-size: 18px; font-weight: 700; color: #5E574E">Today</span>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+
+<button type="button" aria-label="Flower bed, selected first" aria-pressed="true" style="position: relative; padding: 0; height: 112px; border: 4px solid #A34A24; border-radius: 16px; overflow: hidden; background: #FFFFFF; cursor: pointer">
+<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="display: block"><rect x="0" y="0" width="100" height="100" fill="#CFE3F0"></rect><rect x="0" y="62" width="100" height="38" fill="#9CC57F"></rect><path d="M25 62V40M50 62V32M75 62V42" stroke="#5E8A4A" stroke-width="3"></path><circle cx="25" cy="38" r="9" fill="#E7A0C3"></circle><circle cx="50" cy="30" r="10" fill="#F2F0F7"></circle><circle cx="75" cy="40" r="9" fill="#C58BD6"></circle><circle cx="25" cy="38" r="3" fill="#FBE7A1"></circle><circle cx="50" cy="30" r="3" fill="#FBE7A1"></circle><circle cx="75" cy="40" r="3" fill="#FBE7A1"></circle></svg>
+<span style="position: absolute; top: 6px; right: 6px; width: 30px; height: 30px; border-radius: 15px; background: #A34A24; color: #FFFFFF; border: 2px solid #FFFFFF; font-size: 17px; font-weight: 700; display: flex; align-items: center; justify-content: center">1</span>
+</button>
+
+<button type="button" aria-label="Tomatoes in a bowl, selected second" aria-pressed="true" style="position: relative; padding: 0; height: 112px; border: 4px solid #A34A24; border-radius: 16px; overflow: hidden; background: #FFFFFF; cursor: pointer">
+<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="display: block"><rect x="0" y="0" width="100" height="100" fill="#F3E3D8"></rect><ellipse cx="50" cy="72" rx="38" ry="14" fill="#8A6A45"></ellipse><circle cx="36" cy="58" r="12" fill="#D9483B"></circle><circle cx="58" cy="54" r="13" fill="#E25B45"></circle><circle cx="48" cy="66" r="11" fill="#C93F33"></circle><circle cx="70" cy="64" r="10" fill="#D9483B"></circle><path d="M55 42l3 4 4-3" stroke="#5E8A4A" stroke-width="3" fill="none"></path></svg>
+<span style="position: absolute; top: 6px; right: 6px; width: 30px; height: 30px; border-radius: 15px; background: #A34A24; color: #FFFFFF; border: 2px solid #FFFFFF; font-size: 17px; font-weight: 700; display: flex; align-items: center; justify-content: center">2</span>
+</button>
+
+<button type="button" aria-label="Cat on the windowsill" aria-pressed="false" style="position: relative; padding: 0; height: 112px; border: 4px solid transparent; border-radius: 16px; overflow: hidden; background: #FFFFFF; cursor: pointer">
+<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="display: block"><rect x="0" y="0" width="100" height="100" fill="#EDE5D8"></rect><ellipse cx="50" cy="68" rx="26" ry="18" fill="#8C8C8C"></ellipse><circle cx="50" cy="42" r="16" fill="#8C8C8C"></circle><path d="M36 34l2-14 10 10zM64 34l-2-14-10 10z" fill="#8C8C8C"></path><circle cx="44" cy="42" r="2.5" fill="#1F1B16"></circle><circle cx="56" cy="42" r="2.5" fill="#1F1B16"></circle></svg>
+</button>
+
+<button type="button" aria-label="Pie on the table" aria-pressed="false" style="position: relative; padding: 0; height: 112px; border: 4px solid transparent; border-radius: 16px; overflow: hidden; background: #FFFFFF; cursor: pointer">
+<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="display: block"><rect x="0" y="0" width="100" height="100" fill="#FBEFE7"></rect><rect x="24" y="50" width="52" height="30" rx="4" fill="#E9D6C4"></rect><path d="M24 54q6 8 13 0t13 0 13 0 13 0" stroke="#FFFFFF" stroke-width="5" fill="none"></path><rect x="48" y="34" width="4" height="16" fill="#DCE6F0"></rect><ellipse cx="50" cy="30" rx="3" ry="5" fill="#E8A33D"></ellipse></svg>
+</button>
+
+<button type="button" aria-label="River by the house" aria-pressed="false" style="position: relative; padding: 0; height: 112px; border: 4px solid transparent; border-radius: 16px; overflow: hidden; background: #FFFFFF; cursor: pointer">
+<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="display: block"><rect x="0" y="0" width="100" height="100" fill="#D6E6F2"></rect><circle cx="72" cy="30" r="10" fill="#FBE7A1"></circle><rect x="0" y="55" width="100" height="45" fill="#7C9BB3"></rect><path d="M10 68q8-5 16 0t16 0M54 80q8-5 16 0t16 0" stroke="#D6E6F2" stroke-width="3" fill="none"></path></svg>
+</button>
+
+<button type="button" aria-label="Apple tree with apples, selected third" aria-pressed="true" style="position: relative; padding: 0; height: 112px; border: 4px solid #A34A24; border-radius: 16px; overflow: hidden; background: #FFFFFF; cursor: pointer">
+<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="display: block"><rect x="0" y="0" width="100" height="100" fill="#DCE6F0"></rect><rect x="0" y="78" width="100" height="22" fill="#A7C98C"></rect><rect x="45" y="50" width="10" height="32" fill="#8A6A45"></rect><circle cx="50" cy="40" r="26" fill="#6F9E5C"></circle><circle cx="40" cy="36" r="4" fill="#D9483B"></circle><circle cx="58" cy="30" r="4" fill="#D9483B"></circle><circle cx="60" cy="48" r="4" fill="#D9483B"></circle><circle cx="44" cy="52" r="4" fill="#D9483B"></circle></svg>
+<span style="position: absolute; top: 6px; right: 6px; width: 30px; height: 30px; border-radius: 15px; background: #A34A24; color: #FFFFFF; border: 2px solid #FFFFFF; font-size: 17px; font-weight: 700; display: flex; align-items: center; justify-content: center">3</span>
+</button>
+</div>
+
+<span style="font-size: 18px; font-weight: 700; color: #5E574E; margin-top: 6px">Yesterday</span>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+<button type="button" aria-label="Phlox by the fence" aria-pressed="false" style="position: relative; padding: 0; height: 112px; border: 4px solid transparent; border-radius: 16px; overflow: hidden; background: #FFFFFF; cursor: pointer">
+<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="display: block"><rect x="0" y="0" width="100" height="100" fill="#F3E3D8"></rect><rect x="0" y="62" width="100" height="38" fill="#8FBC72"></rect><path d="M30 62V36M62 62V40" stroke="#5E8A4A" stroke-width="3"></path><circle cx="30" cy="34" r="11" fill="#C58BD6"></circle><circle cx="62" cy="38" r="10" fill="#E7A0C3"></circle></svg>
+</button>
+<button type="button" aria-label="Cat sleeping" aria-pressed="false" style="position: relative; padding: 0; height: 112px; border: 4px solid transparent; border-radius: 16px; overflow: hidden; background: #FFFFFF; cursor: pointer">
+<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="display: block"><rect x="0" y="0" width="100" height="100" fill="#DCE6F0"></rect><ellipse cx="50" cy="66" rx="30" ry="16" fill="#A3927F"></ellipse><circle cx="30" cy="58" r="12" fill="#A3927F"></circle><path d="M22 52l1-10 7 6zM38 52l-1-10-7 6z" fill="#A3927F"></path></svg>
+</button>
+<button type="button" aria-label="Sunset over the river" aria-pressed="false" style="position: relative; padding: 0; height: 112px; border: 4px solid transparent; border-radius: 16px; overflow: hidden; background: #FFFFFF; cursor: pointer">
+<svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="display: block"><rect x="0" y="0" width="100" height="100" fill="#F6D2B8"></rect><circle cx="50" cy="56" r="14" fill="#E8A33D"></circle><rect x="0" y="58" width="100" height="42" fill="#5E7A93"></rect><path d="M30 70h40M38 80h24" stroke="#E8A33D" stroke-width="3"></path></svg>
+</button>
+</div>
+</div>
+
+<div style="padding: 12px 16px 32px 16px; border-top: 1px solid #E4DACB; background: #F7F3EC">
+<a href="PhotoEvent.dc.html" style="min-height: 64px; background: #1F1B16; color: #FFFFFF; border-radius: 32px; font-size: 22px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px; text-decoration: none">
+<span>Next · 3 selected</span>
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg>
+</a>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,214 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "CalConnect.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Apple Calendar: pick",
+      "w": 390,
+      "x": 470,
+      "y": 1300
+    },
+    "CalEvent.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Calendar event: participants",
+      "w": 390,
+      "x": 1430,
+      "y": 1300
+    },
+    "CalPeople.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Default participants",
+      "w": 390,
+      "x": 950,
+      "y": 1300
+    },
+    "Calendar.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Calendar",
+      "w": 390,
+      "x": 3830,
+      "y": 0
+    },
+    "EventConfirm.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Event: review",
+      "w": 390,
+      "x": 3350,
+      "y": 0
+    },
+    "EventDetail.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Event: Walk in the park",
+      "w": 390,
+      "x": 4310,
+      "y": 0
+    },
+    "EventHouse.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Event: Building the house",
+      "w": 390,
+      "x": 4790,
+      "y": 0
+    },
+    "EventVoice.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Event: dictate",
+      "w": 390,
+      "x": 2870,
+      "y": 0
+    },
+    "ImpCreate.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Andrey: important event for Mom",
+      "w": 390,
+      "x": 470,
+      "y": 2640
+    },
+    "ImpStatus.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Andrey: Mom went",
+      "w": 390,
+      "x": 1910,
+      "y": 2640
+    },
+    "Main.dc.html": {
+      "h": 2500,
+      "is_interactive": true,
+      "title": "Feed (full scroll)",
+      "w": 390,
+      "x": 0,
+      "y": 0
+    },
+    "MomCheck.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Mom: “Did you go?”",
+      "w": 390,
+      "x": 1430,
+      "y": 2640
+    },
+    "MomNotify.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Mom: notifications",
+      "w": 390,
+      "x": 950,
+      "y": 2640
+    },
+    "PhotoEvent.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Photos: which event",
+      "w": 390,
+      "x": 1910,
+      "y": 0
+    },
+    "PhotoPick.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Photos: pick",
+      "w": 390,
+      "x": 1430,
+      "y": 0
+    },
+    "PhotoSend.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Photos: caption and audience",
+      "w": 390,
+      "x": 2390,
+      "y": 0
+    },
+    "Share.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Tell the family: what to add",
+      "w": 390,
+      "x": 950,
+      "y": 0
+    },
+    "Thread.dc.html": {
+      "h": 844,
+      "is_interactive": true,
+      "title": "Thread: photo comments",
+      "w": 390,
+      "x": 470,
+      "y": 0
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-09-24T10:23:00Z",
+    "v": 1
+  },
+  "designSystems": [],
+  "launch": {
+    "view": "canvas"
+  },
+  "notes": {
+    "t1": {
+      "kind": "title1",
+      "maxW": 860,
+      "text": "Mom · iPhone",
+      "w": 240,
+      "x": 0,
+      "y": -260
+    },
+    "t2": {
+      "kind": "title1",
+      "maxW": 4230,
+      "text": "Tell the family: photos and events",
+      "w": 240,
+      "x": 950,
+      "y": -260
+    },
+    "t3": {
+      "kind": "title1",
+      "maxW": 1350,
+      "text": "Andrey · iPhone: “Family” calendar",
+      "w": 240,
+      "x": 470,
+      "y": 1040
+    },
+    "t4": {
+      "kind": "title1",
+      "maxW": 1830,
+      "text": "Important event: reminders and “Did you go?”",
+      "w": 240,
+      "x": 470,
+      "y": 2380
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "Thread.dc.html",
+    "Share.dc.html",
+    "PhotoPick.dc.html",
+    "PhotoEvent.dc.html",
+    "PhotoSend.dc.html",
+    "EventVoice.dc.html",
+    "EventConfirm.dc.html",
+    "Calendar.dc.html",
+    "EventDetail.dc.html",
+    "EventHouse.dc.html",
+    "CalConnect.dc.html",
+    "CalPeople.dc.html",
+    "CalEvent.dc.html",
+    "ImpCreate.dc.html",
+    "MomNotify.dc.html",
+    "MomCheck.dc.html",
+    "ImpStatus.dc.html"
+  ],
+  "pages": [],
+  "title": "Family Memory — Mom’s screens"
+}
