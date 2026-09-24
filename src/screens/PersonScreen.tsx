@@ -66,7 +66,7 @@ export function PersonScreen({ person, people, circleId, refreshKey, events, onO
         {tel ? <BigButton label="Phone call" tone="plain" onPress={() => open(tel)} /> : null}
         <BigButton label={`Tell me about ${person.name}`} tone="terracotta" onPress={tell} />
       </View>
-      {wa ? <Text style={s.hint}>WhatsApp opens the chat. Tap the phone at the top to call.</Text> : null}
+      {wa ? <Text style={s.hint}>WhatsApp opens a chat, where you can also call.</Text> : null}
 
       <ErrorText message={error} />
       {upcoming.length > 0 && (

@@ -50,6 +50,13 @@ export function ageTurning(b: Birthday, today: Date): number | null {
   return nextOccurrence(b, today).getFullYear() - b.year;
 }
 
+/** "5 March 1975" (or "5 March" when the year is unknown) — for lists; the stored ISO form stays in forms. */
+export function formatBirthday(iso: string | null | undefined): string | null {
+  const b = parseBirthday(iso);
+  if (!b) return null;
+  return `${b.day} ${MONTHS[b.month - 1]}${b.year === null ? '' : ` ${b.year}`}`;
+}
+
 export function formatDate(d: Date): string {
   return `${WEEKDAYS[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]}`;
 }

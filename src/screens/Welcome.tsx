@@ -89,7 +89,7 @@ export function Welcome({ onDone, onJoinCode }: Props) {
       {step === 'choose' && (
         <View style={s.stack}>
           <Text style={s.title}>Who is using this phone?</Text>
-          <BigButton label="This phone is for the person with memory loss" onPress={() => go('patientPath')} />
+          <BigButton label="This is my phone" onPress={() => go('patientPath')} />
           <BigButton label="I'm family" tone="terracotta" onPress={() => go('family')} />
         </View>
       )}
