@@ -41,9 +41,20 @@ const moment = (id: string, about: string, by: string, body: string, days: numbe
   created_at: isoDaysAgo(days),
 });
 
+// Tiny inline illustrations so the demo shows photos without any hosted assets.
+const scene = (sky: string, ground: string, accent: string) =>
+  `data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 260"><rect width="400" height="260" fill="${sky}"/>` +
+      `<circle cx="330" cy="50" r="24" fill="#F2D27A"/><rect y="170" width="400" height="90" fill="${ground}"/>` +
+      `<circle cx="150" cy="140" r="34" fill="${accent}"/><rect x="128" y="170" width="44" height="60" rx="8" fill="${accent}"/></svg>`,
+  )}`;
+const PARK = scene('#D3E3EF', '#8FBF77', '#E8735A');
+const PARK2 = scene('#CFE0EC', '#9BC780', '#F2B84B');
+const HOUSE = scene('#D3E3EF', '#A6C88A', '#A34A24');
+
 let moments: Moment[] = [
-  moment('m1', 'pedro', 'pedro', 'I called from work. I will visit you on Sunday and bring the cake.', 1),
-  moment('m2', 'lucia', 'anna', 'Lucia got a nine in her maths exam!', 2),
+  { ...moment('m1', 'pedro', 'pedro', 'I called from work. I will visit you on Sunday and bring the cake.', 1), photo_url: HOUSE },
+  { ...moment('m2', 'lucia', 'anna', 'Lucia got a nine in her maths exam!', 0.1), photo_url: PARK, photo_urls: [PARK2, HOUSE] },
   moment('m3', 'anna', 'anna', 'We had lunch at the beach. You loved the paella.', 3),
   moment('m4', 'carmen', 'carmen', 'I made your favourite soup. I will bring it on Friday.', 5),
 ];
@@ -57,6 +68,10 @@ let calendars: CalendarPublic[] = [
     id: 'cal-family', circle_id: CIRCLE.id, label: 'Family', url_hint: 'calendar.google.com',
     last_synced_at: isoDaysAgo(0.003), last_error: null, person_ids: ['pedro', 'lucia'],
   },
+  {
+    id: 'cal-walks', circle_id: CIRCLE.id, label: 'Walks', url_hint: null,
+    last_synced_at: null, last_error: null, person_ids: ['anna', 'lucia'],
+  },
 ];
 
 const at = (d: Date, h: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, 0).toISOString();
@@ -67,6 +82,7 @@ const rawEvents = [
   event('e1', 'cal-anna', 'In London', utcDay(now()).toISOString(), utcDay(addDays(now(), untilSunday + 1)).toISOString(), true),
   event('e2', 'cal-anna', 'Dentist', at(tomorrow, 16), at(tomorrow, 17), false, 'Calle Mayor 1'),
   event('e3', 'cal-family', 'Family lunch', at(addDays(now(), untilSunday || 7), 14), at(addDays(now(), untilSunday || 7), 16), false, "Pedro's house"),
+  event('e4', 'cal-walks', 'Walk in the park', at(now(), 10), at(now(), 12), false, 'Retiro park'),
 ];
 
 // ---- feed (stands in for Supabase realtime) ------------------------------------------------------

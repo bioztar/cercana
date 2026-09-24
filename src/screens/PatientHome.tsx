@@ -4,16 +4,16 @@ import { Text } from '../components/Text';
 import type { EventRow, Moment, Person, Session } from '../lib/types';
 import { FeedItem } from '../components/FeedItem';
 import { buildBriefing, type BriefingEvent } from '../lib/briefing';
+import { agenda, momentEvent } from '../lib/calendarView';
 import { birthdayPhrase, formatDate, greeting, upcomingBirthday } from '../lib/dates';
 import { getFlag, setFlag } from '../lib/session';
 import { say } from '../lib/speech';
 import { scheduleBirthdayReminders } from '../lib/notify';
 import { Avatar, BigButton, ErrorText } from '../components/ui';
 import { HoldButton } from '../components/HoldButton';
-import { colors, MAX_WIDTH, type, fonts } from '../theme';
+import { colors, fonts, MAX_WIDTH, type } from '../theme';
 
 const PAD = 20;
-const GAP = 16;
 let spokeThisOpen = false; // greeting/briefing is spoken once per app-open
 
 type Props = {
@@ -24,7 +24,12 @@ type Props = {
   loading: boolean;
   error: string | null;
   onOpenPerson: (id: string) => void;
+  onOpenEvent?: (eventId: string) => void;
   onSettings: () => void;
+  /** cercana-voice renders the "Tell the family" share flow; the sticky button is hidden without it. */
+  onTellFamily?: () => void;
+  /** cercana-care's important-update card, shown above the feed; nothing renders when absent. */
+  importantCard?: React.ReactNode;
 };
 
 /** One row per real-world event: the same event on several people's calendars lists all owners. */
@@ -42,12 +47,10 @@ function briefingEvents(events: EventRow[], people: Person[]): BriefingEvent[] {
   return [...merged.values()];
 }
 
-export function PatientHome({ session, people, events, moments, loading, error, onOpenPerson, onSettings }: Props) {
+export function PatientHome({
+  session, people, events, moments, loading, error, onOpenPerson, onOpenEvent, onSettings, onTellFamily, importantCard,
+}: Props) {
   const { width } = useWindowDimensions();
-  const cols = width < 700 ? 2 : width < 1000 ? 3 : 4;
-  // Pixel widths (not %): percent columns plus `gap` overflow the row and wrap early.
-  const inner = Math.min(width, MAX_WIDTH) - 2 * PAD;
-  const cardWidth = Math.floor((inner - GAP * (cols - 1)) / cols);
   const now = new Date();
   const hello = `${greeting(now)}, ${session.patientName}`;
   const dateLine = formatDate(now);
@@ -56,7 +59,13 @@ export function PatientHome({ session, people, events, moments, loading, error, 
   const bannerText = next
     ? birthdayPhrase(next.person.name, next.days, new Date(), next.birthday, next.person.relation)
     : null;
-  const bannerFull = bannerText;
+
+  // A wide window (six months back to six months ahead) so any moment in the feed can find its event.
+  const agendaItems = useMemo(
+    () => agenda(events, people, new Date(now.getFullYear(), now.getMonth() - 6, 1), new Date(now.getFullYear(), now.getMonth() + 6, 1)),
+    [events, people],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `now` recomputed fresh each render is not a real dependency
+  );
 
   const briefing = () =>
     buildBriefing({
@@ -86,77 +95,98 @@ export function PatientHome({ session, people, events, moments, loading, error, 
   }, [people]);
 
   return (
-    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={s.wrap}>
-      <View style={[s.header, cols === 2 && s.headerNarrow]}>
-        <View style={{ flex: 1 }}>
-          <Text style={s.hello}>{hello}</Text>
-          <Text style={s.date}>{dateLine}</Text>
+    <View style={{ flex: 1 }}>
+      <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={[s.wrap, onTellFamily && s.wrapWithBar]}>
+        <View style={[s.header, width < 700 && s.headerNarrow]}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.hello}>{hello}</Text>
+            <Text style={s.date}>{dateLine}</Text>
+          </View>
+          <BigButton label="🔊 Hear today" tone="terracotta" onPress={() => say(briefing())} />
         </View>
-        <BigButton label="🔊 Hear today" tone="terracotta" onPress={() => say(briefing())} />
-      </View>
 
-      {next && bannerFull && (
-        <Pressable accessibilityRole="button" accessibilityLabel={bannerFull} onPress={() => onOpenPerson(next.person.id)} style={s.banner}>
-          <Avatar uri={next.person.photo_url} name={next.person.name} size={96} />
-          <Text style={s.bannerText}>{bannerFull}</Text>
-        </Pressable>
-      )}
-
-      <ErrorText message={error} />
-
-      {people.length === 0 && !error && (
-        <Text style={s.empty}>Your family will add the people you love here.</Text>
-      )}
-
-      <View style={s.grid}>
-        {people.map((p) => (
-          <Pressable
-            key={p.id}
-            accessibilityRole="button"
-            accessibilityLabel={`${p.name}${p.relation ? `, ${p.relation}` : ''}`}
-            onPress={() => onOpenPerson(p.id)}
-            style={[s.card, { width: cardWidth }]}
-          >
-            <Avatar uri={p.photo_url} name={p.name} size={Math.min(220, cardWidth - 28)} />
-            <Text style={s.name} numberOfLines={2}>{p.name}</Text>
-            {p.relation ? <Text style={s.relation} numberOfLines={2}>{p.relation}</Text> : null}
+        {next && bannerText && (
+          <Pressable accessibilityRole="button" accessibilityLabel={bannerText} onPress={() => onOpenPerson(next.person.id)} style={s.banner}>
+            <Avatar uri={next.person.photo_url} name={next.person.name} size={96} />
+            <Text style={s.bannerText}>{bannerText}</Text>
           </Pressable>
-        ))}
-      </View>
+        )}
 
-      {moments.length > 0 && (
-        <View style={s.feed}>
-          <Text style={s.feedTitle}>From your family</Text>
-          {moments.map((m) => (
-            <FeedItem key={m.id} moment={m} people={people} onOpenPerson={onOpenPerson} />
-          ))}
+        <ErrorText message={error} />
+
+        {people.length === 0 && !error && (
+          <Text style={s.empty}>Your family will add the people you love here.</Text>
+        )}
+
+        {people.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.strip}>
+            {people.map((p) => (
+              <Pressable
+                key={p.id}
+                accessibilityRole="button"
+                accessibilityLabel={`${p.name}${p.relation ? `, ${p.relation}` : ''}`}
+                onPress={() => onOpenPerson(p.id)}
+                style={s.face}
+              >
+                <Avatar uri={p.photo_url} name={p.name} size={96} />
+                <Text style={s.faceName} numberOfLines={1}>{p.name}</Text>
+                {p.relation ? <Text style={s.faceRelation} numberOfLines={1}>{p.relation}</Text> : null}
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
+
+        {importantCard}
+
+        {moments.length > 0 && (
+          <View style={s.feed}>
+            <Text style={s.feedTitle}>Feed</Text>
+            {moments.map((m) => (
+              <FeedItem
+                key={m.id}
+                moment={m}
+                people={people}
+                onOpenPerson={onOpenPerson}
+                event={momentEvent(m, agendaItems)}
+                onOpenEvent={onOpenEvent ? (it) => it.eventId && onOpenEvent(it.eventId) : undefined}
+              />
+            ))}
+          </View>
+        )}
+
+        <HoldButton label="Settings (for family)" onComplete={onSettings} />
+      </ScrollView>
+
+      {onTellFamily && (
+        <View style={s.stickyBar}>
+          <BigButton label="🎤 Tell the family" tone="ink" onPress={onTellFamily} />
         </View>
       )}
-
-      <HoldButton label="Settings (for family)" onComplete={onSettings} />
-    </ScrollView>
+    </View>
   );
 }
 
 const s = StyleSheet.create({
-  wrap: { padding: PAD, paddingBottom: 48, maxWidth: MAX_WIDTH, width: '100%', alignSelf: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 20 },
+  wrap: { padding: PAD, paddingBottom: 48, maxWidth: MAX_WIDTH, width: '100%', alignSelf: 'center', gap: 24 },
+  wrapWithBar: { paddingBottom: 120 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   headerNarrow: { flexDirection: 'column', alignItems: 'stretch' },
   hello: { fontSize: type.huge, fontFamily: fonts.display, color: colors.ink, lineHeight: 56 },
   date: { fontSize: type.title, color: colors.inkSoft, fontFamily: fonts.display, marginTop: 4 },
   banner: {
-    flexDirection: 'row', alignItems: 'center', gap: 16, backgroundColor: colors.warm,
-    borderRadius: 20, padding: 16, marginBottom: 24, borderWidth: 3, borderColor: colors.terracotta, minHeight: 64,
+    flexDirection: 'row', alignItems: 'center', gap: 16, backgroundColor: colors.peach,
+    borderRadius: 20, padding: 16, borderWidth: 3, borderColor: colors.terracotta, minHeight: 64,
   },
   bannerText: { flex: 1, flexShrink: 1, fontSize: 28, fontFamily: fonts.display, color: colors.ink, lineHeight: 36 },
-  empty: { fontSize: type.body, color: colors.inkSoft, marginVertical: 32, lineHeight: 32 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GAP },
-  card: {
-    backgroundColor: colors.card, borderRadius: 20, padding: 12, alignItems: 'center',
-    borderWidth: 2, borderColor: colors.line,
-  },
-  name: { fontSize: type.name, fontFamily: fonts.display, color: colors.ink, marginTop: 10, textAlign: 'center' },
-  relation: { fontSize: type.label, color: colors.inkSoft, textAlign: 'center', marginTop: 2 },
-  feed: { marginTop: 32, gap: 14 },
+  empty: { fontSize: type.body, color: colors.inkSoft, lineHeight: 32 },
+  strip: { gap: 20, paddingRight: 8 },
+  face: { alignItems: 'center', width: 120 },
+  faceName: { fontSize: type.label, fontFamily: fonts.display, color: colors.ink, marginTop: 10, textAlign: 'center' },
+  faceRelation: { fontSize: 16, color: colors.inkSoft, textAlign: 'center', marginTop: 2 },
+  feed: { gap: 16 },
   feedTitle: { fontSize: type.title, fontFamily: fonts.display, color: colors.ink },
+  stickyBar: {
+    position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, backgroundColor: colors.bg,
+    borderTopWidth: 1, borderTopColor: colors.line,
+  },
 });
