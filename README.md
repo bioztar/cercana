@@ -30,9 +30,11 @@ npx expo start              # press i (iOS simulator / Expo Go / dev build) or w
 
 Without those two settings the app shows a full-screen message naming the missing one.
 
-**Demo mode (no backend):** `EXPO_PUBLIC_DEMO=1 npx expo start --web`, then open
-`/?demo=patient`, `/?demo=patient&person=anna` or `/?demo=family`. Data is in-memory fixtures;
-sending a ping fires the patient overlay locally. It is a build-time flag; never set it on a real deployment.
+**Demo mode (no backend needed):** on the web, open `/?demo=patient`, `/?demo=patient&person=anna`
+or `/?demo=family` in **any** build, including production. Data is in-memory sample fixtures, a
+"Demo — sample family" ribbon is shown, sending a ping fires the patient overlay locally, and demo
+never reads or writes the visitor's real session. `EXPO_PUBLIC_DEMO=1` at build time turns the
+same mode on for the whole build (offline demos, screenshots).
 
 Checks: `npm test` (dates, briefing, ICS expansion, helpers), `npm run typecheck`,
 `npx expo export -p web`.

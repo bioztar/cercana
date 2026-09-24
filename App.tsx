@@ -5,6 +5,7 @@ import * as Notifications from 'expo-notifications';
 import { setAudioModeAsync } from 'expo-audio';
 import { demo, missingSettings } from './src/lib/config';
 import { demoBoot } from './src/lib/demo';
+import { DemoRibbon } from './src/components/DemoRibbon';
 import { clearSession, loadSession, saveSession } from './src/lib/session';
 import { useCircle } from './src/lib/useCircle';
 import {
@@ -58,6 +59,7 @@ function Root() {
   return (
     <SafeAreaView style={s.root}>
       <StatusBar style="dark" />
+      {demo && <DemoRibbon />}
       {session === undefined ? (
         <View style={s.center}><ActivityIndicator size="large" color={colors.terracotta} /></View>
       ) : session === null ? (
@@ -87,7 +89,7 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
   const { people, events, loading, error, version, reload, reloadEvents } = useCircle(session.circleId, isPatient ? showPing : undefined);
 
   useEffect(() => {
-    if (!isPatient) return;
+    if (!isPatient || demo) return; // demo: no push registration, no browser permission prompt
     void registerForPush(session.circleId, 'patient');
     requestWebNotificationPermission();
     if (Platform.OS === 'web') return; // tap-to-open push is native only; web uses realtime + Notification

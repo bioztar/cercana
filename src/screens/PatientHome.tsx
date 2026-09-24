@@ -136,7 +136,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 16, backgroundColor: colors.warm,
     borderRadius: 20, padding: 16, marginBottom: 24, borderWidth: 3, borderColor: colors.terracotta, minHeight: 64,
   },
-  bannerText: { flex: 1, fontSize: 30, fontWeight: '800', color: colors.ink, lineHeight: 38 },
+  bannerText: { flex: 1, flexShrink: 1, fontSize: 28, fontWeight: '800', color: colors.ink, lineHeight: 36 },
   empty: { fontSize: type.body, color: colors.inkSoft, marginVertical: 32, lineHeight: 32 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GAP },
   card: {
