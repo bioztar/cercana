@@ -30,6 +30,10 @@ import { PingOverlay } from './src/screens/PingOverlay';
 import { FamilyHome } from './src/screens/FamilyHome';
 import { Settings } from './src/screens/Settings';
 import { Thread } from './src/screens/Thread';
+import { Share } from './src/screens/Share';
+import { PhotoPick } from './src/screens/PhotoPick';
+import { PhotoEvent } from './src/screens/PhotoEvent';
+import { PhotoSend } from './src/screens/PhotoSend';
 import { colors } from './src/theme';
 
 type Route =
@@ -37,7 +41,11 @@ type Route =
   | { name: 'person'; id: string }
   | { name: 'event'; id: string }
   | { name: 'settings' }
-  | { name: 'thread'; id: string };
+  | { name: 'thread'; id: string }
+  | { name: 'share' }
+  | { name: 'photoPick' }
+  | { name: 'photoEvent'; photos: string[] }
+  | { name: 'photoSend'; photos: string[]; eventId: string | null; eventLabel: string | null };
 
 initNotifications();
 
@@ -200,11 +208,31 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
         authorId={actor.kind === 'member' ? actor.id : null} authorName={session.memberName}
         isPatient={isPatient} onBack={home} />
     );
+  } else if (route.name === 'share') {
+    body = (
+      <Share circleId={session.circleId} patientName={session.patientName} onPosted={home}
+        onPhotos={() => setRoute({ name: 'photoPick' })} onEvent={home /* event flow lands next slice */} onCancel={home} />
+    );
+  } else if (route.name === 'photoPick') {
+    body = (
+      <PhotoPick onNext={(photos) => setRoute({ name: 'photoEvent', photos })} onCancel={() => setRoute({ name: 'share' })} />
+    );
+  } else if (route.name === 'photoEvent') {
+    body = (
+      <PhotoEvent circleId={session.circleId} createdByPersonId={actor.kind === 'member' ? actor.id : null} events={events}
+        onNext={(eventId, eventLabel) => setRoute({ name: 'photoSend', photos: route.photos, eventId, eventLabel })}
+        onBack={() => setRoute({ name: 'photoPick' })} />
+    );
+  } else if (route.name === 'photoSend') {
+    body = (
+      <PhotoSend circleId={session.circleId} patientName={session.patientName} photos={route.photos}
+        eventId={route.eventId} eventLabel={route.eventLabel} onSent={home} onBack={() => setRoute({ name: 'photoEvent', photos: route.photos })} />
+    );
   } else {
     body = (
       <PatientHome session={session} people={people} events={events} moments={moments} loading={loading} error={error}
         onOpenPerson={openPerson} onOpenEvent={openEvent} onOpenThread={(id) => setRoute({ name: 'thread', id })}
-        onSettings={() => setRoute({ name: 'settings' })} />
+        onTellFamily={() => setRoute({ name: 'share' })} onSettings={() => setRoute({ name: 'settings' })} />
     );
   }
 

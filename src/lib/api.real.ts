@@ -268,12 +268,13 @@ export async function addEvent(
   calendarId: string,
   input: NewEventInput,
   createdByPersonId: string | null,
-): Promise<void> {
+): Promise<string> {
   const res = await getSupabase().from('events').insert({
     circle_id: circleId, calendar_id: calendarId, uid: uuidv4(), created_by_person_id: createdByPersonId,
     title: input.title, starts_at: input.starts_at, ends_at: input.ends_at, all_day: input.all_day,
-  });
-  if (res.error) throw new Error(`Could not save the event: ${res.error.message}`);
+  }).select('id').single();
+  const row = check(res, 'Could not save the event') as { id: string };
+  return row.id;
 }
 
 export type FeedHandlers = { onPing?: (p: Ping) => void; onChange?: () => void };

@@ -246,15 +246,14 @@ export async function ensureFamilyCalendar(_circleId: string): Promise<string> {
 
 export async function addEvent(
   _circleId: string, calendarId: string, input: NewEventInput, _createdByPersonId: string | null,
-): Promise<void> {
+): Promise<string> {
+  const id = uuidv4();
   rawEvents = [
     ...rawEvents,
-    {
-      id: uuidv4(), calendar_id: calendarId, uid: uuidv4(), title: input.title, location: null,
-      starts_at: input.starts_at, ends_at: input.ends_at, all_day: input.all_day,
-    },
+    { id, calendar_id: calendarId, uid: uuidv4(), title: input.title, location: null, starts_at: input.starts_at, ends_at: input.ends_at, all_day: input.all_day },
   ];
   emitChange();
+  return id;
 }
 
 // ---- boot links (web only): ?demo=patient | family | join  [&person=anna] [&as=pedro] ---------------
