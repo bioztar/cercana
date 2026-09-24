@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Calendar from 'expo-calendar';
 import type { Person } from '../lib/types';
-import { addDeviceCalendar, listDeviceCalendars, upsertDeviceEvents } from '../lib/api';
+import { addDeviceCalendar, deleteCalendar, listDeviceCalendars, upsertDeviceEvents } from '../lib/api';
 import { toEventRows } from '../lib/deviceCalendar';
 import { BigButton, ErrorText } from '../components/ui';
 import { CalendarPeople } from './CalendarPeople';
@@ -45,7 +45,13 @@ export function CalendarConnect({ circleId, people, onClose, onConnected }: Prop
     setError(null);
     try {
       const calendarId = await addDeviceCalendar(circleId, cal.title, cal.id, personIds);
-      await syncDeviceCalendar(cal, calendarId, circleId);
+      try {
+        await syncDeviceCalendar(cal, calendarId, circleId);
+      } catch (e) {
+        // Don't leave an empty calendar behind for the family: every retry used to add another one.
+        await deleteCalendar(calendarId).catch(() => {});
+        throw e;
+      }
       onConnected();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
