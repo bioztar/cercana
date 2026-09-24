@@ -7,6 +7,7 @@ import { getFlag, setFlag } from '../lib/session';
 import { say } from '../lib/speech';
 import { scheduleBirthdayReminders } from '../lib/notify';
 import { Avatar, BigButton, ErrorText } from '../components/ui';
+import { HoldButton } from '../components/HoldButton';
 import { colors, MAX_WIDTH, type } from '../theme';
 
 const PAD = 20;
@@ -49,10 +50,10 @@ export function PatientHome({ session, people, events, loading, error, onOpenPer
   const dateLine = formatDate(now);
 
   const next = useMemo(() => upcomingBirthday(people, new Date(), 7), [people]);
-  const bannerText = next ? birthdayPhrase(next.person.name, next.days, new Date(), next.birthday) : null;
-  const bannerFull = next && bannerText
-    ? `${bannerText}${next.person.relation ? ` — ${next.person.relation}` : ''}`
+  const bannerText = next
+    ? birthdayPhrase(next.person.name, next.days, new Date(), next.birthday, next.person.relation)
     : null;
+  const bannerFull = bannerText;
 
   const briefing = () =>
     buildBriefing({
@@ -120,9 +121,7 @@ export function PatientHome({ session, people, events, loading, error, onOpenPer
         ))}
       </View>
 
-      <Pressable accessibilityRole="button" onPress={onSettings} style={s.settings}>
-        <Text style={s.settingsText}>Settings</Text>
-      </Pressable>
+      <HoldButton label="Settings (for family)" onComplete={onSettings} />
     </ScrollView>
   );
 }

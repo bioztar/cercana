@@ -17,6 +17,7 @@ export function PersonScreen({ person, circleId, refreshKey, events, onBack }: P
     events.filter((e) => e.person_ids.includes(person.id)).map((e) => ({ ...e, title: e.title ?? '(no title)' })),
     new Date(),
     5,
+    person.name,
   );
   const [moments, setMoments] = useState<Moment[]>([]);
   const [error, setError] = useState<string | null>(null);

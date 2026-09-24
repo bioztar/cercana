@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  buildBriefing, comingUp, eventPhrase, eventSpan, isActive, ordinal, timeLabel, todaySentences,
+  buildBriefing, comingUp, eventPhrase, eventSpan, isActive, ongoingSentence, ordinal, timeLabel, todaySentences,
   type EventLite,
 } from './briefing.ts';
 
@@ -44,7 +44,29 @@ test('phrases: timed tomorrow, all-day weekday, far date', () => {
 
 test('phrases: multi-day upcoming and ongoing', () => {
   assert.equal(eventPhrase(allDay('Trip to Madrid', [9, 26], [9, 28]), now), 'Saturday until Monday — Trip to Madrid');
-  assert.equal(eventPhrase(allDay('Anna in London', [9, 22], [9, 27]), now), 'Until Sunday — Anna in London');
+});
+
+test('ongoing multi-day event reads as a sentence', () => {
+  assert.equal(eventPhrase(allDay('In London', [9, 22], [9, 27]), now, 'Anna'), 'Anna is in London until Sunday.');
+  assert.equal(eventPhrase(allDay('At the clinic', [9, 23], [9, 25]), now, 'Pedro'), 'Pedro is at the clinic until tomorrow.');
+  assert.equal(eventPhrase(allDay('At the clinic', [9, 23], [9, 26]), now, 'Pedro'), 'Pedro is at the clinic until Saturday.');
+  assert.equal(eventPhrase(allDay('Trip to Madrid', [9, 22], [9, 27]), now, 'Anna'), 'Anna: Trip to Madrid, until Sunday.');
+  assert.equal(eventPhrase(allDay('In London', [9, 22], [9, 24]), now, 'Anna'), 'Anna is in London until today.');
+  assert.equal(eventPhrase(allDay('Trip', [9, 22], [9, 27]), now), 'Trip, until Sunday.');
+  assert.equal(ongoingSentence('Interview', 'Anna', 'Friday'), 'Anna: Interview, until Friday');
+});
+
+test('briefing uses the same ongoing phrasing', () => {
+  const text = buildBriefing({
+    patientName: 'Maria',
+    now,
+    events: [{ ...allDay('In London', [9, 22], [9, 27]), owners: ['Anna'] }],
+    birthdayPhrase: "Tomorrow is Lucia's birthday — your granddaughter turns 16",
+  });
+  assert.equal(
+    text,
+    "Good morning Maria. Today is Thursday the 24th. Anna is in London until Sunday. Tomorrow is Lucia's birthday — your granddaughter turns 16.",
+  );
 });
 
 test('isActive drops past events', () => {
