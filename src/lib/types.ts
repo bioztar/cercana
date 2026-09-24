@@ -38,7 +38,7 @@ export type Moment = {
   audio_url: string | null;
   created_at: string;
   by_patient?: boolean; // Mom posted it herself ("Tell the family")
-  event_id?: string | null; // the calendar event a photo belongs to
+  event_id?: string | null; // explicit link to an events row (cercana-voice's column)
 };
 
 export type MomentInput = Pick<Moment, 'person_id' | 'author_person_id' | 'author' | 'body' | 'photo_url' | 'audio_url'> &

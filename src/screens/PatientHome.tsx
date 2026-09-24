@@ -145,7 +145,7 @@ export function PatientHome({
                 onPress={() => onOpenPerson(p.id)}
                 style={s.face}
               >
-                <Avatar uri={p.photo_url} name={p.name} size={96} />
+                <Avatar uri={p.photo_url} name={p.name} size={80} />
                 <Text style={s.faceName} numberOfLines={1}>{p.name}</Text>
                 {p.relation ? <Text style={s.faceRelation} numberOfLines={1}>{p.relation}</Text> : null}
               </Pressable>
@@ -206,8 +206,9 @@ const s = StyleSheet.create({
   // 24 px keeps long words ("granddaughter") inside the banner next to the 96 px face on a phone.
   bannerText: { flex: 1, flexShrink: 1, fontSize: 24, fontFamily: fonts.display, color: colors.ink, lineHeight: 31 },
   empty: { fontSize: type.body, color: colors.inkSoft, lineHeight: 32 },
-  strip: { gap: 20, paddingRight: 8 },
-  face: { alignItems: 'center', width: 120 },
+  // Tile width + gap tuned so ~3.5 faces show at 390px, making the horizontal scroll obvious.
+  strip: { gap: 16, paddingRight: 8 },
+  face: { alignItems: 'center', width: 88 },
   faceName: { fontSize: type.label, fontFamily: fonts.display, color: colors.ink, marginTop: 10, textAlign: 'center' },
   faceRelation: { fontSize: 16, color: colors.inkSoft, textAlign: 'center', marginTop: 2 },
   feed: { gap: 16 },
