@@ -18,7 +18,7 @@ import {
   registerForPush, requestWebNotificationPermission, scheduleImportantReminders, scheduleMorningBrief,
   showWebNotification,
 } from './src/lib/notify';
-import { cardText, dueCheckin, hasNotAnswered, nextImportant, todaysImportantSentences } from './src/lib/important';
+import { dueCheckin, nextImportant, todaysImportantSentences } from './src/lib/important';
 import { ImportantCard } from './src/components/ImportantCard';
 import { briefNotificationBody, buildBriefing, countNewPhotos, mergeBriefingEvents, newPhotosPhrase, todaySentences } from './src/lib/briefing';
 import { birthdayPhrase, upcomingBirthday } from './src/lib/dates';
@@ -216,9 +216,10 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
   const [briefSettings, setBriefSettings] = useState<BriefSettings>({ brief_time: '09:00', brief_enabled: true });
   const [lastSeenFeedAt, setLastSeenFeedAt] = useState<string | null>(null);
   useEffect(() => {
-    if (!isPatient) return;
+    // Both roles: the patient side speaks the brief, the family dashboard shows its time and offers
+    // a preview.
     void getBriefSettings(session.circleId).then(setBriefSettings);
-  }, [isPatient, session.circleId, version]);
+  }, [session.circleId, version]);
   useEffect(() => {
     if (!isPatient) return;
     void (async () => {
@@ -325,14 +326,13 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
     );
   } else if (!isPatient) {
     body = (
-      <View style={{ gap: 16 }}>
-        <ImportantPanel events={important} checkins={checkins}
-          onNew={() => setRoute({ name: 'important-create' })}
-          onOpen={(id) => setRoute({ name: 'important-status', id })}
-          onConnectCalendar={() => setRoute({ name: 'calendar-connect' })} />
-        <FamilyHome session={session} actor={actor} people={people} events={events} moments={moments} error={error}
-          version={version} reload={reload} reloadEvents={reloadEvents} onSettings={() => setRoute({ name: 'settings' })} />
-      </View>
+      <FamilyHome session={session} actor={actor} people={people} events={events} moments={moments} error={error}
+        version={version} reload={reload} reloadEvents={reloadEvents} onSettings={() => setRoute({ name: 'settings' })}
+        important={important} checkins={checkins} briefSettings={briefSettings}
+        onNewImportant={() => setRoute({ name: 'important-create' })}
+        onOpenImportant={(id) => setRoute({ name: 'important-status', id })}
+        onHearBrief={() => say(composeBrief(null).full)}
+        onConnectDeviceCalendar={() => setRoute({ name: 'calendar-connect' })} />
     );
   } else if (route.name === 'person' && people.some((p) => p.id === route.id)) {
     const person = people.find((p) => p.id === route.id)!;
@@ -406,40 +406,6 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
   );
 }
 
-/** Temporary family-side entry point for important events (see the Route comment above). */
-function ImportantPanel(
-  { events, checkins, onNew, onOpen, onConnectCalendar }: {
-    events: ImportantEvent[]; checkins: Checkin[]; onNew: () => void; onOpen: (id: string) => void; onConnectCalendar: () => void;
-  },
-) {
-  const next = nextImportant(events, new Date());
-  const now = new Date();
-  const answered = next ? checkins.find((c) => c.important_event_id === next.id) : undefined;
-  return (
-    <View style={s.panel}>
-      <Text style={s.panelTitle}>Important events</Text>
-      {next ? (
-        <Pressable onPress={() => onOpen(next.id)} accessibilityRole="button" style={s.panelRow}>
-          <Text style={s.panelRowText}>{cardText(next, now)}</Text>
-          {answered ? (
-            <Text style={s.panelDone}>✓ answered</Text>
-          ) : hasNotAnswered(next, null, now) ? (
-            <Text style={s.panelWarn}>Mom hasn't answered</Text>
-          ) : null}
-        </Pressable>
-      ) : (
-        <Text style={s.panelEmpty}>No important events yet.</Text>
-      )}
-      <Pressable onPress={onNew} accessibilityRole="button" style={s.panelAdd}>
-        <Text style={s.panelAddText}>+ New important event</Text>
-      </Pressable>
-      <Pressable onPress={onConnectCalendar} accessibilityRole="button" style={s.panelAdd}>
-        <Text style={s.panelAddText}>+ Connect iPhone calendar</Text>
-      </Pressable>
-    </View>
-  );
-}
-
 /** A full-screen card that scrolls: long content (an iPhone with a dozen calendars) must not push its buttons off-screen. */
 function Panel({ children }: { children: React.ReactNode }) {
   return (
@@ -456,12 +422,4 @@ const s = StyleSheet.create({
     maxWidth: 820, width: '100%', alignSelf: 'center', backgroundColor: colors.card, borderRadius: 16,
     borderWidth: 1, borderColor: colors.line, padding: 16, margin: 16, marginBottom: 0,
   },
-  panelTitle: { fontSize: 16, fontWeight: '700', color: colors.inkSoft, marginBottom: 8 },
-  panelRow: { paddingVertical: 6 },
-  panelRowText: { fontSize: 18, fontWeight: '700', color: colors.ink },
-  panelDone: { fontSize: 14, color: colors.green, fontWeight: '700', marginTop: 2 },
-  panelWarn: { fontSize: 14, color: colors.terracottaDark, fontWeight: '700', marginTop: 2 },
-  panelEmpty: { fontSize: 16, color: colors.inkSoft },
-  panelAdd: { marginTop: 10, minHeight: 44, justifyContent: 'center' },
-  panelAddText: { fontSize: 16, color: colors.terracotta, fontWeight: '700' },
 });

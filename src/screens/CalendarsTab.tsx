@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../components/Text';
 import type { CalendarPublic, Person } from '../lib/types';
 import { addCalendar, deleteCalendar, listCalendars, syncCalendars } from '../lib/api';
@@ -9,7 +9,11 @@ import { confirmDelete } from '../components/confirm';
 import { can, type Actor } from '../lib/permissions';
 import { colors } from '../theme';
 
-type Props = { circleId: string; actor: Actor; people: Person[]; onSynced: () => void };
+type Props = {
+  circleId: string; actor: Actor; people: Person[]; onSynced: () => void;
+  /** cercana-care's iPhone-calendar connect flow, iOS only (moved here from the dashboard, Vitaly 2026-09-24 15:30). */
+  onConnectDeviceCalendar?: () => void;
+};
 
 function syncedAgo(iso: string, now = new Date()): string {
   const mins = Math.round((now.getTime() - new Date(iso).getTime()) / 60_000);
@@ -19,7 +23,7 @@ function syncedAgo(iso: string, now = new Date()): string {
   return timeAgo(new Date(iso), now);
 }
 
-export function CalendarsTab({ circleId, actor, people, onSynced }: Props) {
+export function CalendarsTab({ circleId, actor, people, onSynced, onConnectDeviceCalendar }: Props) {
   // Staff may link a calendar to anyone; a member only to themselves (permissions.ts decides).
   const allowedPeople = people.filter((p) => can(actor, { type: 'calendar.add', personIds: [p.id] }));
   const [calendars, setCalendars] = useState<CalendarPublic[]>([]);
@@ -89,6 +93,9 @@ export function CalendarsTab({ circleId, actor, people, onSynced }: Props) {
       )}
       {calendars.length > 0 && can(actor, { type: 'calendar.refresh' }) && (
         <BigButton label="Refresh calendars" tone="plain" onPress={refresh} busy={busy} />
+      )}
+      {onConnectDeviceCalendar && Platform.OS === 'ios' && (
+        <BigButton label="Connect iPhone calendar" tone="plain" onPress={onConnectDeviceCalendar} />
       )}
       <ErrorText message={error} />
       {calendars.map((c) => (
