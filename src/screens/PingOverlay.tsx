@@ -1,10 +1,11 @@
 import React, { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '../components/Text';
 import type { Person, Ping } from '../lib/types';
 import { say, stopSaying } from '../lib/speech';
 import { spokenPing } from '../lib/util';
 import { Avatar, BigButton } from '../components/ui';
-import { colors } from '../theme';
+import { colors, fonts } from '../theme';
 
 type Props = { ping: Ping; people: Person[]; onDismiss: () => void };
 
@@ -34,7 +35,7 @@ const s = StyleSheet.create({
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100,
     backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 20,
   },
-  from: { fontSize: 48, fontWeight: '800', color: colors.ink, textAlign: 'center' },
-  msg: { fontSize: 40, color: colors.ink, textAlign: 'center', lineHeight: 52, fontWeight: '600' },
+  from: { fontSize: 48, fontFamily: fonts.display, color: colors.ink, textAlign: 'center' },
+  msg: { fontSize: 40, color: colors.ink, textAlign: 'center', lineHeight: 52, fontFamily: fonts.display },
   ok: { alignSelf: 'stretch', maxWidth: 480, width: '100%', minHeight: 88, marginTop: 12 },
 });

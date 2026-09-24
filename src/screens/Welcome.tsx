@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '../components/Text';
 import { createCircle, findCircleByCode } from '../lib/api';
 import { shareInvite, shareResultText } from '../lib/share';
 import type { Circle, Session } from '../lib/types';
 import { inviteUrl, isValidCode, normalizeCode } from '../lib/util';
 import { BigButton, ErrorText, Field } from '../components/ui';
-import { colors, type } from '../theme';
+import { colors, type, fonts } from '../theme';
 
 type Step = 'choose' | 'patientPath' | 'patient' | 'existing' | 'confirm' | 'lead' | 'code' | 'family';
 
@@ -166,11 +167,11 @@ const s = StyleSheet.create({
   wrap: { flexGrow: 1, justifyContent: 'center', padding: 24, alignSelf: 'center', width: '100%', maxWidth: 640 },
   brand: { fontSize: 20, fontWeight: '700', color: colors.terracotta, marginBottom: 12, letterSpacing: 2 },
   stack: { gap: 16 },
-  title: { fontSize: type.title, fontWeight: '800', color: colors.ink, lineHeight: 48 },
+  title: { fontSize: type.title, fontFamily: fonts.display, color: colors.ink, lineHeight: 48 },
   body: { fontSize: type.body, color: colors.ink, lineHeight: 32 },
   note: { fontSize: 20, color: colors.green, fontWeight: '700' },
   code: {
-    fontSize: 64, fontWeight: '800', letterSpacing: 8, color: colors.green,
+    fontSize: 64, fontFamily: fonts.display, letterSpacing: 8, color: colors.green,
     backgroundColor: colors.warm, textAlign: 'center', paddingVertical: 20, borderRadius: 16,
   },
 });

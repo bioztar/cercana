@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Text } from '../components/Text';
 import type { EventRow, Moment, Person, Session } from '../lib/types';
 import { FeedItem } from '../components/FeedItem';
 import { buildBriefing, type BriefingEvent } from '../lib/briefing';
@@ -9,7 +10,7 @@ import { say } from '../lib/speech';
 import { scheduleBirthdayReminders } from '../lib/notify';
 import { Avatar, BigButton, ErrorText } from '../components/ui';
 import { HoldButton } from '../components/HoldButton';
-import { colors, MAX_WIDTH, type } from '../theme';
+import { colors, MAX_WIDTH, type, fonts } from '../theme';
 
 const PAD = 20;
 const GAP = 16;
@@ -141,21 +142,21 @@ const s = StyleSheet.create({
   wrap: { padding: PAD, paddingBottom: 48, maxWidth: MAX_WIDTH, width: '100%', alignSelf: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 20 },
   headerNarrow: { flexDirection: 'column', alignItems: 'stretch' },
-  hello: { fontSize: type.huge, fontWeight: '800', color: colors.ink, lineHeight: 56 },
-  date: { fontSize: type.title, color: colors.inkSoft, fontWeight: '600', marginTop: 4 },
+  hello: { fontSize: type.huge, fontFamily: fonts.display, color: colors.ink, lineHeight: 56 },
+  date: { fontSize: type.title, color: colors.inkSoft, fontFamily: fonts.display, marginTop: 4 },
   banner: {
     flexDirection: 'row', alignItems: 'center', gap: 16, backgroundColor: colors.warm,
     borderRadius: 20, padding: 16, marginBottom: 24, borderWidth: 3, borderColor: colors.terracotta, minHeight: 64,
   },
-  bannerText: { flex: 1, flexShrink: 1, fontSize: 28, fontWeight: '800', color: colors.ink, lineHeight: 36 },
+  bannerText: { flex: 1, flexShrink: 1, fontSize: 28, fontFamily: fonts.display, color: colors.ink, lineHeight: 36 },
   empty: { fontSize: type.body, color: colors.inkSoft, marginVertical: 32, lineHeight: 32 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GAP },
   card: {
     backgroundColor: colors.card, borderRadius: 20, padding: 12, alignItems: 'center',
     borderWidth: 2, borderColor: colors.line,
   },
-  name: { fontSize: type.name, fontWeight: '800', color: colors.ink, marginTop: 10, textAlign: 'center' },
+  name: { fontSize: type.name, fontFamily: fonts.display, color: colors.ink, marginTop: 10, textAlign: 'center' },
   relation: { fontSize: type.label, color: colors.inkSoft, textAlign: 'center', marginTop: 2 },
   feed: { marginTop: 32, gap: 14 },
-  feedTitle: { fontSize: type.title, fontWeight: '800', color: colors.ink },
+  feedTitle: { fontSize: type.title, fontFamily: fonts.display, color: colors.ink },
 });

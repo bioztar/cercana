@@ -1,9 +1,10 @@
 import React from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from './Text';
 import { aboutOf, authorOf } from '../lib/feed';
 import { timeAgo } from '../lib/dates';
 import type { Moment, Person } from '../lib/types';
-import { colors, type } from '../theme';
+import { colors, type, fonts } from '../theme';
 import { Avatar } from './ui';
 import { VoicePlayer } from './VoicePlayer';
 
@@ -45,7 +46,7 @@ const s = StyleSheet.create({
   card: { backgroundColor: colors.card, borderRadius: 16, padding: 14, gap: 10, borderWidth: 2, borderColor: colors.line },
   headBtn: { minHeight: 64 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  name: { fontSize: type.name - 4, fontWeight: '800', color: colors.ink },
+  name: { fontSize: type.name - 4, fontFamily: fonts.display, color: colors.ink },
   sub: { fontSize: 18, color: colors.terracotta, fontWeight: '600' },
   about: { fontSize: 18, fontWeight: '700', color: colors.inkSoft },
   body: { fontSize: type.body, color: colors.ink, lineHeight: 32 },

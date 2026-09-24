@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../components/Text';
 import type { CalendarPublic, Person } from '../lib/types';
 import { addCalendar, deleteCalendar, listCalendars, syncCalendars } from '../lib/api';
 import { timeAgo } from '../lib/dates';

@@ -1,6 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, SafeAreaView, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
+import { Fraunces_500Medium, Fraunces_600SemiBold } from '@expo-google-fonts/fraunces';
+import { AtkinsonHyperlegible_400Regular, AtkinsonHyperlegible_700Bold } from '@expo-google-fonts/atkinson-hyperlegible';
+import { FontsReady } from './src/components/Text';
 import * as Notifications from 'expo-notifications';
 import { setAudioModeAsync } from 'expo-audio';
 import { demo, missingSettings } from './src/lib/config';
@@ -31,8 +35,16 @@ type Route = { name: 'home' } | { name: 'person'; id: string } | { name: 'settin
 initNotifications();
 
 export default function App() {
+  // Never block first render on fonts: text uses the system font until they arrive (or if they fail).
+  const [loaded] = useFonts({
+    Fraunces_500Medium, Fraunces_600SemiBold, AtkinsonHyperlegible_400Regular, AtkinsonHyperlegible_700Bold,
+  });
   if (missingSettings.length > 0) return <MissingConfig names={missingSettings} />;
-  return <Root />;
+  return (
+    <FontsReady.Provider value={loaded}>
+      <Root />
+    </FontsReady.Provider>
+  );
 }
 
 /** After leaving the invite screen on web, drop /join/CODE from the address bar so a refresh doesn't return to it. */

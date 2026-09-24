@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '../components/Text';
 import { claimPerson, findCircleByCode, listPeople, savePerson } from '../lib/api';
 import { pickAndUploadPhoto } from '../lib/media';
 import { familyRelation } from '../lib/util';
 import type { Circle, Person, Session } from '../lib/types';
 import { Avatar, BigButton, ErrorText, Field } from '../components/ui';
-import { colors, type } from '../theme';
+import { colors, type, fonts } from '../theme';
 
 type Props = { code: string; onDone: (s: Session) => void; onCancel: () => void };
 
@@ -156,7 +157,7 @@ const s = StyleSheet.create({
   wrap: { flexGrow: 1, justifyContent: 'center', padding: 24, alignSelf: 'center', width: '100%', maxWidth: 640 },
   brand: { fontSize: 20, fontWeight: '700', color: colors.terracotta, marginBottom: 12, letterSpacing: 2 },
   stack: { gap: 14 },
-  title: { fontSize: type.title, fontWeight: '800', color: colors.ink, lineHeight: 48 },
+  title: { fontSize: type.title, fontFamily: fonts.display, color: colors.ink, lineHeight: 48 },
   body: { fontSize: type.body, color: colors.ink },
   row: { backgroundColor: colors.card, borderRadius: 16, padding: 12, borderWidth: 2, borderColor: colors.line, gap: 12 },
   rowOn: { borderColor: colors.green },

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from './Text';
 import { colors, TARGET } from '../theme';
 
 type Props = { label: string; holdingLabel?: string; holdMs?: number; onComplete: () => void };

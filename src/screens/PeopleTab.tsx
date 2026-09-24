@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../components/Text';
 import type { Person } from '../lib/types';
 import { setPersonRole, transferLead } from '../lib/api';
 import { ROLE_LABEL, can, type Actor } from '../lib/permissions';

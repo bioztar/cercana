@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '../components/Text';
 import type { Person, Session } from '../lib/types';
 import { can, ROLE_LABEL, type Actor } from '../lib/permissions';
 import { shareInvite, shareResultText } from '../lib/share';
@@ -9,7 +10,7 @@ import { CalendarsTab } from './CalendarsTab';
 import { MomentsTab } from './MomentsTab';
 import { PeopleTab } from './PeopleTab';
 import { PingTab } from './PingTab';
-import { colors } from '../theme';
+import { colors, fonts } from '../theme';
 
 const TABS = ['People', 'Calendars', 'Moments', 'Ping'] as const;
 type Tab = (typeof TABS)[number];
@@ -87,7 +88,7 @@ const s = StyleSheet.create({
   wrap: { padding: 20, paddingBottom: 48, maxWidth: 820, width: '100%', alignSelf: 'center' },
   top: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 12 },
   topActions: { alignItems: 'flex-end' },
-  title: { fontSize: 28, fontWeight: '800', color: colors.ink },
+  title: { fontSize: 28, fontFamily: fonts.display, color: colors.ink },
   sub: { fontSize: 16, color: colors.inkSoft, marginTop: 2 },
   note: { fontSize: 18, color: colors.green, fontWeight: '700', marginBottom: 12 },
   settings: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
+import { Text } from '../components/Text';
 import type { Session } from '../lib/types';
 import { inviteUrl } from '../lib/util';
 import { shareInvite, shareResultText } from '../lib/share';
 import { BigButton } from '../components/ui';
-import { colors, type } from '../theme';
+import { colors, type, fonts } from '../theme';
 
 type Props = { session: Session; canInvite: boolean; onBack: () => void; onLeave: () => void };
 
@@ -36,7 +37,7 @@ export function Settings({ session, canInvite, onBack, onLeave }: Props) {
 
 const s = StyleSheet.create({
   wrap: { padding: 24, gap: 16, maxWidth: 640, width: '100%', alignSelf: 'center' },
-  title: { fontSize: type.title, fontWeight: '800', color: colors.ink },
+  title: { fontSize: type.title, fontFamily: fonts.display, color: colors.ink },
   body: { fontSize: type.body, color: colors.ink },
   small: { fontSize: 18, color: colors.inkSoft },
   note: { fontSize: 20, color: colors.green, fontWeight: '700' },
