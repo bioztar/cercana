@@ -70,7 +70,8 @@ export function FamilyHome({
     return (
       <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={s.wrap}>
         <EventDetail eventId={openEventId} events={events} people={people} moments={moments}
-          onBack={() => setOpenEventId(null)} onOpenPerson={() => {}} />
+          onBack={() => setOpenEventId(null)} onOpenPerson={() => {}}
+          patientName={session.patientName} onEventsChanged={reloadEvents} />
       </ScrollView>
     );
   }
