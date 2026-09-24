@@ -67,11 +67,11 @@ function AgendaCard({ item, people, onPress }: { item: AgendaItem; people: Perso
       accessibilityLabel={item.title}
       onPress={onPress}
       disabled={!item.eventId}
-      style={[s.card, item.kind === 'birthday' && s.cardBirthday]}
+      style={[s.card, item.kind === 'birthday' && s.cardBirthday, justAdded && s.cardNew]}
     >
-      <View style={[s.tile, item.kind === 'birthday' && s.tileBirthday]}>
-        <Text style={[s.tileTop, item.kind === 'birthday' && s.tileTopBirthday]}>{tile.top}</Text>
-        <Text style={[s.tileBottom, item.kind === 'birthday' && s.tileBottomBirthday]}>{tile.bottom}</Text>
+      <View style={[s.tile, (item.kind === 'birthday' || justAdded) && s.tileBirthday]}>
+        <Text style={[s.tileTop, (item.kind === 'birthday' || justAdded) && s.tileTopBirthday]}>{tile.top}</Text>
+        <Text style={[s.tileBottom, (item.kind === 'birthday' || justAdded) && s.tileBottomBirthday]}>{tile.bottom}</Text>
       </View>
       <View style={{ flex: 1, gap: 6 }}>
         <Text style={s.cardTitle}>{item.title}</Text>
@@ -102,6 +102,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: colors.line, alignItems: 'center',
   },
   cardBirthday: { backgroundColor: colors.peachSoft, borderColor: colors.peach },
+  cardNew: { borderWidth: 2, borderColor: colors.terracotta },
   tile: {
     width: 56, height: 56, borderRadius: radius.md, backgroundColor: colors.peachSoft, alignItems: 'center',
     justifyContent: 'center',
