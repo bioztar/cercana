@@ -56,6 +56,15 @@ export function cardText(e: ImportantEvent, now: Date): string {
   return `${e.title}, ${whenPhrase(e, now)}`;
 }
 
+/** "Mom's own day" lines for the morning brief: today's important events, as short sentences. */
+export function todaysImportantSentences(events: ImportantEvent[], now: Date): string[] {
+  const today = startOfDay(now).getTime();
+  return events
+    .filter((e) => startOfDay(new Date(e.starts_at)).getTime() === today)
+    .sort((a, b) => a.starts_at.localeCompare(b.starts_at))
+    .map((e) => `${e.title} at ${timeLabel(new Date(e.starts_at))}.`);
+}
+
 /** Spoken in the morning briefing; null when the event is more than a week away. */
 export function importantPhrase(e: ImportantEvent | null, now: Date): string | null {
   if (!e) return null;

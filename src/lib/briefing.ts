@@ -149,21 +149,50 @@ export function todaySentences(events: BriefingEvent[], now: Date, limit = 5): s
     });
 }
 
-/** The spoken morning briefing: greeting, date, today's events, next birthday within 7 days. */
+/**
+ * The spoken morning briefing, in order: greeting + date, (1) Mom's own day (`leadLines`, e.g.
+ * today's important events — see important.ts), (2) family news (today's/ongoing events of
+ * others), (3) a birthday today/tomorrow, (4) new photos from the family.
+ */
 export function buildBriefing(input: {
   patientName: string;
   now: Date;
   events: BriefingEvent[];
+  leadLines?: string[];
   birthdayPhrase?: string | null;
-  importantPhrase?: string | null; // next important event, see important.ts
+  newPhotosPhrase?: string | null;
 }): string {
-  const { patientName, now, events, birthdayPhrase, importantPhrase } = input;
+  const { patientName, now, events, leadLines, birthdayPhrase, newPhotosPhrase } = input;
   const parts = [
     `${greeting(now)} ${patientName}.`,
     `Today is ${WEEKDAYS[now.getDay()]} the ${ordinal(now.getDate())}.`,
+    ...(leadLines ?? []),
     ...todaySentences(events, now),
   ];
-  if (importantPhrase) parts.push(`${importantPhrase}.`);
   if (birthdayPhrase) parts.push(`${birthdayPhrase}.`);
+  if (newPhotosPhrase) parts.push(`${newPhotosPhrase}.`);
   return parts.join(' ');
+}
+
+/** "You have 3 new photos from your family" — moments with a photo posted after `since`. */
+export function newPhotosPhrase(count: number): string | null {
+  if (count <= 0) return null;
+  return `You have ${count} new photo${count === 1 ? '' : 's'} from your family`;
+}
+
+export function countNewPhotos(moments: { photo_url: string | null; created_at: string }[], since: Date | null): number {
+  if (!since) return 0;
+  return moments.filter((m) => !!m.photo_url && new Date(m.created_at) > since).length;
+}
+
+/** Short notification body: greeting + up to 2 lead-in items + the photo count, e.g.
+ * "Good morning Maria — Rosa visits at nine, Anna is in London, 10 new photos". */
+export function briefNotificationBody(patientName: string, items: string[], newPhotos: number): string {
+  const lead = items
+    .slice(0, 2)
+    .map((s) => s.replace(/\.$/, ''))
+    .join(', ');
+  const photos = newPhotos > 0 ? `${newPhotos} new photo${newPhotos === 1 ? '' : 's'}` : '';
+  const tail = [lead, photos].filter(Boolean).join(', ');
+  return tail ? `Good morning ${patientName} — ${tail}` : `Good morning ${patientName}`;
 }
