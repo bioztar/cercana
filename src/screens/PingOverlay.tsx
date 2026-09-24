@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { Text } from '../components/Text';
 import type { Person, Ping } from '../lib/types';
 import { say, stopSaying } from '../lib/speech';
+import { pauseKeepAlive, resumeKeepAlive } from '../lib/keepAlive';
 import { spokenPing } from '../lib/util';
 import { Avatar, BigButton } from '../components/ui';
 import { colors, fonts } from '../theme';
@@ -16,8 +17,12 @@ export function PingOverlay({ ping, people, onDismiss }: Props) {
     people.find((p) => p.name.trim().toLowerCase() === from.trim().toLowerCase());
 
   useEffect(() => {
+    pauseKeepAlive();
     say(spokenPing(from, ping.message));
-    return stopSaying;
+    return () => {
+      stopSaying();
+      resumeKeepAlive();
+    };
   }, [ping.id, from, ping.message]);
 
   return (

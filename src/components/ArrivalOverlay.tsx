@@ -4,6 +4,7 @@ import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { Text } from './Text';
 import type { Arrival } from '../lib/arrivals';
 import { say, stopSaying } from '../lib/speech';
+import { pauseKeepAlive, resumeKeepAlive } from '../lib/keepAlive';
 import { Avatar, BigButton } from './ui';
 import { colors, fonts } from '../theme';
 
@@ -17,10 +18,14 @@ export function ArrivalOverlay({ arrival, onDismiss }: Props) {
   const blockedAutoplay = Platform.OS === 'web' && !!arrival.audioUrl && !status.playing && status.currentTime === 0;
 
   useEffect(() => {
+    pauseKeepAlive(); // don't fight the silent loop for the audio session while this speaks/plays
     say(arrival.spoken, () => {
       if (arrival.audioUrl) player.play(); // browsers may block this until the first tap — see the button below
     });
-    return stopSaying;
+    return () => {
+      stopSaying();
+      resumeKeepAlive();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fires once per arrival, keyed by id
   }, [arrival.id]);
 

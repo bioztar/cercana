@@ -11,6 +11,7 @@ import { demo, missingSettings } from './src/lib/config';
 import { demoBoot, demoTriggerArrival } from './src/lib/demo';
 import { arrivalFromComment, arrivalFromMoment, enqueueArrival, type Arrival } from './src/lib/arrivals';
 import { ArrivalOverlay } from './src/components/ArrivalOverlay';
+import { keepAliveEnabled, startKeepAlive, stopKeepAlive } from './src/lib/keepAlive';
 import { findCircleByCode, getBriefSettings, listCheckins, listImportant, unclaimPerson } from './src/lib/api';
 import { DemoRibbon } from './src/components/DemoRibbon';
 import { clearSession, getFlag, loadSession, saveSession, setFlag } from './src/lib/session';
@@ -220,6 +221,14 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
     if (!isPatient || !demo) return;
     const t = setTimeout(() => void demoTriggerArrival(), 5000);
     return () => clearTimeout(t);
+  }, [isPatient]);
+
+  // Scope add 16:35 (Vitaly, DEMO HACK — see src/lib/keepAlive.ts): patient session keeps a silent
+  // audio loop running so arrivals still speak/play with the phone locked.
+  useEffect(() => {
+    if (!isPatient || demo) return; // demo has no real background session to keep alive
+    void keepAliveEnabled().then((on) => { if (on) void startKeepAlive(); });
+    return () => stopKeepAlive();
   }, [isPatient]);
 
   // cercana-care: important events + check-ins, refetched whenever realtime bumps `version`.

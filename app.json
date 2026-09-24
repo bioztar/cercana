@@ -44,7 +44,8 @@
       [
         "expo-audio",
         {
-          "microphonePermission": "Record a voice note for your family"
+          "microphonePermission": "Record a voice note for your family",
+          "enableBackgroundPlayback": true
         }
       ],
       [
