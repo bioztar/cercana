@@ -36,6 +36,29 @@ export type Ping = {
   created_at: string;
 };
 
+/** What clients may see of a calendar. The ICS URL is never readable (see supabase/schema.sql). */
+export type CalendarPublic = {
+  id: string;
+  circle_id: string;
+  label: string;
+  url_hint: string | null;
+  last_synced_at: string | null;
+  last_error: string | null;
+  person_ids: string[];
+};
+
+export type EventRow = {
+  id: string;
+  calendar_id: string;
+  uid: string;
+  title: string | null;
+  location: string | null;
+  starts_at: string;
+  ends_at: string | null;
+  all_day: boolean;
+  person_ids: string[]; // people whose calendars carry this event
+};
+
 export type Session = {
   role: Role;
   circleId: string;

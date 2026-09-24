@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Image, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
-import type { Moment, Person } from '../lib/types';
+import type { EventRow, Moment, Person } from '../lib/types';
+import { comingUp } from '../lib/briefing';
 import { listMoments } from '../lib/api';
 import { timeAgo } from '../lib/dates';
 import { say } from '../lib/speech';
@@ -9,9 +10,14 @@ import { Avatar, BigButton, ErrorText } from '../components/ui';
 import { VoicePlayer } from '../components/VoicePlayer';
 import { colors, type } from '../theme';
 
-type Props = { person: Person; circleId: string; refreshKey: number; onBack: () => void };
+type Props = { person: Person; circleId: string; refreshKey: number; events: EventRow[]; onBack: () => void };
 
-export function PersonScreen({ person, circleId, refreshKey, onBack }: Props) {
+export function PersonScreen({ person, circleId, refreshKey, events, onBack }: Props) {
+  const upcoming = comingUp(
+    events.filter((e) => e.person_ids.includes(person.id)).map((e) => ({ ...e, title: e.title ?? '(no title)' })),
+    new Date(),
+    5,
+  );
   const [moments, setMoments] = useState<Moment[]>([]);
   const [error, setError] = useState<string | null>(null);
   const wa = whatsappUrl(person.phone);
@@ -50,6 +56,17 @@ export function PersonScreen({ person, circleId, refreshKey, onBack }: Props) {
       {wa ? <Text style={s.hint}>WhatsApp opens the chat. Tap the phone at the top to call.</Text> : null}
 
       <ErrorText message={error} />
+      {upcoming.length > 0 && (
+        <>
+          <Text style={s.section}>Coming up</Text>
+          {upcoming.map((c) => (
+            <View key={`${c.event.id}`} style={[s.moment, c.ongoing && s.ongoing]}>
+              <Text style={s.upcoming}>{c.phrase}</Text>
+              {c.event.location ? <Text style={s.when}>{c.event.location}</Text> : null}
+            </View>
+          ))}
+        </>
+      )}
       <Text style={s.section}>Lately</Text>
       {moments.length === 0 && <Text style={s.body}>Nothing new yet.</Text>}
       {moments.map((m) => (
@@ -78,6 +95,8 @@ const s = StyleSheet.create({
   section: { fontSize: type.title, fontWeight: '800', color: colors.ink, marginTop: 16 },
   body: { fontSize: type.body, color: colors.ink, lineHeight: 32 },
   moment: { backgroundColor: colors.card, borderRadius: 16, padding: 16, gap: 10, borderWidth: 2, borderColor: colors.line },
+  ongoing: { backgroundColor: colors.warm, borderColor: colors.terracotta },
+  upcoming: { fontSize: 24, fontWeight: '700', color: colors.ink, lineHeight: 32 },
   when: { fontSize: 20, fontWeight: '700', color: colors.terracotta },
   photo: { width: '100%', height: 300, borderRadius: 12, backgroundColor: colors.line },
 });

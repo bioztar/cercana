@@ -1,15 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { listPeople, subscribeCircle } from './api';
-import type { Person, Ping } from './types';
+import { listEvents, listPeople, subscribeCircle } from './api';
+import type { EventRow, Person, Ping } from './types';
 
-/** People of a circle, kept fresh via realtime. `onPing` fires for every new ping in the circle. */
+const EVENT_REFRESH_MS = 10 * 60 * 1000; // calendars are synced server-side every ~30 min
+
+/** People + calendar events of a circle, kept fresh via realtime. `onPing` fires for every new ping. */
 export function useCircle(circleId: string, onPing?: (p: Ping) => void) {
   const [people, setPeople] = useState<Person[]>([]);
+  const [events, setEvents] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [version, setVersion] = useState(0); // bumps on any realtime change, for dependent lists
   const pingRef = useRef(onPing);
   pingRef.current = onPing;
+
+  const reloadEvents = useCallback(async () => {
+    try {
+      setEvents(await listEvents(circleId));
+    } catch (e) {
+      console.warn('events load failed', e); // the app works without calendars; do not block the screen
+    }
+  }, [circleId]);
 
   const reload = useCallback(async () => {
     try {
@@ -17,21 +28,25 @@ export function useCircle(circleId: string, onPing?: (p: Ping) => void) {
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
     }
   }, [circleId]);
 
   useEffect(() => {
-    void reload();
-    return subscribeCircle(circleId, {
+    // `loading` covers both loads, so the spoken briefing never runs on half the data.
+    void Promise.all([reload(), reloadEvents()]).then(() => setLoading(false));
+    const timer = setInterval(() => void reloadEvents(), EVENT_REFRESH_MS);
+    const unsubscribe = subscribeCircle(circleId, {
       onPing: (p) => pingRef.current?.(p),
       onChange: () => {
         setVersion((v) => v + 1);
         void reload();
       },
     });
-  }, [circleId, reload]);
+    return () => {
+      clearInterval(timer);
+      unsubscribe();
+    };
+  }, [circleId, reload, reloadEvents]);
 
-  return { people, loading, error, reload, version };
+  return { people, events, loading, error, reload, reloadEvents, version };
 }

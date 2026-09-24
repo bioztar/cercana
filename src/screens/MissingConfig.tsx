@@ -23,7 +23,7 @@ export function MissingConfig({ names }: { names: string[] }) {
 }
 
 const s = StyleSheet.create({
-  wrap: { flexGrow: 1, justifyContent: 'center', padding: 32, gap: 16, maxWidth: 720, alignSelf: 'center' },
+  wrap: { flexGrow: 1, justifyContent: 'center', padding: 24, gap: 16, maxWidth: 720, width: '100%', alignSelf: 'center' },
   title: { fontSize: type.title, fontWeight: '800', color: colors.ink },
   body: { fontSize: type.body, color: colors.ink, lineHeight: 32 },
   name: {

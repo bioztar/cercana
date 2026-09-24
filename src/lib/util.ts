@@ -56,6 +56,25 @@ export function birthdayToInput(iso: string | null | undefined): string {
   return Number(m[1]) < 1000 ? `${m[2]}-${m[3]}` : `${m[1]}-${m[2]}-${m[3]}`;
 }
 
+/**
+ * Non-secret hint shown after an ICS URL is saved. iCloud/Outlook feed URLs end in a secret token,
+ * so only a ".ics" file name (Google's "basic.ics") or the bare host is ever shown.
+ */
+export function urlHint(raw: string): string {
+  const m = /^(?:https?|webcal):\/\/([^/?#]+)([^?#]*)/i.exec(raw.trim());
+  if (!m) return '';
+  const file = m[2].split('/').filter(Boolean).pop() ?? '';
+  return /^[\w.-]{1,40}\.ics$/i.test(file) && !/^private-/i.test(file) ? `…/${file}` : m[1];
+}
+
+/** RFC 4122 v4 id. Hermes has no crypto.randomUUID, and calendars can't be read back after insert. */
+export function uuidv4(random: () => number = Math.random): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.floor(random() * 16);
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
 export function spokenPing(fromName: string, message: string): string {
   return `${fromName} says: ${message}`;
 }

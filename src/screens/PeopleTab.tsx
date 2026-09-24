@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { confirmDelete } from '../components/confirm';
 import type { Person } from '../lib/types';
 import { deletePerson, savePerson } from '../lib/api';
 import { pickAndUploadPhoto } from '../lib/media';
@@ -8,16 +9,6 @@ import { Avatar, BigButton, ErrorText, Field } from '../components/ui';
 import { colors } from '../theme';
 
 type Props = { circleId: string; people: Person[]; onChanged: () => void };
-
-const confirm = (msg: string): Promise<boolean> => {
-  if (Platform.OS === 'web') return Promise.resolve(window.confirm(msg));
-  return new Promise((resolve) =>
-    Alert.alert(msg, undefined, [
-      { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-      { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
-    ]),
-  );
-};
 
 export function PeopleTab({ circleId, people, onChanged }: Props) {
   const [editing, setEditing] = useState<Partial<Person> | null>(null);
@@ -93,7 +84,7 @@ function PersonForm({ circleId, initial, onClose, onSaved }: FormProps) {
   });
 
   const remove = () => guard(async () => {
-    if (!initial.id || !(await confirm(`Delete ${name || 'this person'}?`))) return;
+    if (!initial.id || !(await confirmDelete(`Delete ${name || 'this person'}?`))) return;
     await deletePerson(initial.id);
     onSaved();
   });

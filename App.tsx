@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, SafeAreaView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, SafeAreaView, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import { setAudioModeAsync } from 'expo-audio';
-import { missingSettings } from './src/lib/config';
+import { demo, missingSettings } from './src/lib/config';
+import { demoBoot } from './src/lib/demo';
 import { clearSession, loadSession, saveSession } from './src/lib/session';
 import { useCircle } from './src/lib/useCircle';
 import {
@@ -31,9 +32,16 @@ export default function App() {
 
 function Root() {
   const [session, setSession] = useState<Session | null | undefined>(undefined); // undefined = loading
+  const [bootPerson, setBootPerson] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     void setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
+    const boot = demo ? demoBoot() : null; // ?demo=patient|family[&person=id], demo builds only
+    if (boot) {
+      setBootPerson(boot.personId);
+      setSession(boot.session);
+      return;
+    }
     void loadSession().then(setSession);
   }, []);
 
@@ -55,15 +63,17 @@ function Root() {
       ) : session === null ? (
         <Welcome onDone={start} />
       ) : (
-        <CircleApp session={session} onLeave={leave} />
+        <CircleApp session={session} initialPersonId={bootPerson} onLeave={leave} />
       )}
     </SafeAreaView>
   );
 }
 
-function CircleApp({ session, onLeave }: { session: Session; onLeave: () => void }) {
+type CircleAppProps = { session: Session; initialPersonId?: string; onLeave: () => void };
+
+function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
   const isPatient = session.role === 'patient';
-  const [route, setRoute] = useState<Route>({ name: 'home' });
+  const [route, setRoute] = useState<Route>(initialPersonId ? { name: 'person', id: initialPersonId } : { name: 'home' });
   const [ping, setPing] = useState<Ping | null>(null);
   const [seen] = useState(() => new Set<string>());
 
@@ -74,12 +84,13 @@ function CircleApp({ session, onLeave }: { session: Session; onLeave: () => void
     showWebNotification(`${p.from_name ?? 'Someone'} says`, p.message);
   }, [seen]);
 
-  const { people, error, version, reload } = useCircle(session.circleId, isPatient ? showPing : undefined);
+  const { people, events, loading, error, version, reload, reloadEvents } = useCircle(session.circleId, isPatient ? showPing : undefined);
 
   useEffect(() => {
     if (!isPatient) return;
     void registerForPush(session.circleId, 'patient');
     requestWebNotificationPermission();
+    if (Platform.OS === 'web') return; // tap-to-open push is native only; web uses realtime + Notification
     const sub = Notifications.addNotificationResponseReceivedListener((r) => {
       const p = pingFromNotificationData(r.notification.request.content.data);
       if (p) showPing(p);
@@ -98,14 +109,16 @@ function CircleApp({ session, onLeave }: { session: Session; onLeave: () => void
   } else if (!isPatient) {
     body = (
       <FamilyHome session={session} people={people} error={error} version={version} reload={reload}
-        onSettings={() => setRoute({ name: 'settings' })} />
+        reloadEvents={reloadEvents} onSettings={() => setRoute({ name: 'settings' })} />
     );
   } else if (route.name === 'person' && people.some((p) => p.id === route.id)) {
     const person = people.find((p) => p.id === route.id)!;
-    body = <PersonScreen person={person} circleId={session.circleId} refreshKey={version} onBack={home} />;
+    body = (
+      <PersonScreen person={person} circleId={session.circleId} refreshKey={version} events={events} onBack={home} />
+    );
   } else {
     body = (
-      <PatientHome session={session} people={people} error={error}
+      <PatientHome session={session} people={people} events={events} loading={loading} error={error}
         onOpenPerson={(id) => setRoute({ name: 'person', id })}
         onSettings={() => setRoute({ name: 'settings' })} />
     );

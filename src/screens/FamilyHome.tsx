@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { Person, Session } from '../lib/types';
 import { ErrorText } from '../components/ui';
+import { CalendarsTab } from './CalendarsTab';
 import { MomentsTab } from './MomentsTab';
 import { PeopleTab } from './PeopleTab';
 import { PingTab } from './PingTab';
 import { colors } from '../theme';
 
-const TABS = ['People', 'Moments', 'Ping'] as const;
+const TABS = ['People', 'Calendars', 'Moments', 'Ping'] as const;
 type Tab = (typeof TABS)[number];
 
 type Props = {
@@ -16,10 +17,11 @@ type Props = {
   error: string | null;
   version: number;
   reload: () => void;
+  reloadEvents: () => void;
   onSettings: () => void;
 };
 
-export function FamilyHome({ session, people, error, version, reload, onSettings }: Props) {
+export function FamilyHome({ session, people, error, version, reload, reloadEvents, onSettings }: Props) {
   const [tab, setTab] = useState<Tab>('People');
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={s.wrap}>
@@ -41,6 +43,7 @@ export function FamilyHome({ session, people, error, version, reload, onSettings
       </View>
       <ErrorText message={error} />
       {tab === 'People' && <PeopleTab circleId={session.circleId} people={people} onChanged={reload} />}
+      {tab === 'Calendars' && <CalendarsTab circleId={session.circleId} people={people} onSynced={reloadEvents} />}
       {tab === 'Moments' && (
         <MomentsTab circleId={session.circleId} authorName={session.memberName} people={people} version={version} />
       )}
@@ -61,5 +64,5 @@ const s = StyleSheet.create({
   tabs: { flexDirection: 'row', gap: 8, marginBottom: 20 },
   tab: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 14, borderWidth: 2, borderColor: colors.line, backgroundColor: colors.card },
   tabOn: { backgroundColor: colors.terracotta, borderColor: colors.terracotta },
-  tabText: { fontSize: 20, fontWeight: '700', color: colors.ink },
+  tabText: { fontSize: 18, fontWeight: '700', color: colors.ink },
 });

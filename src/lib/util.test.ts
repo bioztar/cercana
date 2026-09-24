@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   generateCode, isValidCode, normalizeCode, whatsappUrl, telUrl,
-  normalizeBirthdayInput, birthdayToInput, spokenPing,
+  normalizeBirthdayInput, birthdayToInput, spokenPing, urlHint, uuidv4,
 } from './util.ts';
 
 test('generateCode: 6 chars, no 0/O/1/I', () => {
@@ -38,6 +38,19 @@ test('birthday input', () => {
   assert.equal(normalizeBirthdayInput('hello'), null);
   assert.equal(birthdayToInput('0004-03-05'), '03-05');
   assert.equal(birthdayToInput('1990-03-05'), '1990-03-05');
+});
+
+test('urlHint never reveals a token', () => {
+  assert.equal(urlHint('https://calendar.google.com/calendar/ical/x%40gmail.com/private-abc123/basic.ics'), '…/basic.ics');
+  assert.equal(urlHint('webcal://p01-caldav.icloud.com/published/2/MTIzNDU2Nzg5'), 'p01-caldav.icloud.com');
+  assert.equal(urlHint('https://outlook.live.com/owa/calendar/abc/reachcalendar.ics'), '…/reachcalendar.ics');
+  assert.equal(urlHint('https://example.com/private-SECRET.ics'), 'example.com');
+  assert.equal(urlHint('nonsense'), '');
+});
+
+test('uuidv4 shape', () => {
+  assert.match(uuidv4(), /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  assert.notEqual(uuidv4(), uuidv4());
 });
 
 test('spokenPing', () => {

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import type { Person, Session } from '../lib/types';
+import type { EventRow, Person, Session } from '../lib/types';
+import { buildBriefing, type BriefingEvent } from '../lib/briefing';
 import { birthdayPhrase, formatDate, greeting, upcomingBirthday } from '../lib/dates';
 import { getFlag, setFlag } from '../lib/session';
 import { say } from '../lib/speech';
@@ -8,19 +9,41 @@ import { scheduleBirthdayReminders } from '../lib/notify';
 import { Avatar, BigButton, ErrorText } from '../components/ui';
 import { colors, MAX_WIDTH, type } from '../theme';
 
-let greetedThisOpen = false; // greeting is spoken once per app-open
+const PAD = 20;
+const GAP = 16;
+let spokeThisOpen = false; // greeting/briefing is spoken once per app-open
 
 type Props = {
   session: Session;
   people: Person[];
+  events: EventRow[];
+  loading: boolean;
   error: string | null;
   onOpenPerson: (id: string) => void;
   onSettings: () => void;
 };
 
-export function PatientHome({ session, people, error, onOpenPerson, onSettings }: Props) {
+/** One row per real-world event: the same event on several people's calendars lists all owners. */
+function briefingEvents(events: EventRow[], people: Person[]): BriefingEvent[] {
+  const merged = new Map<string, BriefingEvent>();
+  for (const e of events) {
+    const owners = e.person_ids.map((id) => people.find((p) => p.id === id)?.name).filter((n): n is string => !!n);
+    const key = `${e.uid}|${e.starts_at}`;
+    const prev = merged.get(key);
+    merged.set(key, {
+      title: e.title ?? '(no title)', starts_at: e.starts_at, ends_at: e.ends_at, all_day: e.all_day,
+      owners: [...new Set([...(prev?.owners ?? []), ...owners])],
+    });
+  }
+  return [...merged.values()];
+}
+
+export function PatientHome({ session, people, events, loading, error, onOpenPerson, onSettings }: Props) {
   const { width } = useWindowDimensions();
   const cols = width < 700 ? 2 : width < 1000 ? 3 : 4;
+  // Pixel widths (not %): percent columns plus `gap` overflow the row and wrap early.
+  const inner = Math.min(width, MAX_WIDTH) - 2 * PAD;
+  const cardWidth = Math.floor((inner - GAP * (cols - 1)) / cols);
   const now = new Date();
   const hello = `${greeting(now)}, ${session.patientName}`;
   const dateLine = formatDate(now);
@@ -31,21 +54,28 @@ export function PatientHome({ session, people, error, onOpenPerson, onSettings }
     ? `${bannerText}${next.person.relation ? ` — ${next.person.relation}` : ''}`
     : null;
 
-  useEffect(() => {
-    if (greetedThisOpen) return;
-    greetedThisOpen = true;
-    say(`${hello}. Today is ${dateLine}.`);
-  }, [hello, dateLine]);
-
-  useEffect(() => {
-    if (!bannerFull) return;
-    const key = `bday-spoken-${new Date().toDateString()}`;
-    void getFlag(key).then((seen) => {
-      if (seen) return;
-      void setFlag(key, '1');
-      say(bannerFull);
+  const briefing = () =>
+    buildBriefing({
+      patientName: session.patientName,
+      now: new Date(),
+      events: briefingEvents(events, people),
+      birthdayPhrase: bannerText,
     });
-  }, [bannerFull]);
+
+  // First open of the day: full briefing (greeting, today's events, next birthday). Later opens: greeting only.
+  // Waits for people + events so the briefing never runs on half the data.
+  useEffect(() => {
+    if (loading || spokeThisOpen) return;
+    spokeThisOpen = true;
+    const key = 'briefing-day';
+    const today = new Date().toDateString();
+    void getFlag(key).then((seen) => {
+      if (seen === today) return say(`${hello}. Today is ${dateLine}.`);
+      void setFlag(key, today);
+      say(briefing());
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- speak once per open, with the data present at that time
+  }, [loading]);
 
   useEffect(() => {
     void scheduleBirthdayReminders(people);
@@ -53,12 +83,12 @@ export function PatientHome({ session, people, error, onOpenPerson, onSettings }
 
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={s.wrap}>
-      <View style={s.header}>
+      <View style={[s.header, cols === 2 && s.headerNarrow]}>
         <View style={{ flex: 1 }}>
           <Text style={s.hello}>{hello}</Text>
           <Text style={s.date}>{dateLine}</Text>
         </View>
-        <BigButton label="🔊 Read aloud" tone="terracotta" onPress={() => say(`${hello}. Today is ${dateLine}.`)} />
+        <BigButton label="🔊 Hear today" tone="terracotta" onPress={() => say(briefing())} />
       </View>
 
       {next && bannerFull && (
@@ -81,9 +111,9 @@ export function PatientHome({ session, people, error, onOpenPerson, onSettings }
             accessibilityRole="button"
             accessibilityLabel={`${p.name}${p.relation ? `, ${p.relation}` : ''}`}
             onPress={() => onOpenPerson(p.id)}
-            style={[s.card, { width: `${100 / cols - 2}%` }]}
+            style={[s.card, { width: cardWidth }]}
           >
-            <Avatar uri={p.photo_url} name={p.name} size={cols === 2 ? Math.min(180, width / 2 - 48) : 200} />
+            <Avatar uri={p.photo_url} name={p.name} size={Math.min(220, cardWidth - 28)} />
             <Text style={s.name} numberOfLines={2}>{p.name}</Text>
             {p.relation ? <Text style={s.relation} numberOfLines={2}>{p.relation}</Text> : null}
           </Pressable>
@@ -98,8 +128,9 @@ export function PatientHome({ session, people, error, onOpenPerson, onSettings }
 }
 
 const s = StyleSheet.create({
-  wrap: { padding: 20, paddingBottom: 48, maxWidth: MAX_WIDTH, width: '100%', alignSelf: 'center' },
-  header: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 16, marginBottom: 20 },
+  wrap: { padding: PAD, paddingBottom: 48, maxWidth: MAX_WIDTH, width: '100%', alignSelf: 'center' },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 20 },
+  headerNarrow: { flexDirection: 'column', alignItems: 'stretch' },
   hello: { fontSize: type.huge, fontWeight: '800', color: colors.ink, lineHeight: 56 },
   date: { fontSize: type.title, color: colors.inkSoft, fontWeight: '600', marginTop: 4 },
   banner: {
@@ -108,7 +139,7 @@ const s = StyleSheet.create({
   },
   bannerText: { flex: 1, fontSize: 30, fontWeight: '800', color: colors.ink, lineHeight: 38 },
   empty: { fontSize: type.body, color: colors.inkSoft, marginVertical: 32, lineHeight: 32 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, justifyContent: 'space-between' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GAP },
   card: {
     backgroundColor: colors.card, borderRadius: 20, padding: 12, alignItems: 'center',
     borderWidth: 2, borderColor: colors.line,

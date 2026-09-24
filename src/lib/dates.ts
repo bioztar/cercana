@@ -4,8 +4,8 @@ export type Birthday = { month: number; day: number; year: number | null };
 
 const UNKNOWN_YEAR_BELOW = 1000; // a stored year < 1000 (e.g. 0004-02-29) means "year unknown"
 
-const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const MONTHS = [
+export const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+export const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
