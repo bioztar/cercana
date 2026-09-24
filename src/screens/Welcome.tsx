@@ -8,12 +8,18 @@ import { inviteUrl, isValidCode, normalizeCode } from '../lib/util';
 import { BigButton, ErrorText, Field } from '../components/ui';
 import { colors, type, fonts } from '../theme';
 
-type Step = 'choose' | 'patientPath' | 'patient' | 'existing' | 'confirm' | 'lead' | 'code' | 'family';
+// A relative sets Cercana up (becomes the family's lead, on their own phone) and only afterwards
+// hands the patient's phone its join code — the patient path never starts a new family.
+type Step =
+  | 'choose'
+  | 'setupName' | 'setupLead' | 'invite' // "I'm setting up Cercana for someone in my family"
+  | 'joinCode' | 'joinConfirm' // "I have an invite code or link" typed in (not via a link)
+  | 'patientCode' | 'patientConfirm'; // "This is the phone of the person we care for"
 
 type Props = {
-  /** The patient's phone is set up: the lead created the circle here. */
+  /** The patient's phone is set up: it joined by code, this device becomes a patient session. */
   onDone: (s: Session) => void;
-  /** "I'm family" with a code typed in: continue on the invite screen. */
+  /** "I have an invite code or link" with a code typed in: continue on the invite-landing screen. */
   onJoinCode: (code: string) => void;
 };
 
@@ -34,9 +40,9 @@ export function Welcome({ onDone, onJoinCode }: Props) {
     setStep(next);
   };
 
-  const patientNext = () => {
-    if (!patientName.trim()) return setError('Please type the first name.');
-    go('lead');
+  const setupNameNext = () => {
+    if (!patientName.trim()) return setError('Please type their first name.');
+    go('setupLead');
   };
 
   const create = async () => {
@@ -45,9 +51,14 @@ export function Welcome({ onDone, onJoinCode }: Props) {
     setError(null);
     try {
       const first = patientName.trim();
-      const c = await createCircle(first, { name: leadName.trim(), relation: leadRelation.trim() });
-      setCreated({ role: 'patient', circleId: c.id, code: c.code, patientName: c.patient_name, memberName: first });
-      setStep('code');
+      const relation = leadRelation.trim();
+      const c = await createCircle(first, { name: leadName.trim(), relation });
+      // This device is the relative setting things up: a family session, leading the circle.
+      setCreated({
+        role: 'family', circleId: c.id, code: c.code, patientName: c.patient_name,
+        memberName: leadName.trim(), memberId: c.lead_id ?? undefined, relation: relation || undefined,
+      });
+      setStep('invite');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -61,7 +72,7 @@ export function Welcome({ onDone, onJoinCode }: Props) {
     onJoinCode(c);
   };
 
-  const lookUp = async () => {
+  const lookUpPatientCircle = async () => {
     const c = normalizeCode(code);
     if (!isValidCode(c)) return setError('The code has 6 letters and numbers, like K7M4QX.');
     setBusy(true);
@@ -70,7 +81,7 @@ export function Welcome({ onDone, onJoinCode }: Props) {
       const circle = await findCircleByCode(c);
       if (!circle) return setError('That code was not found. Check it with your family.');
       setFound(circle);
-      setStep('confirm');
+      setStep('patientConfirm');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -88,75 +99,73 @@ export function Welcome({ onDone, onJoinCode }: Props) {
       <Text style={s.brand}>Cercana</Text>
       {step === 'choose' && (
         <View style={s.stack}>
-          <Text style={s.title}>Who is using this phone?</Text>
-          <BigButton label="This is my phone" onPress={() => go('patientPath')} />
-          <BigButton label="I'm family" tone="terracotta" onPress={() => go('family')} />
+          <Text style={s.title}>Welcome</Text>
+          <BigButton label="I'm setting up Cercana for someone in my family" onPress={() => go('setupName')} />
+          <BigButton label="I have an invite code or link" tone="terracotta" onPress={() => go('joinCode')} />
+          <BigButton label="This is the phone of the person we care for" tone="plain" onPress={() => go('patientCode')} />
         </View>
       )}
-      {step === 'patientPath' && (
+      {step === 'setupName' && (
         <View style={s.stack}>
-          <Text style={s.title}>Has your family already set up Cercana?</Text>
-          <BigButton label="Start a new family" onPress={() => go('patient')} />
-          <BigButton label="The family is already set up — enter the code" tone="terracotta" onPress={() => go('existing')} />
+          <Text style={s.title}>What is their first name?</Text>
+          <Field label="Their first name" value={patientName} onChangeText={setPatientName} autoFocus autoCapitalize="words" />
+          <ErrorText message={error} />
+          <BigButton label="Continue" onPress={setupNameNext} />
           <BigButton label="Back" tone="plain" onPress={() => go('choose')} />
         </View>
       )}
-      {step === 'existing' && (
+      {step === 'setupLead' && (
+        <View style={s.stack}>
+          <Text style={s.title}>You're setting this up, so you lead {patientName.trim()}'s family</Text>
+          <Field label="Your name" value={leadName} onChangeText={setLeadName} autoFocus autoCapitalize="words" />
+          <Field label={`Your relation, from ${patientName.trim()}'s view (e.g. "your daughter")`} value={leadRelation} onChangeText={setLeadRelation} />
+          <ErrorText message={error} />
+          <BigButton label="Continue" onPress={create} busy={busy} />
+          <BigButton label="Back" tone="plain" onPress={() => go('setupName')} disabled={busy} />
+        </View>
+      )}
+      {step === 'invite' && created && (
+        <View style={s.stack}>
+          <Text style={s.title}>{created.patientName}'s family is set up</Text>
+          <Text style={s.body}>Invite the rest of the family with this code or link.</Text>
+          <Text style={s.code} selectable>{created.code}</Text>
+          <Text style={s.small}>{inviteUrl(created.code)}</Text>
+          {note ? <Text style={s.note}>{note}</Text> : null}
+          <BigButton label="Share invite" tone="terracotta" onPress={share} />
+          <View style={s.card}>
+            <Text style={s.cardTitle}>Set up {created.patientName}'s phone</Text>
+            <Text style={s.body}>1. On her phone, open Cercana.</Text>
+            <Text style={s.body}>2. Choose "This is the phone of the person we care for" and type the code above.</Text>
+          </View>
+          <BigButton label="Done" onPress={() => onDone(created)} />
+        </View>
+      )}
+      {step === 'joinCode' && (
         <View style={s.stack}>
           <Text style={s.title}>Enter the family code</Text>
           <Field label="Family code (6 characters)" value={code} onChangeText={setCode} autoFocus autoCapitalize="characters" autoCorrect={false} maxLength={8} />
           <ErrorText message={error} />
-          <BigButton label="Continue" onPress={lookUp} busy={busy} />
-          <BigButton label="Back" tone="plain" onPress={() => go('patientPath')} disabled={busy} />
+          <BigButton label="Continue" tone="terracotta" onPress={continueAsFamily} />
+          <BigButton label="Back" tone="plain" onPress={() => go('choose')} />
         </View>
       )}
-      {step === 'confirm' && found && (
+      {step === 'patientCode' && (
+        <View style={s.stack}>
+          <Text style={s.title}>Enter the family code</Text>
+          <Field label="Family code (6 characters)" value={code} onChangeText={setCode} autoFocus autoCapitalize="characters" autoCorrect={false} maxLength={8} />
+          <ErrorText message={error} />
+          <BigButton label="Continue" onPress={lookUpPatientCircle} busy={busy} />
+          <BigButton label="Back" tone="plain" onPress={() => go('choose')} disabled={busy} />
+        </View>
+      )}
+      {step === 'patientConfirm' && found && (
         <View style={s.stack}>
           <Text style={s.title}>This is {found.patient_name}'s phone?</Text>
           <BigButton
             label="Yes"
             onPress={() => onDone({ role: 'patient', circleId: found.id, code: found.code, patientName: found.patient_name, memberName: found.patient_name })}
           />
-          <BigButton label="No" tone="plain" onPress={() => go('existing')} />
-        </View>
-      )}
-      {step === 'patient' && (
-        <View style={s.stack}>
-          <Text style={s.title}>What is their first name?</Text>
-          <Field label="First name" value={patientName} onChangeText={setPatientName} autoFocus autoCapitalize="words" />
-          <ErrorText message={error} />
-          <BigButton label="Continue" onPress={patientNext} />
-          <BigButton label="Back" tone="plain" onPress={() => go('patientPath')} />
-        </View>
-      )}
-      {step === 'lead' && (
-        <View style={s.stack}>
-          <Text style={s.title}>You are setting this up, so you lead {patientName.trim()}'s family</Text>
-          <Field label="Your name" value={leadName} onChangeText={setLeadName} autoFocus autoCapitalize="words" />
-          <Field label={`Relation, from ${patientName.trim()}'s view (e.g. "your son")`} value={leadRelation} onChangeText={setLeadRelation} />
-          <ErrorText message={error} />
-          <BigButton label="Continue" onPress={create} busy={busy} />
-          <BigButton label="Back" tone="plain" onPress={() => go('patient')} disabled={busy} />
-        </View>
-      )}
-      {step === 'code' && created && (
-        <View style={s.stack}>
-          <Text style={s.title}>Family join with:</Text>
-          <Text style={s.code} selectable>{created.code}</Text>
-          <Text style={s.body}>Or send this link: {inviteUrl(created.code)}</Text>
-          <Text style={s.body}>Family open the link, or choose "I'm family" and type the code. You can also do this later from Settings.</Text>
-          {note ? <Text style={s.note}>{note}</Text> : null}
-          <BigButton label="Share invite" tone="terracotta" onPress={share} />
-          <BigButton label="Done" onPress={() => onDone(created)} />
-        </View>
-      )}
-      {step === 'family' && (
-        <View style={s.stack}>
-          <Text style={s.title}>Enter the circle code</Text>
-          <Field label="Circle code (6 characters)" value={code} onChangeText={setCode} autoFocus autoCapitalize="characters" autoCorrect={false} maxLength={8} />
-          <ErrorText message={error} />
-          <BigButton label="Continue" tone="terracotta" onPress={continueAsFamily} />
-          <BigButton label="Back" tone="plain" onPress={() => go('choose')} />
+          <BigButton label="No" tone="plain" onPress={() => go('patientCode')} />
         </View>
       )}
     </ScrollView>
@@ -169,9 +178,12 @@ const s = StyleSheet.create({
   stack: { gap: 16 },
   title: { fontSize: type.title, fontFamily: fonts.display, color: colors.ink, lineHeight: 48 },
   body: { fontSize: type.body, color: colors.ink, lineHeight: 32 },
+  small: { fontSize: 18, color: colors.inkSoft },
   note: { fontSize: 20, color: colors.green, fontWeight: '700' },
   code: {
     fontSize: 64, fontFamily: fonts.display, letterSpacing: 8, color: colors.green,
     backgroundColor: colors.warm, textAlign: 'center', paddingVertical: 20, borderRadius: 16,
   },
+  card: { backgroundColor: colors.card, borderRadius: 16, padding: 16, gap: 8, borderWidth: 2, borderColor: colors.line },
+  cardTitle: { fontSize: 22, fontFamily: fonts.display, color: colors.ink },
 });

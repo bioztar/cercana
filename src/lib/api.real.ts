@@ -33,7 +33,8 @@ export async function createCircle(patientName: string, lead?: LeadInput): Promi
     if (!lead) return { ...circle, lead_id: null };
     const made = await db
       .from('people')
-      .insert({ circle_id: circle.id, name: lead.name, relation: lead.relation || null, role: 'lead', claimed: false })
+      // Claimed: the relative creating the circle is on this device now, not an unclaimed profile to pick later.
+      .insert({ circle_id: circle.id, name: lead.name, relation: lead.relation || null, role: 'lead', claimed: true })
       .select()
       .single();
     if (made.error) {

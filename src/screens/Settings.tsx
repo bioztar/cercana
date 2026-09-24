@@ -49,9 +49,18 @@ export function Settings({ session, canInvite, onBack, onLeave, canEditBrief, on
 
       {canInvite ? (
         <>
+          <Text style={s.cardTitle}>Invite family</Text>
+          <Text style={s.code} selectable>{session.code}</Text>
           <Text style={s.small}>{inviteUrl(session.code)}</Text>
           {note ? <Text style={s.note}>{note}</Text> : null}
           <BigButton label="Share invite" tone="terracotta" onPress={share} />
+        </>
+      ) : null}
+      {canInvite && session.role === 'family' ? (
+        <>
+          <Text style={s.cardTitle}>Set up {session.patientName}'s phone</Text>
+          <Text style={s.body}>1. On her phone, open Cercana.</Text>
+          <Text style={s.body}>2. Choose "This is the phone of the person we care for" and type the code above.</Text>
         </>
       ) : null}
       <BigButton label="Back" tone="plain" onPress={onBack} />
@@ -66,5 +75,10 @@ const s = StyleSheet.create({
   body: { fontSize: type.body, color: colors.ink },
   small: { fontSize: 18, color: colors.inkSoft },
   leave: { marginTop: 32 }, // set apart from Back so it is not hit by mistake
+  cardTitle: { fontSize: 22, fontFamily: fonts.display, color: colors.ink, marginTop: 8 },
+  code: {
+    fontSize: 40, fontFamily: fonts.display, letterSpacing: 6, color: colors.green,
+    backgroundColor: colors.warm, textAlign: 'center', paddingVertical: 12, borderRadius: 14,
+  },
   note: { fontSize: 20, color: colors.green, fontWeight: '700' },
 });
