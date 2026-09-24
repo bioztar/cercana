@@ -11,11 +11,13 @@ import { confirmAction } from '../components/confirm';
 import { colors } from '../theme';
 import { PersonForm } from './PersonForm';
 
-type Props = { circleId: string; patientName: string; actor: Actor; people: Person[]; onChanged: () => void };
+type Props = {
+  circleId: string; patientName: string; code: string; actor: Actor; people: Person[]; onChanged: () => void;
+};
 
 const target = (p: Person) => ({ id: p.id, role: p.role, claimed: p.claimed });
 
-export function PeopleTab({ circleId, patientName, actor, people, onChanged }: Props) {
+export function PeopleTab({ circleId, patientName, code, actor, people, onChanged }: Props) {
   const [editing, setEditing] = useState<Partial<Person> | null>(null);
   const [rolesFor, setRolesFor] = useState<string | null>(null); // person whose Roles panel is open
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +53,17 @@ export function PeopleTab({ circleId, patientName, actor, people, onChanged }: P
 
   return (
     <View style={{ gap: 12 }}>
+      {/* The patient has no profile row (only circles.patient_name), so they are drawn here from the session. */}
+      <View style={[s.card, s.patientCard]} accessibilityLabel={`${patientName}, the person this family is for`}>
+        <View style={s.row}>
+          <Avatar name={patientName} size={64} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.name}>{patientName}</Text>
+            <Text style={s.sub}>The person this family is for</Text>
+            <Text style={s.sub}>{patientName}'s phone joins with code {code}</Text>
+          </View>
+        </View>
+      </View>
       {can(actor, { type: 'person.add' }) ? (
         <BigButton label="Add a person" onPress={() => setEditing({})} />
       ) : (
@@ -119,6 +132,7 @@ export function PeopleTab({ circleId, patientName, actor, people, onChanged }: P
 
 const s = StyleSheet.create({
   card: { backgroundColor: colors.card, borderRadius: 14, padding: 10, borderWidth: 1, borderColor: colors.line, gap: 10 },
+  patientCard: { backgroundColor: colors.peachSoft, borderColor: colors.peach },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 72 },
   nameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
   name: { fontSize: 22, fontWeight: '700', color: colors.ink },

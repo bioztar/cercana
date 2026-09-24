@@ -91,7 +91,7 @@ export function FamilyHome({
           onOpenEvent={setOpenEventId} onSynced={reloadEvents} onConnectDeviceCalendar={onConnectDeviceCalendar} />
       )}
       {content === 'People' && (
-        <PeopleTab circleId={session.circleId} patientName={session.patientName} actor={actor} people={people} onChanged={reload} />
+        <PeopleTab circleId={session.circleId} patientName={session.patientName} code={session.code} actor={actor} people={people} onChanged={reload} />
       )}
     </>
   );
