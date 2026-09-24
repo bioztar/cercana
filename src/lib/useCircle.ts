@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { listEvents, listPeople, subscribeCircle } from './api';
-import type { EventRow, Person, Ping } from './types';
+import { listEvents, listMoments, listPeople, subscribeCircle } from './api';
+import type { EventRow, Moment, Person, Ping } from './types';
 
 const EVENT_REFRESH_MS = 10 * 60 * 1000; // calendars are synced server-side every ~30 min
+const FEED_SIZE = 40;
 
-/** People + calendar events of a circle, kept fresh via realtime. `onPing` fires for every new ping. */
+/** People, calendar events and the family feed of a circle, kept fresh via realtime. `onPing` fires for every new ping. */
 export function useCircle(circleId: string, onPing?: (p: Ping) => void) {
   const [people, setPeople] = useState<Person[]>([]);
   const [events, setEvents] = useState<EventRow[]>([]);
+  const [moments, setMoments] = useState<Moment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [version, setVersion] = useState(0); // bumps on any realtime change, for dependent lists
@@ -24,7 +26,9 @@ export function useCircle(circleId: string, onPing?: (p: Ping) => void) {
 
   const reload = useCallback(async () => {
     try {
-      setPeople(await listPeople(circleId));
+      const [p, m] = await Promise.all([listPeople(circleId), listMoments(circleId, undefined, FEED_SIZE)]);
+      setPeople(p);
+      setMoments(m);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -32,7 +36,7 @@ export function useCircle(circleId: string, onPing?: (p: Ping) => void) {
   }, [circleId]);
 
   useEffect(() => {
-    // `loading` covers both loads, so the spoken briefing never runs on half the data.
+    // `loading` covers every first load, so the spoken briefing never runs on partial data.
     void Promise.all([reload(), reloadEvents()]).then(() => setLoading(false));
     const timer = setInterval(() => void reloadEvents(), EVENT_REFRESH_MS);
     const unsubscribe = subscribeCircle(circleId, {
@@ -48,5 +52,5 @@ export function useCircle(circleId: string, onPing?: (p: Ping) => void) {
     };
   }, [circleId, reload, reloadEvents]);
 
-  return { people, events, loading, error, reload, reloadEvents, version };
+  return { people, events, moments, loading, error, reload, reloadEvents, version };
 }

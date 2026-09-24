@@ -58,6 +58,24 @@ create index if not exists moments_circle_idx on moments (circle_id, created_at 
 create index if not exists devices_circle_idx on devices (circle_id);
 create index if not exists pings_circle_idx on pings (circle_id, created_at desc);
 
+-- Roles + claimed profiles (invite link flow). Idempotent.
+-- A person who does not use the app (grandkid, nurse) is simply an unclaimed profile.
+-- Roles are enforced in the UI only for now (src/lib/permissions.ts); real auth + RLS comes later.
+alter table people add column if not exists role text not null default 'member';
+alter table people add column if not exists claimed boolean not null default false;
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'people_role_check') then
+    alter table people add constraint people_role_check check (role in ('lead', 'admin', 'member'));
+  end if;
+end $$;
+-- Exactly one lead per circle (a circle may briefly have none, e.g. rows created before roles existed).
+create unique index if not exists people_one_lead_per_circle on people (circle_id) where role = 'lead';
+
+-- Family Feed: who posted a moment (author text stays as the display fallback).
+alter table moments add column if not exists author_person_id uuid references people on delete set null;
+create index if not exists moments_author_idx on moments (author_person_id);
+
 -- Calendar subscriptions (ICS feeds). Synced by the `sync-calendars` edge function.
 create table if not exists calendars (
   id uuid primary key default gen_random_uuid(),

@@ -72,10 +72,21 @@ export function isOngoing(e: EventLite, now: Date): boolean {
   return isMultiDay(s) && s.firstDay <= startOfDay(now) && isActive(e, now);
 }
 
-export function eventPhrase(e: EventLite, now: Date): string {
+const lowerFirst = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
+
+/**
+ * A running multi-day event as a sentence (no final period):
+ * "Anna is in London until Sunday" (titles starting "In "/"At "), else "Anna: Trip, until Sunday".
+ */
+export function ongoingSentence(title: string, owner: string | null, until: string): string {
+  if (!owner) return `${title}, until ${until}`;
+  return /^(in|at) /i.test(title) ? `${owner} is ${lowerFirst(title)} until ${until}` : `${owner}: ${title}, until ${until}`;
+}
+
+export function eventPhrase(e: EventLite, now: Date, owner: string | null = null): string {
   const s = eventSpan(e);
   const today = startOfDay(now);
-  if (isOngoing(e, now)) return `Until ${untilLabel(s.lastDay, today)} — ${e.title}`;
+  if (isOngoing(e, now)) return `${ongoingSentence(e.title, owner, untilLabel(s.lastDay, today))}.`;
   const until = isMultiDay(s) ? ` until ${untilLabel(s.lastDay, today)}` : '';
   const at = e.all_day ? '' : ` at ${timeLabel(s.start)}`;
   return `${dayLabel(s.firstDay, today)}${at}${until} — ${e.title}`;
@@ -84,10 +95,15 @@ export function eventPhrase(e: EventLite, now: Date): string {
 export type ComingUp = { event: EventLite; phrase: string; ongoing: boolean };
 
 /** Ongoing multi-day events first, then upcoming ones by start time. */
-export function comingUp<T extends EventLite>(events: T[], now: Date, limit = 5): (ComingUp & { event: T })[] {
+export function comingUp<T extends EventLite>(
+  events: T[],
+  now: Date,
+  limit = 5,
+  owner: string | null = null,
+): (ComingUp & { event: T })[] {
   return events
     .filter((e) => isActive(e, now))
-    .map((event) => ({ event, phrase: eventPhrase(event, now), ongoing: isOngoing(event, now) }))
+    .map((event) => ({ event, phrase: eventPhrase(event, now, owner), ongoing: isOngoing(event, now) }))
     .sort((a, b) => {
       if (a.ongoing !== b.ongoing) return a.ongoing ? -1 : 1;
       return eventSpan(a.event).start.getTime() - eventSpan(b.event).start.getTime();
@@ -103,10 +119,16 @@ export function ordinal(n: number): string {
 
 export type BriefingEvent = EventLite & { owners?: string[] };
 
-const withOwner = (title: string, owners: string[] = []) =>
+/** Owners to name in front of a title, or null when there are none / the title already names one. */
+const ownerFor = (title: string, owners: string[] = []): string | null =>
   owners.length === 0 || owners.some((o) => title.toLowerCase().includes(o.toLowerCase()))
-    ? title
-    : `${owners.join(' and ')}: ${title}`;
+    ? null
+    : owners.join(' and ');
+
+const withOwner = (title: string, owners: string[] = []) => {
+  const owner = ownerFor(title, owners);
+  return owner ? `${owner}: ${title}` : title;
+};
 
 /** What is on today, as short spoken sentences. */
 export function todaySentences(events: BriefingEvent[], now: Date, limit = 5): string[] {
@@ -121,8 +143,8 @@ export function todaySentences(events: BriefingEvent[], now: Date, limit = 5): s
     .slice(0, limit)
     .map((e) => {
       const s = eventSpan(e);
+      if (isMultiDay(s)) return `${ongoingSentence(e.title, ownerFor(e.title, e.owners), untilLabel(s.lastDay, today))}.`;
       const title = withOwner(e.title, e.owners);
-      if (isMultiDay(s)) return `${title}, until ${untilLabel(s.lastDay, today)}.`;
       return e.all_day ? `Today, ${title}.` : `At ${timeLabel(s.start)}, ${title}.`;
     });
 }

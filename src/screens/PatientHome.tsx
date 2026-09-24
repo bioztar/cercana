@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import type { EventRow, Person, Session } from '../lib/types';
+import type { EventRow, Moment, Person, Session } from '../lib/types';
+import { FeedItem } from '../components/FeedItem';
 import { buildBriefing, type BriefingEvent } from '../lib/briefing';
 import { birthdayPhrase, formatDate, greeting, upcomingBirthday } from '../lib/dates';
 import { getFlag, setFlag } from '../lib/session';
 import { say } from '../lib/speech';
 import { scheduleBirthdayReminders } from '../lib/notify';
 import { Avatar, BigButton, ErrorText } from '../components/ui';
+import { HoldButton } from '../components/HoldButton';
 import { colors, MAX_WIDTH, type } from '../theme';
 
 const PAD = 20;
@@ -17,6 +19,7 @@ type Props = {
   session: Session;
   people: Person[];
   events: EventRow[];
+  moments: Moment[]; // the family feed, newest first
   loading: boolean;
   error: string | null;
   onOpenPerson: (id: string) => void;
@@ -38,7 +41,7 @@ function briefingEvents(events: EventRow[], people: Person[]): BriefingEvent[] {
   return [...merged.values()];
 }
 
-export function PatientHome({ session, people, events, loading, error, onOpenPerson, onSettings }: Props) {
+export function PatientHome({ session, people, events, moments, loading, error, onOpenPerson, onSettings }: Props) {
   const { width } = useWindowDimensions();
   const cols = width < 700 ? 2 : width < 1000 ? 3 : 4;
   // Pixel widths (not %): percent columns plus `gap` overflow the row and wrap early.
@@ -49,10 +52,10 @@ export function PatientHome({ session, people, events, loading, error, onOpenPer
   const dateLine = formatDate(now);
 
   const next = useMemo(() => upcomingBirthday(people, new Date(), 7), [people]);
-  const bannerText = next ? birthdayPhrase(next.person.name, next.days, new Date(), next.birthday) : null;
-  const bannerFull = next && bannerText
-    ? `${bannerText}${next.person.relation ? ` — ${next.person.relation}` : ''}`
+  const bannerText = next
+    ? birthdayPhrase(next.person.name, next.days, new Date(), next.birthday, next.person.relation)
     : null;
+  const bannerFull = bannerText;
 
   const briefing = () =>
     buildBriefing({
@@ -120,9 +123,16 @@ export function PatientHome({ session, people, events, loading, error, onOpenPer
         ))}
       </View>
 
-      <Pressable accessibilityRole="button" onPress={onSettings} style={s.settings}>
-        <Text style={s.settingsText}>Settings</Text>
-      </Pressable>
+      {moments.length > 0 && (
+        <View style={s.feed}>
+          <Text style={s.feedTitle}>From your family</Text>
+          {moments.map((m) => (
+            <FeedItem key={m.id} moment={m} people={people} onOpenPerson={onOpenPerson} />
+          ))}
+        </View>
+      )}
+
+      <HoldButton label="Settings (for family)" onComplete={onSettings} />
     </ScrollView>
   );
 }
@@ -137,7 +147,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 16, backgroundColor: colors.warm,
     borderRadius: 20, padding: 16, marginBottom: 24, borderWidth: 3, borderColor: colors.terracotta, minHeight: 64,
   },
-  bannerText: { flex: 1, fontSize: 30, fontWeight: '800', color: colors.ink, lineHeight: 38 },
+  bannerText: { flex: 1, flexShrink: 1, fontSize: 28, fontWeight: '800', color: colors.ink, lineHeight: 36 },
   empty: { fontSize: type.body, color: colors.inkSoft, marginVertical: 32, lineHeight: 32 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GAP },
   card: {
@@ -146,6 +156,6 @@ const s = StyleSheet.create({
   },
   name: { fontSize: type.name, fontWeight: '800', color: colors.ink, marginTop: 10, textAlign: 'center' },
   relation: { fontSize: type.label, color: colors.inkSoft, textAlign: 'center', marginTop: 2 },
-  settings: { alignSelf: 'center', minHeight: 64, justifyContent: 'center', marginTop: 32, paddingHorizontal: 24 },
-  settingsText: { fontSize: 20, color: colors.inkSoft, textDecorationLine: 'underline' },
+  feed: { marginTop: 32, gap: 14 },
+  feedTitle: { fontSize: type.title, fontWeight: '800', color: colors.ink },
 });

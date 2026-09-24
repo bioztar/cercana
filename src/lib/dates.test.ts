@@ -48,9 +48,14 @@ test('age unknown when year unknown', () => {
 test('phrases', () => {
   const today = d(2026, 9, 24); // Thursday
   const b = parseBirthday('2000-09-26')!;
+  const rel = 'your granddaughter';
   assert.equal(birthdayPhrase('Lucia', 0, today), "Today is Lucia's birthday");
   assert.equal(birthdayPhrase('Lucia', 1, today), "Tomorrow is Lucia's birthday");
-  assert.equal(birthdayPhrase('Lucia', 2, today, b), "On Saturday it is Lucia's birthday, 26 years old");
+  assert.equal(birthdayPhrase('Lucia', 1, today, b, rel), "Tomorrow is Lucia's birthday — your granddaughter turns 26");
+  assert.equal(birthdayPhrase('Lucia', 2, today, b, rel), "On Saturday it is Lucia's birthday — your granddaughter turns 26");
+  assert.equal(birthdayPhrase('Lucia', 1, today, undefined, rel), "Tomorrow is Lucia's birthday — your granddaughter");
+  assert.equal(birthdayPhrase('Lucia', 1, today, parseBirthday('0004-09-26')!, rel), "Tomorrow is Lucia's birthday — your granddaughter");
+  assert.equal(birthdayPhrase('Lucia', 2, today, b), "On Saturday it is Lucia's birthday — turning 26");
   assert.equal(birthdayPhrase('Lucia', 9, today), "On 3 October it is Lucia's birthday");
 });
 

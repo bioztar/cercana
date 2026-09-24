@@ -55,10 +55,19 @@ export function formatDate(d: Date): string {
 }
 
 /** "Today is Lucia's birthday", "Tomorrow is …", "On Saturday it is …", "On 3 October it is …". */
-export function birthdayPhrase(name: string, days: number, today: Date, b?: Birthday): string {
+export function birthdayPhrase(
+  name: string,
+  days: number,
+  today: Date,
+  b?: Birthday,
+  relation?: string | null,
+): string {
   const owner = `${name}'s birthday`;
   const age = b ? ageTurning(b, today) : null;
-  const tail = age !== null && age > 0 ? `, ${age} years old` : '';
+  const rel = relation?.trim();
+  const turns = age !== null && age > 0 ? age : null;
+  // "— your granddaughter turns 16" / "— your granddaughter" / "— turning 16" / nothing
+  const tail = rel ? ` — ${rel}${turns ? ` turns ${turns}` : ''}` : turns ? ` — turning ${turns}` : '';
   if (days === 0) return `Today is ${owner}${tail}`;
   if (days === 1) return `Tomorrow is ${owner}${tail}`;
   const when = new Date(startOfDay(today).getTime());
