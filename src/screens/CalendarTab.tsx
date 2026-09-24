@@ -17,9 +17,10 @@ type Props = {
   events: EventRow[];
   onOpenEvent: (eventId: string) => void;
   onSynced: () => void;
+  onConnectDeviceCalendar?: () => void;
 };
 
-export function CalendarTab({ circleId, actor, people, events, onOpenEvent, onSynced }: Props) {
+export function CalendarTab({ circleId, actor, people, events, onOpenEvent, onSynced, onConnectDeviceCalendar }: Props) {
   const [managing, setManaging] = useState(false);
   const now = new Date();
   const items = useMemo(
@@ -33,7 +34,8 @@ export function CalendarTab({ circleId, actor, people, events, onOpenEvent, onSy
     return (
       <View style={{ gap: 16 }}>
         <BigButton label="‹ Back to calendar" tone="plain" onPress={() => setManaging(false)} />
-        <CalendarsTab circleId={circleId} actor={actor} people={people} onSynced={onSynced} />
+        <CalendarsTab circleId={circleId} actor={actor} people={people} onSynced={onSynced}
+          onConnectDeviceCalendar={onConnectDeviceCalendar} />
       </View>
     );
   }
