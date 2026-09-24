@@ -160,6 +160,7 @@ revoke all on calendars from anon, authenticated;
 grant insert on calendars to anon, authenticated;
 grant delete on calendars to anon, authenticated;
 grant select (id) on calendars to anon, authenticated; -- lets `delete ... where id = ...` work; ics_url stays unreadable
+grant select (source) on calendars to anon, authenticated; -- read by the events write policies (20260924_05)
 
 drop policy if exists "demo_calendars_insert" on calendars;
 drop policy if exists "demo_calendars_delete" on calendars;
