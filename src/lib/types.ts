@@ -37,9 +37,12 @@ export type Moment = {
   photo_urls?: string[]; // extra photos beyond photo_url (shown as a 2-up row); not stored yet
   audio_url: string | null;
   created_at: string;
+  by_patient?: boolean; // Mom posted it herself ("Tell the family")
+  event_id?: string | null; // the calendar event a photo belongs to
 };
 
-export type MomentInput = Pick<Moment, 'person_id' | 'author_person_id' | 'author' | 'body' | 'photo_url' | 'audio_url'>;
+export type MomentInput = Pick<Moment, 'person_id' | 'author_person_id' | 'author' | 'body' | 'photo_url' | 'audio_url'> &
+  Partial<Pick<Moment, 'by_patient' | 'event_id'>>;
 
 export type Ping = {
   id: string;
@@ -82,3 +85,25 @@ export type Session = {
   memberId?: string; // family: the people.id this device claimed (no login: the device is the identity)
   relation?: string;
 };
+
+// ---- Thread comments and Mom's "Tell the family" ----------------------------------------------------
+export type Comment = {
+  id: string;
+  moment_id: string;
+  circle_id: string;
+  author_person_id: string | null; // null = Mom
+  author_name: string | null;
+  body: string | null;
+  audio_url: string | null;
+  created_at: string;
+};
+
+export type CommentInput = Pick<Comment, 'moment_id' | 'author_person_id' | 'author_name' | 'body' | 'audio_url'>;
+
+/** What a feed card shows under a moment: how many comments and the newest one. */
+export type CommentSummary = { count: number; last: Comment };
+
+export type NewEventInput = { title: string; starts_at: string; ends_at: string; all_day: boolean };
+
+/** A finished voice recording: uploaded url, length, and what the device heard (may be empty). */
+export type VoiceClip = { url: string; seconds: number; transcript: string };

@@ -29,9 +29,15 @@ import { EventDetail } from './src/screens/EventDetail';
 import { PingOverlay } from './src/screens/PingOverlay';
 import { FamilyHome } from './src/screens/FamilyHome';
 import { Settings } from './src/screens/Settings';
+import { Thread } from './src/screens/Thread';
 import { colors } from './src/theme';
 
-type Route = { name: 'home' } | { name: 'person'; id: string } | { name: 'event'; id: string } | { name: 'settings' };
+type Route =
+  | { name: 'home' }
+  | { name: 'person'; id: string }
+  | { name: 'event'; id: string }
+  | { name: 'settings' }
+  | { name: 'thread'; id: string };
 
 initNotifications();
 
@@ -188,10 +194,17 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
       <EventDetail eventId={route.id} events={events} people={people} moments={moments}
         onBack={home} onOpenPerson={openPerson} />
     );
+  } else if (route.name === 'thread' && moments.some((m) => m.id === route.id)) {
+    body = (
+      <Thread moment={moments.find((m) => m.id === route.id)!} people={people} events={events}
+        authorId={actor.kind === 'member' ? actor.id : null} authorName={session.memberName}
+        isPatient={isPatient} onBack={home} />
+    );
   } else {
     body = (
       <PatientHome session={session} people={people} events={events} moments={moments} loading={loading} error={error}
-        onOpenPerson={openPerson} onOpenEvent={openEvent} onSettings={() => setRoute({ name: 'settings' })} />
+        onOpenPerson={openPerson} onOpenEvent={openEvent} onOpenThread={(id) => setRoute({ name: 'thread', id })}
+        onSettings={() => setRoute({ name: 'settings' })} />
     );
   }
 

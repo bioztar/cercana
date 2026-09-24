@@ -1,8 +1,10 @@
 // All Supabase data access lives here.
 import { getSupabase } from './supabase';
 import { generateCode, normalizeCode, isValidCode, urlHint, uuidv4 } from './util';
+import { summarizeComments } from './voice';
 import type {
-  CalendarPublic, Circle, CreatedCircle, EventRow, LeadInput, Moment, MomentInput, Person, PersonInput, Ping,
+  CalendarPublic, Circle, Comment, CommentInput, CommentSummary, CreatedCircle, EventRow, LeadInput, Moment,
+  MomentInput, NewEventInput, Person, PersonInput, Ping,
 } from './types';
 
 function check<T>(res: { data: T | null; error: { message: string } | null }, what: string): T {
@@ -226,6 +228,52 @@ export async function listEvents(circleId: string): Promise<EventRow[]> {
   const rows = (check(res, 'Could not load events') ?? []) as Omit<EventRow, 'person_ids'>[];
   const links = await personIdsByCalendar([...new Set(rows.map((r) => r.calendar_id))]);
   return rows.map((r) => ({ ...r, person_ids: links.get(r.calendar_id) ?? [] }));
+}
+
+// ---- Thread comments ------------------------------------------------------------------------
+
+export async function listComments(momentId: string): Promise<Comment[]> {
+  const res = await getSupabase().from('comments').select().eq('moment_id', momentId).order('created_at', { ascending: true });
+  return check(res, 'Could not load comments') ?? [];
+}
+
+export async function addComment(circleId: string, c: CommentInput): Promise<void> {
+  check(await getSupabase().from('comments').insert({ ...c, circle_id: circleId }), 'Could not post comment');
+}
+
+/** commentCount + lastComment for every moment in a circle, for the feed cards. */
+export async function commentSummaries(circleId: string): Promise<Record<string, CommentSummary>> {
+  const res = await getSupabase().from('comments').select().eq('circle_id', circleId).order('created_at', { ascending: true });
+  return summarizeComments(check(res, 'Could not load comments') ?? []);
+}
+
+// ---- "Tell the family": events Mom creates by voice ------------------------------------------
+
+/** The circle's own "Family events" calendar (source: app), created the first time it is needed. */
+export async function ensureFamilyCalendar(circleId: string): Promise<string> {
+  const db = getSupabase();
+  const found = await db.from('calendars_public').select('id, label').eq('circle_id', circleId).eq('label', 'Family events').maybeSingle();
+  const existing = check(found, 'Could not look up calendars') as { id: string } | null;
+  if (existing) return existing.id;
+  const id = uuidv4();
+  check(
+    await db.from('calendars').insert({ id, circle_id: circleId, label: 'Family events', source: 'app' }),
+    'Could not create the family calendar',
+  );
+  return id;
+}
+
+export async function addEvent(
+  circleId: string,
+  calendarId: string,
+  input: NewEventInput,
+  createdByPersonId: string | null,
+): Promise<void> {
+  const res = await getSupabase().from('events').insert({
+    circle_id: circleId, calendar_id: calendarId, uid: uuidv4(), created_by_person_id: createdByPersonId,
+    title: input.title, starts_at: input.starts_at, ends_at: input.ends_at, all_day: input.all_day,
+  });
+  if (res.error) throw new Error(`Could not save the event: ${res.error.message}`);
 }
 
 export type FeedHandlers = { onPing?: (p: Ping) => void; onChange?: () => void };
