@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  buildBriefing, comingUp, eventPhrase, eventSpan, isActive, ongoingSentence, ordinal, timeLabel, todaySentences,
-  type EventLite,
+  briefNotificationBody, buildBriefing, comingUp, countNewPhotos, eventPhrase, eventSpan, isActive, newPhotosPhrase,
+  ongoingSentence, ordinal, timeLabel, todaySentences, type EventLite,
 } from './briefing.ts';
 
 const now = new Date(2026, 8, 24, 9, 0); // Thursday 24 September 2026, 09:00 local
@@ -128,4 +128,42 @@ test('buildBriefing: nothing on calendar, no birthday', () => {
     buildBriefing({ patientName: 'Maria', now: new Date(2026, 8, 24, 15, 0), events: [] }),
     'Good afternoon Maria. Today is Thursday the 24th.',
   );
+});
+
+test('buildBriefing: full order — lead lines, family news, birthday, new photos', () => {
+  const text = buildBriefing({
+    patientName: 'Maria',
+    now,
+    events: [{ ...allDay('Anna flies to London', [9, 24]), owners: ['Anna'] }],
+    leadLines: ['Cardiologist appointment at 10:30 am.'],
+    birthdayPhrase: "On Saturday it is Lucia's birthday",
+    newPhotosPhrase: newPhotosPhrase(3),
+  });
+  assert.equal(
+    text,
+    "Good morning Maria. Today is Thursday the 24th. Cardiologist appointment at 10:30 am. Today, Anna flies to London. "
+    + "On Saturday it is Lucia's birthday. You have 3 new photos from your family.",
+  );
+});
+
+test('newPhotosPhrase and countNewPhotos', () => {
+  assert.equal(newPhotosPhrase(0), null);
+  assert.equal(newPhotosPhrase(1), 'You have 1 new photo from your family');
+  assert.equal(newPhotosPhrase(2), 'You have 2 new photos from your family');
+  const moments = [
+    { photo_url: 'a.jpg', created_at: new Date(2026, 8, 24, 8, 0).toISOString() },
+    { photo_url: null, created_at: new Date(2026, 8, 24, 8, 0).toISOString() }, // no photo: doesn't count
+    { photo_url: 'b.jpg', created_at: new Date(2026, 8, 22, 8, 0).toISOString() }, // before `since`: doesn't count
+  ];
+  assert.equal(countNewPhotos(moments, new Date(2026, 8, 23)), 1);
+  assert.equal(countNewPhotos(moments, null), 0);
+});
+
+test('briefNotificationBody: greeting, up to 2 items, photo count', () => {
+  assert.equal(
+    briefNotificationBody('Maria', ['Rosa visits at nine.', 'Anna is in London until Sunday.', 'Extra item.'], 10),
+    'Good morning Maria — Rosa visits at nine, Anna is in London until Sunday, 10 new photos',
+  );
+  assert.equal(briefNotificationBody('Maria', [], 0), 'Good morning Maria');
+  assert.equal(briefNotificationBody('Maria', ['Doctor at 10.'], 0), 'Good morning Maria — Doctor at 10');
 });

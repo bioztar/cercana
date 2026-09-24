@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Linking, Platform, SafeAreaView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { Fraunces_500Medium, Fraunces_600SemiBold } from '@expo-google-fonts/fraunces';
@@ -9,17 +9,23 @@ import * as Notifications from 'expo-notifications';
 import { setAudioModeAsync } from 'expo-audio';
 import { demo, missingSettings } from './src/lib/config';
 import { demoBoot } from './src/lib/demo';
-import { unclaimPerson } from './src/lib/api';
+import { getBriefSettings, listCheckins, listImportant, unclaimPerson } from './src/lib/api';
 import { DemoRibbon } from './src/components/DemoRibbon';
-import { clearSession, loadSession, saveSession } from './src/lib/session';
+import { clearSession, getFlag, loadSession, saveSession, setFlag } from './src/lib/session';
 import { useCircle } from './src/lib/useCircle';
 import {
-  initNotifications, pingFromNotificationData, registerForPush,
-  requestWebNotificationPermission, showWebNotification,
+  checkinEventFromNotificationData, initNotifications, isBriefNotificationData, pingFromNotificationData,
+  registerForPush, requestWebNotificationPermission, scheduleImportantReminders, scheduleMorningBrief,
+  showWebNotification,
 } from './src/lib/notify';
+import { cardText, dueCheckin, hasNotAnswered, nextImportant, todaysImportantSentences } from './src/lib/important';
+import { ImportantCard } from './src/components/ImportantCard';
+import { briefNotificationBody, buildBriefing, countNewPhotos, mergeBriefingEvents, newPhotosPhrase, todaySentences } from './src/lib/briefing';
+import { birthdayPhrase, upcomingBirthday } from './src/lib/dates';
+import { say } from './src/lib/speech';
 import { actorFor, can } from './src/lib/permissions';
 import { parseJoinUrl } from './src/lib/util';
-import type { Ping, Session } from './src/lib/types';
+import type { BriefSettings, Checkin, ImportantEvent, Ping, Session } from './src/lib/types';
 import { MissingConfig } from './src/screens/MissingConfig';
 import { Welcome } from './src/screens/Welcome';
 import { Join } from './src/screens/Join';
@@ -27,6 +33,10 @@ import { PatientHome } from './src/screens/PatientHome';
 import { PersonScreen } from './src/screens/PersonScreen';
 import { EventDetail } from './src/screens/EventDetail';
 import { PingOverlay } from './src/screens/PingOverlay';
+import { MomCheck } from './src/screens/MomCheck';
+import { ImportantCreate } from './src/screens/ImportantCreate';
+import { ImportantStatus } from './src/screens/ImportantStatus';
+import { CalendarConnect, syncAllDeviceCalendars } from './src/screens/CalendarConnect';
 import { FamilyHome } from './src/screens/FamilyHome';
 import { Settings } from './src/screens/Settings';
 import { Thread } from './src/screens/Thread';
@@ -49,9 +59,13 @@ type Route =
   | { name: 'photoEvent'; photos: string[] }
   | { name: 'photoSend'; photos: string[]; eventId: string | null; eventLabel: string | null }
   | { name: 'eventVoice' }
-  | { name: 'eventConfirm'; transcript: string };
+  | { name: 'eventConfirm'; transcript: string }
+  | { name: 'important-create' } // cercana-care: temporary top-level entry point — FamilyHome/CalendarsTab
+  | { name: 'important-status'; id: string } // aren't ours to restructure; a real tab lands with cercana-design's merge.
+  | { name: 'calendar-connect' };
 
 initNotifications();
+let spokeMorningBriefDemo = false; // mirrors PatientHome's spokeThisOpen: demo speaks the brief once
 
 export default function App() {
   // Never block first render on fonts: text uses the system font until they arrive (or if they fail).
@@ -166,20 +180,116 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
   );
   const actor = useMemo(() => actorFor(session, people), [session, people]);
 
+  // cercana-care: important events + check-ins, refetched whenever realtime bumps `version`.
+  const [important, setImportant] = useState<ImportantEvent[]>([]);
+  const [checkins, setCheckins] = useState<Checkin[]>([]);
+  const reloadImportant = useCallback(async () => {
+    const [ev, ck] = await Promise.all([listImportant(session.circleId), listCheckins(session.circleId)]);
+    setImportant(ev);
+    setCheckins(ck);
+  }, [session.circleId]);
+  useEffect(() => { void reloadImportant(); }, [reloadImportant, version]);
+
+  // cercana-care: re-sync connected iPhone calendars on family app open (iOS only; no-op elsewhere).
+  useEffect(() => {
+    if (isPatient) return;
+    void syncAllDeviceCalendars(session.circleId).then(() => reloadEvents());
+  }, [isPatient, session.circleId]);
+
+  const [momCheckEvent, setMomCheckEvent] = useState<ImportantEvent | null>(null);
+  const [tick, setTick] = useState(0); // forces the due check below to re-run as the clock passes reminder times
+  useEffect(() => {
+    if (!isPatient) return;
+    const t = setInterval(() => setTick((x) => x + 1), 60_000);
+    return () => clearInterval(t);
+  }, [isPatient]);
+  useEffect(() => {
+    if (!isPatient) return;
+    const due = dueCheckin(important, checkins, new Date());
+    if (due) setMomCheckEvent((cur) => cur ?? due); // don't reopen over an answer the patient just gave
+  }, [isPatient, important, checkins, tick]);
+  useEffect(() => {
+    if (isPatient) void scheduleImportantReminders(important, checkins);
+  }, [isPatient, important, checkins]);
+
+  // cercana-care: scheduled morning brief (brief_time / brief_enabled, see the Scope-add 14:25).
+  const [briefSettings, setBriefSettings] = useState<BriefSettings>({ brief_time: '09:00', brief_enabled: true });
+  const [lastSeenFeedAt, setLastSeenFeedAt] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isPatient) return;
+    void getBriefSettings(session.circleId).then(setBriefSettings);
+  }, [isPatient, session.circleId, version]);
+  useEffect(() => {
+    if (!isPatient) return;
+    void (async () => {
+      const prev = demo ? new Date(0).toISOString() : await getFlag('lastSeenFeedAt');
+      setLastSeenFeedAt(prev);
+      if (!demo) await setFlag('lastSeenFeedAt', new Date().toISOString());
+    })(); // once per app open, like a feed "seen" watermark
+  }, [isPatient]);
+
+  /** The full spoken brief and its short notification `items`, in the order set by briefing.ts. */
+  const composeBrief = useCallback((sinceIso: string | null) => {
+    const briefingEvents = mergeBriefingEvents(events, people);
+    const leadLines = todaysImportantSentences(important, new Date());
+    const familyLines = todaySentences(briefingEvents, new Date());
+    const bday = upcomingBirthday(people, new Date(), 1); // today/tomorrow only, for the brief
+    const bdayPhrase = bday ? birthdayPhrase(bday.person.name, bday.days, new Date(), bday.birthday, bday.person.relation) : null;
+    const newPhotos = countNewPhotos(moments, sinceIso ? new Date(sinceIso) : null);
+    const full = buildBriefing({
+      patientName: session.patientName, now: new Date(), events: briefingEvents,
+      leadLines, birthdayPhrase: bdayPhrase, newPhotosPhrase: newPhotosPhrase(newPhotos),
+    });
+    return { full, items: [...leadLines, ...familyLines], newPhotos };
+  }, [events, people, important, moments, session.patientName]);
+
+  // Native: (re)schedule the daily local notification whenever its content or the time/on-off changes.
+  useEffect(() => {
+    if (!isPatient) return;
+    const { items, newPhotos } = composeBrief(lastSeenFeedAt);
+    void scheduleMorningBrief(session.patientName, items, newPhotos, briefSettings);
+  }, [isPatient, composeBrief, lastSeenFeedAt, briefSettings, session.patientName]);
+
+  // Web: no local notifications — speak the brief in-app when the page happens to be open at brief_time.
+  // Demo: speaks it once so the feature is visible without waiting for the clock (see composeBrief above).
+  useEffect(() => {
+    if (!isPatient || Platform.OS !== 'web') return;
+    if (demo) {
+      if (spokeMorningBriefDemo) return;
+      spokeMorningBriefDemo = true;
+      say(composeBrief(lastSeenFeedAt).full);
+      return;
+    }
+    if (!briefSettings.brief_enabled) return;
+    const [h, m] = briefSettings.brief_time.split(':').map(Number);
+    const now = new Date();
+    if (now.getHours() !== h || now.getMinutes() !== m) return;
+    void getFlag('morning-brief-day').then(async (seen) => {
+      const today = now.toDateString();
+      if (seen === today) return;
+      await setFlag('morning-brief-day', today);
+      say(composeBrief(lastSeenFeedAt).full);
+    });
+  }, [isPatient, tick, briefSettings, composeBrief, lastSeenFeedAt]);
+
   useEffect(() => {
     if (!isPatient || demo) return; // demo: no push registration, no browser permission prompt
     void registerForPush(session.circleId, 'patient');
     requestWebNotificationPermission();
     if (Platform.OS === 'web') return; // tap-to-open push is native only; web uses realtime + Notification
     const sub = Notifications.addNotificationResponseReceivedListener((r) => {
-      const p = pingFromNotificationData(r.notification.request.content.data);
-      if (p) showPing(p);
+      const data = r.notification.request.content.data;
+      const p = pingFromNotificationData(data);
+      if (p) { showPing(p); return; }
+      const checkEventId = checkinEventFromNotificationData(data);
+      if (checkEventId) { setMomCheckEvent(important.find((e) => e.id === checkEventId) ?? null); return; }
+      if (isBriefNotificationData(data)) say(composeBrief(lastSeenFeedAt).full);
     });
     const last = Notifications.getLastNotificationResponse();
     const initial = last && pingFromNotificationData(last.notification.request.content.data);
     if (initial) showPing(initial);
     return () => sub.remove();
-  }, [isPatient, session.circleId, showPing]);
+  }, [isPatient, session.circleId, showPing, important, composeBrief, lastSeenFeedAt]);
 
   const home = () => setRoute({ name: 'home' });
   const openPerson = (id: string) => setRoute({ name: 'person', id });
@@ -188,12 +298,41 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
   let body: React.ReactNode;
   if (route.name === 'settings') {
     body = (
-      <Settings session={session} canInvite={isPatient || can(actor, { type: 'invite.share' })} onBack={home} onLeave={onLeave} />
+      <Settings session={session} canInvite={isPatient || can(actor, { type: 'invite.share' })} onBack={home} onLeave={onLeave}
+        canEditBrief={can(actor, { type: 'editBrief' })} onHearBrief={() => say(composeBrief(lastSeenFeedAt).full)} />
+    );
+  } else if (!isPatient && route.name === 'important-create') {
+    body = (
+      <View style={s.panel}>
+        <ImportantCreate circleId={session.circleId} createdByPersonId={actor.kind === 'member' ? actor.id : null}
+          onClose={home} onSaved={() => { void reloadImportant(); home(); }} />
+      </View>
+    );
+  } else if (!isPatient && route.name === 'important-status') {
+    const ev = important.find((e) => e.id === route.id);
+    body = ev ? (
+      <View style={s.panel}>
+        <ImportantStatus event={ev} checkin={checkins.find((c) => c.important_event_id === ev.id) ?? null}
+          people={people} canView={can(actor, { type: 'viewCheckin', creatorId: ev.created_by_person_id })} onBack={home} />
+      </View>
+    ) : null;
+  } else if (!isPatient && route.name === 'calendar-connect') {
+    body = (
+      <View style={s.panel}>
+        <CalendarConnect circleId={session.circleId} people={people} onClose={home}
+          onConnected={() => { void reloadEvents(); home(); }} />
+      </View>
     );
   } else if (!isPatient) {
     body = (
-      <FamilyHome session={session} actor={actor} people={people} events={events} moments={moments} error={error}
-        version={version} reload={reload} reloadEvents={reloadEvents} onSettings={() => setRoute({ name: 'settings' })} />
+      <View style={{ gap: 16 }}>
+        <ImportantPanel events={important} checkins={checkins}
+          onNew={() => setRoute({ name: 'important-create' })}
+          onOpen={(id) => setRoute({ name: 'important-status', id })}
+          onConnectCalendar={() => setRoute({ name: 'calendar-connect' })} />
+        <FamilyHome session={session} actor={actor} people={people} events={events} moments={moments} error={error}
+          version={version} reload={reload} reloadEvents={reloadEvents} onSettings={() => setRoute({ name: 'settings' })} />
+      </View>
     );
   } else if (route.name === 'person' && people.some((p) => p.id === route.id)) {
     const person = people.find((p) => p.id === route.id)!;
@@ -245,7 +384,12 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
     body = (
       <PatientHome session={session} people={people} events={events} moments={moments} loading={loading} error={error}
         onOpenPerson={openPerson} onOpenEvent={openEvent} onOpenThread={(id) => setRoute({ name: 'thread', id })}
-        onTellFamily={() => setRoute({ name: 'share' })} onSettings={() => setRoute({ name: 'settings' })} />
+        onTellFamily={() => setRoute({ name: 'share' })} onSettings={() => setRoute({ name: 'settings' })}
+        importantCard={
+          <ImportantCard event={nextImportant(important, new Date())}
+            due={!!dueCheckin(important, checkins, new Date())}
+            onOpenCheck={() => setMomCheckEvent(nextImportant(important, new Date()))} />
+        } />
     );
   }
 
@@ -253,6 +397,45 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
     <View style={{ flex: 1 }}>
       {body}
       {isPatient && ping && <PingOverlay ping={ping} people={people} onDismiss={() => setPing(null)} />}
+      {isPatient && momCheckEvent && (
+        <MomCheck circleId={session.circleId} event={momCheckEvent}
+          existing={checkins.find((c) => c.important_event_id === momCheckEvent.id) ?? null}
+          onDone={() => { setMomCheckEvent(null); void reloadImportant(); }} />
+      )}
+    </View>
+  );
+}
+
+/** Temporary family-side entry point for important events (see the Route comment above). */
+function ImportantPanel(
+  { events, checkins, onNew, onOpen, onConnectCalendar }: {
+    events: ImportantEvent[]; checkins: Checkin[]; onNew: () => void; onOpen: (id: string) => void; onConnectCalendar: () => void;
+  },
+) {
+  const next = nextImportant(events, new Date());
+  const now = new Date();
+  const answered = next ? checkins.find((c) => c.important_event_id === next.id) : undefined;
+  return (
+    <View style={s.panel}>
+      <Text style={s.panelTitle}>Important events</Text>
+      {next ? (
+        <Pressable onPress={() => onOpen(next.id)} accessibilityRole="button" style={s.panelRow}>
+          <Text style={s.panelRowText}>{cardText(next, now)}</Text>
+          {answered ? (
+            <Text style={s.panelDone}>✓ answered</Text>
+          ) : hasNotAnswered(next, null, now) ? (
+            <Text style={s.panelWarn}>Mom hasn't answered</Text>
+          ) : null}
+        </Pressable>
+      ) : (
+        <Text style={s.panelEmpty}>No important events yet.</Text>
+      )}
+      <Pressable onPress={onNew} accessibilityRole="button" style={s.panelAdd}>
+        <Text style={s.panelAddText}>+ New important event</Text>
+      </Pressable>
+      <Pressable onPress={onConnectCalendar} accessibilityRole="button" style={s.panelAdd}>
+        <Text style={s.panelAddText}>+ Connect iPhone calendar</Text>
+      </Pressable>
     </View>
   );
 }
@@ -260,4 +443,16 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  panel: {
+    maxWidth: 820, width: '100%', alignSelf: 'center', backgroundColor: colors.card, borderRadius: 16,
+    borderWidth: 1, borderColor: colors.line, padding: 16, margin: 16, marginBottom: 0,
+  },
+  panelTitle: { fontSize: 16, fontWeight: '700', color: colors.inkSoft, marginBottom: 8 },
+  panelRow: { paddingVertical: 6 },
+  panelRowText: { fontSize: 18, fontWeight: '700', color: colors.ink },
+  panelDone: { fontSize: 14, color: colors.green, fontWeight: '700', marginTop: 2 },
+  panelWarn: { fontSize: 14, color: colors.terracottaDark, fontWeight: '700', marginTop: 2 },
+  panelEmpty: { fontSize: 16, color: colors.inkSoft },
+  panelAdd: { marginTop: 10, minHeight: 44, justifyContent: 'center' },
+  panelAddText: { fontSize: 16, color: colors.terracotta, fontWeight: '700' },
 });

@@ -5,7 +5,9 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { registerDevice } from './api';
 import { parseBirthday, nextOccurrence, startOfDay } from './dates';
-import type { Person, Ping, Role } from './types';
+import { briefNotificationBody } from './briefing';
+import { notificationPlan } from './important';
+import type { BriefSettings, Checkin, ImportantEvent, Person, Ping, Role } from './types';
 
 const isNative = Platform.OS !== 'web';
 let warnedNoProject = false;
@@ -58,15 +60,26 @@ export function pingFromNotificationData(data: unknown): Ping | null {
   };
 }
 
+/** Cancels only our own previously-scheduled notifications (by identifier prefix), leaving anything else alone. */
+async function cancelByPrefix(prefix: string): Promise<void> {
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  await Promise.all(
+    scheduled.filter((s) => s.identifier.startsWith(prefix)).map((s) => Notifications.cancelScheduledNotificationAsync(s.identifier)),
+  );
+}
+
+async function ensurePermission(): Promise<boolean> {
+  const perm = await Notifications.getPermissionsAsync();
+  if (perm.status === 'granted') return true;
+  return (await Notifications.requestPermissionsAsync()).status === 'granted';
+}
+
 /** Native: cancel + reschedule birthday reminders (day before 10:00, day of 09:00). */
 export async function scheduleBirthdayReminders(people: Person[], now = new Date()): Promise<void> {
   if (!isNative) return;
   try {
-    const perm = await Notifications.getPermissionsAsync();
-    if (perm.status !== 'granted') {
-      if ((await Notifications.requestPermissionsAsync()).status !== 'granted') return;
-    }
-    await Notifications.cancelAllScheduledNotificationsAsync();
+    if (!(await ensurePermission())) return;
+    await cancelByPrefix('bday-');
     for (const p of people) {
       const b = parseBirthday(p.birthday);
       if (!b) continue;
@@ -78,9 +91,10 @@ export async function scheduleBirthdayReminders(people: Person[], now = new Date
         [before, `Tomorrow is ${p.name}'s birthday`],
         [on, `Today is ${p.name}'s birthday (${who})`],
       ];
-      for (const [date, body] of items) {
+      for (const [i, [date, body]] of items.entries()) {
         if (date <= now) continue;
         await Notifications.scheduleNotificationAsync({
+          identifier: `bday-${p.id}-${i}`,
           content: { title: 'Birthday', body },
           trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date },
         });
@@ -89,6 +103,55 @@ export async function scheduleBirthdayReminders(people: Person[], now = new Date
   } catch (e) {
     console.warn('scheduling birthday reminders failed', e);
   }
+}
+
+/** Native: cancel + reschedule reminders for upcoming important events (see important.ts). */
+export async function scheduleImportantReminders(events: ImportantEvent[], checkins: Checkin[], now = new Date()): Promise<void> {
+  if (!isNative) return;
+  try {
+    if (!(await ensurePermission())) return;
+    await cancelByPrefix('imp-');
+    for (const n of notificationPlan(events, checkins, now)) {
+      await Notifications.scheduleNotificationAsync({
+        identifier: n.id,
+        content: { title: n.title, body: n.body, data: { impKind: n.kind, impEventId: n.eventId } },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: n.at },
+      });
+    }
+  } catch (e) {
+    console.warn('scheduling important reminders failed', e);
+  }
+}
+
+/** The important_event id to open MomCheck for, when a tapped notification was a check-in prompt. */
+export function checkinEventFromNotificationData(data: unknown): string | null {
+  const d = data as { impKind?: string; impEventId?: string } | undefined;
+  return (d?.impKind === 'check' || d?.impKind === 're_ask') && d.impEventId ? d.impEventId : null;
+}
+
+/** Native: (re)schedules the daily morning-brief notification at `brief.brief_time`, cancelling
+ * any previous one first. `items`/`newPhotos` are the caller's already-computed brief content
+ * (see briefing.ts) — recompute and call again on app open, realtime changes, or a time edit. */
+export async function scheduleMorningBrief(patientName: string, items: string[], newPhotos: number, brief: BriefSettings): Promise<void> {
+  if (!isNative) return;
+  try {
+    await cancelByPrefix('brief-');
+    if (!brief.brief_enabled) return;
+    if (!(await ensurePermission())) return;
+    const [hour, minute] = brief.brief_time.split(':').map(Number);
+    await Notifications.scheduleNotificationAsync({
+      identifier: 'brief-daily',
+      content: { title: 'Good morning', body: briefNotificationBody(patientName, items, newPhotos), data: { brief: true } },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour, minute },
+    });
+  } catch (e) {
+    console.warn('scheduling morning brief failed', e);
+  }
+}
+
+/** True when a tapped notification was the daily morning brief (tapping it speaks the full brief). */
+export function isBriefNotificationData(data: unknown): boolean {
+  return (data as { brief?: boolean } | undefined)?.brief === true;
 }
 
 export function requestWebNotificationPermission(): void {

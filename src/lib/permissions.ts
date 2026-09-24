@@ -27,7 +27,9 @@ export type Action =
   | { type: 'calendar.refresh' }
   | { type: 'moment.post' }
   | { type: 'moment.delete' }
-  | { type: 'ping.send' };
+  | { type: 'ping.send' }
+  | { type: 'editBrief' } // morning brief settings: Mom (patient device) or lead/admin
+  | { type: 'viewCheckin'; creatorId: string | null }; // Mom's "Did you go?" answer: creator + lead/admin only
 
 export type ActionType = Action['type'];
 
@@ -39,7 +41,8 @@ const onlySelf = (a: Actor, personIds: string[]) =>
   isMember(a) && a.id !== null && personIds.length > 0 && personIds.every((id) => id === a.id);
 
 export function can(actor: Actor, action: Action): boolean {
-  if (!isMember(actor)) return false; // patient device: view-only
+  if (action.type === 'editBrief') return actor.kind === 'patient' || isStaff(actor); // Mom, or lead/admin
+  if (!isMember(actor)) return false; // patient device: view-only otherwise
 
   switch (action.type) {
     case 'person.add':
@@ -70,6 +73,9 @@ export function can(actor: Actor, action: Action): boolean {
     case 'moment.post':
     case 'ping.send':
       return true;
+
+    case 'viewCheckin':
+      return isStaff(actor) || (actor.id !== null && actor.id === action.creatorId);
   }
 }
 

@@ -6,11 +6,21 @@ import { inviteUrl } from '../lib/util';
 import { shareInvite, shareResultText } from '../lib/share';
 import { BigButton } from '../components/ui';
 import { confirmAction } from '../components/confirm';
+import { MorningBriefSettings } from '../components/MorningBriefSettings';
 import { colors, type, fonts } from '../theme';
 
-type Props = { session: Session; canInvite: boolean; onBack: () => void; onLeave: () => void };
+type Props = {
+  session: Session;
+  canInvite: boolean;
+  onBack: () => void;
+  onLeave: () => void;
+  /** cercana-care: can this actor change the morning brief (permissions.can(actor, {type:'editBrief'})). */
+  canEditBrief: boolean;
+  /** cercana-care: speaks the full brief right now ("Hear it now"). */
+  onHearBrief: () => void;
+};
 
-export function Settings({ session, canInvite, onBack, onLeave }: Props) {
+export function Settings({ session, canInvite, onBack, onLeave, canEditBrief, onHearBrief }: Props) {
   const [note, setNote] = useState<string | null>(null);
   const share = async () => setNote(shareResultText(await shareInvite(inviteUrl(session.code), session.patientName)));
   const isPatient = session.role === 'patient';
@@ -35,9 +45,7 @@ export function Settings({ session, canInvite, onBack, onLeave }: Props) {
       </Text>
       <Text style={s.body}>Circle code: {session.code}</Text>
 
-      {/* SLOT: cercana-care's <MorningBriefSettings /> (brief time + on/off + "Hear it now") renders
-          here for both roles — helm wires the import at merge once that component lands. */}
-      <Text style={s.slot}>Morning brief settings — coming soon</Text>
+      <MorningBriefSettings circleId={session.circleId} canEdit={canEditBrief} onHearNow={onHearBrief} />
 
       {canInvite ? (
         <>
@@ -58,9 +66,5 @@ const s = StyleSheet.create({
   body: { fontSize: type.body, color: colors.ink },
   small: { fontSize: 18, color: colors.inkSoft },
   leave: { marginTop: 32 }, // set apart from Back so it is not hit by mistake
-  slot: {
-    fontSize: 16, color: colors.inkSoft, fontStyle: 'italic', borderWidth: 1, borderColor: colors.line,
-    borderRadius: 12, padding: 12,
-  },
   note: { fontSize: 20, color: colors.green, fontWeight: '700' },
 });

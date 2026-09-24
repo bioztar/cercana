@@ -1,10 +1,12 @@
 // In-memory fixtures behind EXPO_PUBLIC_DEMO=1 (see api.ts). Same signatures as api.real.ts.
 // State is replaced, never mutated. Nothing here runs unless the flag is set.
 import type {
-  CalendarPublic, Circle, Comment, CommentInput, CommentSummary, CreatedCircle, EventRow, LeadInput, MemberRole,
-  Moment, MomentInput, NewEventInput, Person, PersonInput, Ping, Session,
+  BriefSettings, CalendarPublic, Checkin, CheckinAnswer, Circle, Comment, CommentInput, CommentSummary,
+  CreatedCircle, DeviceCalendarLink, DeviceEventRow, EventRow, ImportantEvent, ImportantInput, LeadInput,
+  MemberRole, Moment, MomentInput, NewEventInput, Person, PersonInput, Ping, Session,
 } from './types';
 import type { FeedHandlers } from './api.real';
+import { defaultReminders } from './important';
 import { normalizeCode, urlHint, uuidv4 } from './util';
 import { summarizeComments } from './voice';
 
@@ -99,6 +101,22 @@ let rawEvents = [
   event('e3', 'cal-family', 'Family lunch', at(addDays(now(), untilSunday || 7), 14), at(addDays(now(), untilSunday || 7), 16), false, "Pedro's house"),
   event('e4', 'cal-walks', 'Walk in the park', at(now(), 10), at(now(), 12), false, 'Retiro park'),
 ];
+
+// `check` reminder is overridden to a few minutes ago so the demo patient sees it due immediately,
+// regardless of when the demo happens to be opened (the mockups always show it due).
+const appt = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 10, 30).toISOString();
+let importantEvents: ImportantEvent[] = [
+  {
+    id: 'imp-cardio', circle_id: CIRCLE.id, title: 'Cardiologist appointment', starts_at: appt, ends_at: null,
+    location: 'Calle Mayor 1', for_person: 'mom', created_by_person_id: 'anna',
+    reminders: defaultReminders(new Date(appt), null).map((r) =>
+      r.kind === 'check' ? { ...r, at: new Date(Date.now() - 5 * 60_000).toISOString() } : r,
+    ),
+    created_at: isoDaysAgo(1),
+  },
+];
+let checkins: Checkin[] = [];
+let briefSettings: BriefSettings = { brief_time: '09:00', brief_enabled: true };
 
 // ---- feed (stands in for Supabase realtime) ------------------------------------------------------
 let listeners: FeedHandlers[] = [];
@@ -254,6 +272,63 @@ export async function addEvent(
   ];
   emitChange();
   return id;
+}
+
+// ---- important events + check-ins (cercana-care) -------------------------------------------------
+
+export async function listImportant(_circleId: string): Promise<ImportantEvent[]> {
+  return [...importantEvents].sort((a, b) => a.starts_at.localeCompare(b.starts_at));
+}
+
+export async function createImportant(circleId: string, input: ImportantInput): Promise<ImportantEvent> {
+  const created: ImportantEvent = { ...input, id: uuidv4(), circle_id: circleId, for_person: 'mom', created_at: new Date().toISOString() };
+  importantEvents = [...importantEvents, created];
+  emitChange();
+  return created;
+}
+
+export async function listCheckins(_circleId: string): Promise<Checkin[]> {
+  return checkins;
+}
+
+export async function submitCheckin(
+  circleId: string,
+  importantEventId: string,
+  answer: CheckinAnswer,
+  noteAudioUrl: string | null,
+): Promise<Checkin> {
+  const saved: Checkin = {
+    id: uuidv4(), circle_id: circleId, important_event_id: importantEventId, answer,
+    note_audio_url: noteAudioUrl, answered_at: new Date().toISOString(),
+  };
+  checkins = [...checkins.filter((c) => c.important_event_id !== importantEventId), saved];
+  emitChange();
+  return saved;
+}
+
+// ---- device calendar sync (cercana-care) — demo has no real iPhone calendars to read -------------
+
+export async function addDeviceCalendar(circleId: string, label: string, deviceCalendarId: string, personIds: string[]): Promise<string> {
+  const id = uuidv4();
+  calendars = [...calendars, { id, circle_id: circleId, label, url_hint: deviceCalendarId, last_synced_at: new Date().toISOString(), last_error: null, person_ids: personIds }];
+  return id;
+}
+
+export async function upsertDeviceEvents(_circleId: string, _calendarId: string, _rows: DeviceEventRow[]): Promise<void> {}
+
+export async function listDeviceCalendars(_circleId: string): Promise<DeviceCalendarLink[]> {
+  return []; // demo has no real iPhone to read a device calendar id from
+}
+
+// ---- scheduled morning brief (cercana-care) --------------------------------------------------------
+
+export async function getBriefSettings(_circleId: string): Promise<BriefSettings> {
+  return briefSettings;
+}
+
+export async function updateBriefSettings(_circleId: string, settings: BriefSettings): Promise<void> {
+  briefSettings = settings;
+  emitChange();
 }
 
 // ---- boot links (web only): ?demo=patient | family | join  [&person=anna] [&as=pedro] ---------------
