@@ -8,15 +8,18 @@ import { FontsReady } from './src/components/Text';
 import * as Notifications from 'expo-notifications';
 import { setAudioModeAsync } from 'expo-audio';
 import { demo, missingSettings } from './src/lib/config';
-import { demoBoot } from './src/lib/demo';
+import { demoBoot, demoTriggerArrival } from './src/lib/demo';
+import { arrivalFromComment, arrivalFromMoment, enqueueArrival, type Arrival } from './src/lib/arrivals';
+import { ArrivalOverlay } from './src/components/ArrivalOverlay';
+import { keepAliveEnabled, startKeepAlive, stopKeepAlive } from './src/lib/keepAlive';
 import { findCircleByCode, getBriefSettings, listCheckins, listImportant, unclaimPerson } from './src/lib/api';
 import { DemoRibbon } from './src/components/DemoRibbon';
 import { clearSession, getFlag, loadSession, saveSession, setFlag } from './src/lib/session';
 import { useCircle } from './src/lib/useCircle';
 import {
   checkinEventFromNotificationData, initNotifications, isBriefNotificationData, pingFromNotificationData,
-  registerForPush, requestWebNotificationPermission, scheduleImportantReminders, scheduleMorningBrief,
-  showWebNotification,
+  notifyArrival, registerForPush, requestWebNotificationPermission, scheduleImportantReminders,
+  scheduleMorningBrief, showWebNotification,
 } from './src/lib/notify';
 import { dueCheckin, nextImportant, todaysImportantSentences } from './src/lib/important';
 import { ImportantCard } from './src/components/ImportantCard';
@@ -25,7 +28,7 @@ import { birthdayPhrase, upcomingBirthday } from './src/lib/dates';
 import { say } from './src/lib/speech';
 import { actorFor, can } from './src/lib/permissions';
 import { parseJoinUrl } from './src/lib/util';
-import type { BriefSettings, Checkin, ImportantEvent, Ping, Session } from './src/lib/types';
+import type { BriefSettings, Checkin, Comment, ImportantEvent, Moment, Person, Ping, Session } from './src/lib/types';
 import { MissingConfig } from './src/screens/MissingConfig';
 import { Welcome } from './src/screens/Welcome';
 import { Join } from './src/screens/Join';
@@ -191,11 +194,42 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
     showWebNotification(`${p.from_name ?? 'Someone'} says`, p.message);
   }, [seen]);
 
+  // Arrivals (src/lib/arrivals.ts): new moments/comments spoken + auto-played the instant they land.
+  // `lastSeenFeedAt` is declared here (not lower, with the rest of the brief state) so the realtime
+  // handlers below can close over its latest value without a resubscribe.
+  const [lastSeenFeedAt, setLastSeenFeedAt] = useState<string | null>(null);
+  const [arrivals, setArrivals] = useState<Arrival[]>([]);
+  const [seenArrivals] = useState(() => new Set<string>());
+  const peopleRef = useRef<Person[]>([]);
+  const announce = useCallback((a: Arrival | null) => {
+    setArrivals((q) => enqueueArrival(q, seenArrivals, a, lastSeenFeedAt));
+    if (a) void notifyArrival(a.name, a.spoken);
+  }, [seenArrivals, lastSeenFeedAt]);
+  const onMomentInsert = useCallback((m: Moment) => announce(arrivalFromMoment(m, peopleRef.current)), [announce]);
+  const onCommentInsert = useCallback((c: Comment) => announce(arrivalFromComment(c, peopleRef.current)), [announce]);
+
   const { people, events, moments, loading, error, version, reload, reloadEvents } = useCircle(
     session.circleId,
-    isPatient ? showPing : undefined,
+    isPatient ? { onPing: showPing, onMomentInsert, onCommentInsert } : undefined,
   );
+  peopleRef.current = people;
   const actor = useMemo(() => actorFor(session, people), [session, people]);
+
+  // Demo: a fixture arrival 5s after load (?demo=patient), so ArrivalOverlay can be screenshotted
+  // without a second device.
+  useEffect(() => {
+    if (!isPatient || !demo) return;
+    const t = setTimeout(() => void demoTriggerArrival(), 5000);
+    return () => clearTimeout(t);
+  }, [isPatient]);
+
+  // Scope add 16:35 (Vitaly, DEMO HACK — see src/lib/keepAlive.ts): patient session keeps a silent
+  // audio loop running so arrivals still speak/play with the phone locked.
+  useEffect(() => {
+    if (!isPatient || demo) return; // demo has no real background session to keep alive
+    void keepAliveEnabled().then((on) => { if (on) void startKeepAlive(); });
+    return () => stopKeepAlive();
+  }, [isPatient]);
 
   // cercana-care: important events + check-ins, refetched whenever realtime bumps `version`.
   const [important, setImportant] = useState<ImportantEvent[]>([]);
@@ -242,7 +276,6 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
 
   // cercana-care: scheduled morning brief (brief_time / brief_enabled, see the Scope-add 14:25).
   const [briefSettings, setBriefSettings] = useState<BriefSettings>({ brief_time: '09:00', brief_enabled: true });
-  const [lastSeenFeedAt, setLastSeenFeedAt] = useState<string | null>(null);
   useEffect(() => {
     // Both roles: the patient side speaks the brief, the family dashboard shows its time and offers
     // a preview.
@@ -441,6 +474,9 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
         <NativeFamilyTabs tabs={FAMILY_TABS} active={activeFamilyTab} onSelect={selectFamilyTab}>{body}</NativeFamilyTabs>
       )}
       {isPatient && ping && <PingOverlay ping={ping} people={people} onDismiss={() => setPing(null)} />}
+      {isPatient && !ping && !momCheckEvent && arrivals[0] && (
+        <ArrivalOverlay arrival={arrivals[0]} onDismiss={() => setArrivals((q) => q.slice(1))} />
+      )}
       {isPatient && momCheckEvent && (
         <MomCheck circleId={session.circleId} event={momCheckEvent}
           existing={checkins.find((c) => c.important_event_id === momCheckEvent.id) ?? null}

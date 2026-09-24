@@ -8,6 +8,7 @@ import { BigButton } from '../components/ui';
 import { confirmAction } from '../components/confirm';
 import { MorningBriefSettings } from '../components/MorningBriefSettings';
 import { NotificationSettings } from '../components/NotificationSettings';
+import { KeepListeningSettings } from '../components/KeepListeningSettings';
 import { colors, type, fonts } from '../theme';
 
 type Props = {
@@ -47,6 +48,8 @@ export function Settings({ session, canInvite, onBack, onLeave, canEditBrief, on
       <Text style={s.body}>Circle code: {session.code}</Text>
 
       <NotificationSettings circleId={session.circleId} role={session.role} patientName={session.patientName} />
+
+      {isPatient && <KeepListeningSettings />}
 
       <MorningBriefSettings circleId={session.circleId} canEdit={canEditBrief} onHearNow={onHearBrief} />
 

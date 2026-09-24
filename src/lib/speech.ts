@@ -1,12 +1,14 @@
 import * as Speech from 'expo-speech';
 
-/** Speak slowly and clearly; interrupts anything already being read. */
-export function say(text: string): void {
+/** Speak slowly and clearly; interrupts anything already being read. `onDone` fires once speech
+ * finishes (used to auto-play a voice note only after the "New voice message from X" announcement). */
+export function say(text: string, onDone?: () => void): void {
   try {
     Speech.stop();
-    Speech.speak(text, { rate: 0.9 });
+    Speech.speak(text, { rate: 0.9, onDone, onStopped: onDone, onError: onDone });
   } catch (e) {
     console.warn('speech failed', e);
+    onDone?.();
   }
 }
 

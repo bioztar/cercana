@@ -1,20 +1,27 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { listEvents, listMoments, listPeople, subscribeCircle } from './api';
-import type { EventRow, Moment, Person, Ping } from './types';
+import type { Comment, EventRow, Moment, Person, Ping } from './types';
 
 const EVENT_REFRESH_MS = 10 * 60 * 1000; // calendars are synced server-side every ~30 min
 const FEED_SIZE = 40;
 
-/** People, calendar events and the family feed of a circle, kept fresh via realtime. `onPing` fires for every new ping. */
-export function useCircle(circleId: string, onPing?: (p: Ping) => void) {
+export type CircleHandlers = {
+  onPing?: (p: Ping) => void;
+  /** A new moment/comment row, straight off the wire (see src/lib/arrivals.ts). */
+  onMomentInsert?: (m: Moment) => void;
+  onCommentInsert?: (c: Comment) => void;
+};
+
+/** People, calendar events and the family feed of a circle, kept fresh via realtime. */
+export function useCircle(circleId: string, handlers?: CircleHandlers) {
   const [people, setPeople] = useState<Person[]>([]);
   const [events, setEvents] = useState<EventRow[]>([]);
   const [moments, setMoments] = useState<Moment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [version, setVersion] = useState(0); // bumps on any realtime change, for dependent lists
-  const pingRef = useRef(onPing);
-  pingRef.current = onPing;
+  const handlersRef = useRef(handlers);
+  handlersRef.current = handlers;
 
   const reloadEvents = useCallback(async () => {
     try {
@@ -40,7 +47,9 @@ export function useCircle(circleId: string, onPing?: (p: Ping) => void) {
     void Promise.all([reload(), reloadEvents()]).then(() => setLoading(false));
     const timer = setInterval(() => void reloadEvents(), EVENT_REFRESH_MS);
     const unsubscribe = subscribeCircle(circleId, {
-      onPing: (p) => pingRef.current?.(p),
+      onPing: (p) => handlersRef.current?.onPing?.(p),
+      onMomentInsert: (m) => handlersRef.current?.onMomentInsert?.(m),
+      onCommentInsert: (c) => handlersRef.current?.onCommentInsert?.(c),
       onChange: () => {
         setVersion((v) => v + 1);
         void reload();

@@ -292,7 +292,14 @@ export async function setEventIncludesPatient(eventId: string, includesPatient: 
   );
 }
 
-export type FeedHandlers = { onPing?: (p: Ping) => void; onChange?: () => void };
+export type FeedHandlers = {
+  onPing?: (p: Ping) => void;
+  onChange?: () => void;
+  /** A new moment/comment row, straight off the wire — for arrivals (src/lib/arrivals.ts). Fires
+   * alongside the generic onChange above, which still drives the plain feed reload. */
+  onMomentInsert?: (m: Moment) => void;
+  onCommentInsert?: (c: Comment) => void;
+};
 
 /** Realtime feed for one circle. Returns an unsubscribe function. */
 export function subscribeCircle(circleId: string, h: FeedHandlers): () => void {
@@ -302,6 +309,12 @@ export function subscribeCircle(circleId: string, h: FeedHandlers): () => void {
     .channel(`circle-${circleId}-${Math.random().toString(36).slice(2, 6)}`)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pings', filter }, (e) =>
       h.onPing?.(e.new as Ping),
+    )
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'moments', filter }, (e) =>
+      h.onMomentInsert?.(e.new as Moment),
+    )
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments', filter }, (e) =>
+      h.onCommentInsert?.(e.new as Comment),
     )
     .on('postgres_changes', { event: '*', schema: 'public', table: 'people', filter }, () => h.onChange?.())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'moments', filter }, () => h.onChange?.())
