@@ -381,7 +381,7 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
     );
   } else if (route.name === 'photoPick') {
     body = (
-      <PhotoPick onNext={(photos) => setRoute({ name: 'photoEvent', photos })} onCancel={() => setRoute({ name: 'share' })} />
+      <PhotoPick onNext={(photos) => setRoute({ name: 'photoEvent', photos })} onCancel={home} />
     );
   } else if (route.name === 'photoEvent') {
     body = (
@@ -396,9 +396,11 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
     );
   } else {
     body = (
-      <PatientHome session={session} people={people} events={events} moments={moments} loading={loading} error={error}
+      <PatientHome session={session} people={people} events={events} moments={moments} important={important}
+        checkins={checkins} briefSettings={briefSettings} loading={loading} error={error}
         onOpenPerson={openPerson} onOpenEvent={openEvent} onOpenThread={(id) => setRoute({ name: 'thread', id })}
         onSettings={() => setRoute({ name: 'settings' })}
+        onSharePhotos={() => setRoute({ name: 'photoPick' })} onAddEvent={() => setRoute({ name: 'eventVoice' })}
         importantCard={
           <ImportantCard event={nextImportant(important, new Date())}
             due={!!dueCheckin(important, checkins, new Date())}
