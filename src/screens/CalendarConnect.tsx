@@ -38,6 +38,22 @@ export function CalendarConnect({ circleId, people, onClose, onConnected }: Prop
     }
   };
 
+  // Declared before the early returns below: the 'people' step returns before any later line runs,
+  // so a handler defined further down was never initialised and tapping Connect crashed the app.
+  const connect = async (cal: Calendar.ExpoCalendar, personIds: string[]) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const calendarId = await addDeviceCalendar(circleId, cal.title, cal.id, personIds);
+      await syncDeviceCalendar(cal, calendarId, circleId);
+      onConnected();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (Platform.OS !== 'ios') {
     return (
       <View style={s.wrap}>
@@ -80,20 +96,6 @@ export function CalendarConnect({ circleId, people, onClose, onConnected }: Prop
       </View>
     );
   }
-
-  const connect = async (cal: Calendar.ExpoCalendar, personIds: string[]) => {
-    setBusy(true);
-    setError(null);
-    try {
-      const calendarId = await addDeviceCalendar(circleId, cal.title, cal.id, personIds);
-      await syncDeviceCalendar(cal, calendarId, circleId);
-      onConnected();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
 
   return (
     <View style={s.wrap}>
