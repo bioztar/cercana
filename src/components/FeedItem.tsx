@@ -75,7 +75,7 @@ export function FeedItem({
             <View style={s.faces}>
               {event.personIds.slice(0, 4).map((id) => {
                 const p = people.find((x) => x.id === id);
-                return p ? <Avatar key={id} uri={p.photo_url} name={p.name} size={28} /> : null;
+                return p ? <Avatar key={id} uri={p.photo_url} name={p.name} size={28} group={people.map((x) => x.name)} /> : null;
               })}
             </View>
           </View>

@@ -145,7 +145,7 @@ export function PatientHome({
                 onPress={() => onOpenPerson(p.id)}
                 style={s.face}
               >
-                <Avatar uri={p.photo_url} name={p.name} size={80} />
+                <Avatar uri={p.photo_url} name={p.name} size={80} group={people.map((x) => x.name)} />
                 <Text style={s.faceName} numberOfLines={1}>{p.name}</Text>
                 {p.relation ? <Text style={s.faceRelation} numberOfLines={1}>{p.relation}</Text> : null}
               </Pressable>

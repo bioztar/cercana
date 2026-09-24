@@ -66,7 +66,7 @@ export function PeopleTab({ circleId, patientName, actor, people, onChanged }: P
         return (
           <View key={p.id} style={s.card}>
             <View style={s.row}>
-              <Avatar uri={p.photo_url} name={p.name} size={64} />
+              <Avatar uri={p.photo_url} name={p.name} size={64} group={people.map((x) => x.name)} />
               <View style={{ flex: 1 }}>
                 <View style={s.nameRow}>
                   <Text style={s.name}>{p.name}{isMe ? ' (you)' : ''}</Text>

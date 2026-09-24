@@ -78,7 +78,7 @@ function AgendaCard({ item, people, onPress }: { item: AgendaItem; people: Perso
         <View style={s.faces}>
           {item.personIds.slice(0, 4).map((id) => {
             const p = people.find((x) => x.id === id);
-            return p ? <Avatar key={id} uri={p.photo_url} name={p.name} size={24} /> : null;
+            return p ? <Avatar key={id} uri={p.photo_url} name={p.name} size={24} group={people.map((x) => x.name)} /> : null;
           })}
           <Text style={s.names}>{item.personIds.map((id) => people.find((p) => p.id === id)?.name).filter(Boolean).join(', ')}</Text>
         </View>

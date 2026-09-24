@@ -75,7 +75,7 @@ export function Join({ code, onDone, onCancel }: Props) {
           {people.map((p) => (
             <View key={p.id} style={[s.row, picked === p.id && s.rowOn]}>
               <Pressable onPress={() => setPicked(picked === p.id ? null : p.id)} accessibilityRole="button" style={s.rowTop}>
-                <Avatar uri={p.photo_url} name={p.name} size={72} />
+                <Avatar uri={p.photo_url} name={p.name} size={72} group={people.map((x) => x.name)} />
                 <View style={{ flex: 1 }}>
                   <Text style={s.name}>{p.name}</Text>
                   {p.relation ? <Text style={s.sub}>{familyRelation(p.relation, circle.patient_name)}</Text> : null}
