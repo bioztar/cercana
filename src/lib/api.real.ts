@@ -176,7 +176,7 @@ async function personIdsByCalendar(calendarIds: string[]): Promise<Map<string, s
 export async function listCalendars(circleId: string): Promise<CalendarPublic[]> {
   const res = await getSupabase()
     .from('calendars_public')
-    .select('id, circle_id, label, url_hint, last_synced_at, last_error')
+    .select('id, circle_id, label, url_hint, last_synced_at, last_error, source')
     .eq('circle_id', circleId)
     .order('created_at', { ascending: true });
   const rows = (check(res, 'Could not load calendars') ?? []) as Omit<CalendarPublic, 'person_ids'>[];
