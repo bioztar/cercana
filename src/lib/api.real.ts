@@ -3,9 +3,9 @@ import { getSupabase } from './supabase';
 import { generateCode, normalizeCode, isValidCode, urlHint, uuidv4 } from './util';
 import { summarizeComments } from './voice';
 import type {
-  CalendarPublic, Checkin, CheckinAnswer, Circle, Comment, CommentInput, CommentSummary, CreatedCircle,
-  DeviceEventRow, EventRow, ImportantEvent, ImportantInput, LeadInput, Moment, MomentInput, NewEventInput,
-  Person, PersonInput, Ping,
+  BriefSettings, CalendarPublic, Checkin, CheckinAnswer, Circle, Comment, CommentInput, CommentSummary,
+  CreatedCircle, DeviceEventRow, EventRow, ImportantEvent, ImportantInput, LeadInput, Moment, MomentInput,
+  NewEventInput, Person, PersonInput, Ping,
 } from './types';
 
 function check<T>(res: { data: T | null; error: { message: string } | null }, what: string): T {
@@ -294,6 +294,7 @@ export function subscribeCircle(circleId: string, h: FeedHandlers): () => void {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'comments', filter }, () => h.onChange?.())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'important_events', filter }, () => h.onChange?.())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'checkins', filter }, () => h.onChange?.())
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'circles', filter: `id=eq.${circleId}` }, () => h.onChange?.())
     .subscribe();
   return () => {
     void db.removeChannel(channel);
@@ -368,4 +369,16 @@ export async function upsertDeviceEvents(circleId: string, calendarId: string, r
       { onConflict: 'calendar_id,uid,starts_at' },
     );
   if (res.error) throw new Error(`Could not sync calendar events: ${res.error.message}`);
+}
+
+// ---- Scheduled morning brief (cercana-care) -------------------------------------------------------
+
+export async function getBriefSettings(circleId: string): Promise<BriefSettings> {
+  const res = await getSupabase().from('circles').select('brief_time, brief_enabled').eq('id', circleId).single();
+  const row = check(res, 'Could not load morning brief settings') as { brief_time: string; brief_enabled: boolean };
+  return { brief_time: row.brief_time.slice(0, 5), brief_enabled: row.brief_enabled }; // "09:00:00" → "09:00"
+}
+
+export async function updateBriefSettings(circleId: string, settings: BriefSettings): Promise<void> {
+  check(await getSupabase().from('circles').update(settings).eq('id', circleId), 'Could not save morning brief settings');
 }

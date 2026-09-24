@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   answerHeadline, cardText, checkQuestion, defaultReminders, deliveryOf, dueCheckin, importantPhrase,
-  nextImportant, notificationPlan, statusText,
+  nextImportant, notificationPlan, statusText, todaysImportantSentences,
 } from './important.ts';
 import type { Checkin, ImportantEvent } from './types.ts';
 
@@ -61,6 +61,17 @@ test('status text and delivery', () => {
   assert.equal(answerHeadline('missed'), "Mom couldn't make it");
   assert.equal(deliveryOf(e.reminders[0], now), 'scheduled');
   assert.equal(deliveryOf(e.reminders[0], new Date(2026, 8, 28, 20, 1)), 'delivered');
+});
+
+test('todaysImportantSentences: only today\'s events, sorted, none for other days', () => {
+  const today1 = ev('e1', new Date(2026, 8, 28, 8, 0));
+  const today2 = ev('e2', new Date(2026, 8, 28, 16, 0));
+  const tomorrow = ev('e3', start);
+  assert.deepEqual(todaysImportantSentences([tomorrow, today2, today1], now), [
+    'Cardiologist appointment at 8 am.',
+    'Cardiologist appointment at 4 pm.',
+  ]);
+  assert.deepEqual(todaysImportantSentences([tomorrow], now), []);
 });
 
 test('notificationPlan: future reminders of unanswered events only, sorted, stable ids', () => {

@@ -30,6 +30,14 @@ test('everyone can always edit their own profile; members cannot edit others', (
   assert.equal(check(lead, { type: 'person.edit', target: t('X') }), true);
 });
 
+test('editBrief: Mom (patient device), lead/admin — not plain members or an unclaimed device', () => {
+  assert.equal(check(patient, { type: 'editBrief' }), true);
+  assert.equal(check(lead, { type: 'editBrief' }), true);
+  assert.equal(check(admin, { type: 'editBrief' }), true);
+  assert.equal(check(member, { type: 'editBrief' }), false);
+  assert.equal(check(drifter, { type: 'editBrief' }), false);
+});
+
 test('adding people, inviting, refreshing calendars, deleting moments: staff only', () => {
   for (const type of ['person.add', 'invite.share', 'calendar.refresh', 'moment.delete'] as const) {
     assert.equal(check(lead, { type }), true, `lead ${type}`);

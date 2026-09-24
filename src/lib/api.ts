@@ -41,3 +41,5 @@ export const listCheckins = impl.listCheckins;
 export const submitCheckin = impl.submitCheckin;
 export const addDeviceCalendar = impl.addDeviceCalendar;
 export const upsertDeviceEvents = impl.upsertDeviceEvents;
+export const getBriefSettings = impl.getBriefSettings;
+export const updateBriefSettings = impl.updateBriefSettings;

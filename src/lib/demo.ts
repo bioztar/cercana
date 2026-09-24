@@ -1,9 +1,9 @@
 // In-memory fixtures behind EXPO_PUBLIC_DEMO=1 (see api.ts). Same signatures as api.real.ts.
 // State is replaced, never mutated. Nothing here runs unless the flag is set.
 import type {
-  CalendarPublic, Checkin, CheckinAnswer, Circle, Comment, CommentInput, CommentSummary, CreatedCircle,
-  DeviceEventRow, EventRow, ImportantEvent, ImportantInput, LeadInput, MemberRole, Moment, MomentInput,
-  NewEventInput, Person, PersonInput, Ping, Session,
+  BriefSettings, CalendarPublic, Checkin, CheckinAnswer, Circle, Comment, CommentInput, CommentSummary,
+  CreatedCircle, DeviceEventRow, EventRow, ImportantEvent, ImportantInput, LeadInput, MemberRole, Moment,
+  MomentInput, NewEventInput, Person, PersonInput, Ping, Session,
 } from './types';
 import type { FeedHandlers } from './api.real';
 import { defaultReminders } from './important';
@@ -116,6 +116,7 @@ let importantEvents: ImportantEvent[] = [
   },
 ];
 let checkins: Checkin[] = [];
+let briefSettings: BriefSettings = { brief_time: '09:00', brief_enabled: true };
 
 // ---- feed (stands in for Supabase realtime) ------------------------------------------------------
 let listeners: FeedHandlers[] = [];
@@ -314,6 +315,17 @@ export async function addDeviceCalendar(circleId: string, label: string, personI
 }
 
 export async function upsertDeviceEvents(_circleId: string, _calendarId: string, _rows: DeviceEventRow[]): Promise<void> {}
+
+// ---- scheduled morning brief (cercana-care) --------------------------------------------------------
+
+export async function getBriefSettings(_circleId: string): Promise<BriefSettings> {
+  return briefSettings;
+}
+
+export async function updateBriefSettings(_circleId: string, settings: BriefSettings): Promise<void> {
+  briefSettings = settings;
+  emitChange();
+}
 
 // ---- boot links (web only): ?demo=patient | family | join  [&person=anna] [&as=pedro] ---------------
 export type DemoBoot = { session: Session | null; personId?: string; joinCode?: string };

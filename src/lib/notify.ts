@@ -5,8 +5,9 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { registerDevice } from './api';
 import { parseBirthday, nextOccurrence, startOfDay } from './dates';
+import { briefNotificationBody } from './briefing';
 import { notificationPlan } from './important';
-import type { Checkin, ImportantEvent, Person, Ping, Role } from './types';
+import type { BriefSettings, Checkin, ImportantEvent, Person, Ping, Role } from './types';
 
 const isNative = Platform.OS !== 'web';
 let warnedNoProject = false;
@@ -126,6 +127,31 @@ export async function scheduleImportantReminders(events: ImportantEvent[], check
 export function checkinEventFromNotificationData(data: unknown): string | null {
   const d = data as { impKind?: string; impEventId?: string } | undefined;
   return d?.impKind === 'check' && d.impEventId ? d.impEventId : null;
+}
+
+/** Native: (re)schedules the daily morning-brief notification at `brief.brief_time`, cancelling
+ * any previous one first. `items`/`newPhotos` are the caller's already-computed brief content
+ * (see briefing.ts) — recompute and call again on app open, realtime changes, or a time edit. */
+export async function scheduleMorningBrief(patientName: string, items: string[], newPhotos: number, brief: BriefSettings): Promise<void> {
+  if (!isNative) return;
+  try {
+    await cancelByPrefix('brief-');
+    if (!brief.brief_enabled) return;
+    if (!(await ensurePermission())) return;
+    const [hour, minute] = brief.brief_time.split(':').map(Number);
+    await Notifications.scheduleNotificationAsync({
+      identifier: 'brief-daily',
+      content: { title: 'Good morning', body: briefNotificationBody(patientName, items, newPhotos), data: { brief: true } },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour, minute },
+    });
+  } catch (e) {
+    console.warn('scheduling morning brief failed', e);
+  }
+}
+
+/** True when a tapped notification was the daily morning brief (tapping it speaks the full brief). */
+export function isBriefNotificationData(data: unknown): boolean {
+  return (data as { brief?: boolean } | undefined)?.brief === true;
 }
 
 export function requestWebNotificationPermission(): void {

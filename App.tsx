@@ -9,19 +9,23 @@ import * as Notifications from 'expo-notifications';
 import { setAudioModeAsync } from 'expo-audio';
 import { demo, missingSettings } from './src/lib/config';
 import { demoBoot } from './src/lib/demo';
-import { listCheckins, listImportant, unclaimPerson } from './src/lib/api';
+import { getBriefSettings, listCheckins, listImportant, unclaimPerson } from './src/lib/api';
 import { DemoRibbon } from './src/components/DemoRibbon';
-import { clearSession, loadSession, saveSession } from './src/lib/session';
+import { clearSession, getFlag, loadSession, saveSession, setFlag } from './src/lib/session';
 import { useCircle } from './src/lib/useCircle';
 import {
-  checkinEventFromNotificationData, initNotifications, pingFromNotificationData, registerForPush,
-  requestWebNotificationPermission, scheduleImportantReminders, showWebNotification,
+  checkinEventFromNotificationData, initNotifications, isBriefNotificationData, pingFromNotificationData,
+  registerForPush, requestWebNotificationPermission, scheduleImportantReminders, scheduleMorningBrief,
+  showWebNotification,
 } from './src/lib/notify';
-import { cardText, dueCheckin, nextImportant } from './src/lib/important';
+import { cardText, dueCheckin, nextImportant, todaysImportantSentences } from './src/lib/important';
 import { ImportantCard } from './src/components/ImportantCard';
+import { briefNotificationBody, buildBriefing, countNewPhotos, mergeBriefingEvents, newPhotosPhrase, todaySentences } from './src/lib/briefing';
+import { birthdayPhrase, upcomingBirthday } from './src/lib/dates';
+import { say } from './src/lib/speech';
 import { actorFor, can } from './src/lib/permissions';
 import { parseJoinUrl } from './src/lib/util';
-import type { Checkin, ImportantEvent, Ping, Session } from './src/lib/types';
+import type { BriefSettings, Checkin, ImportantEvent, Ping, Session } from './src/lib/types';
 import { MissingConfig } from './src/screens/MissingConfig';
 import { Welcome } from './src/screens/Welcome';
 import { Join } from './src/screens/Join';
@@ -59,6 +63,7 @@ type Route =
   | { name: 'important-status'; id: string }; // aren't ours to restructure; a real tab lands with cercana-design's merge.
 
 initNotifications();
+let spokeMorningBriefDemo = false; // mirrors PatientHome's spokeThisOpen: demo speaks the brief once
 
 export default function App() {
   // Never block first render on fonts: text uses the system font until they arrive (or if they fail).
@@ -199,6 +204,66 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
     if (isPatient) void scheduleImportantReminders(important, checkins);
   }, [isPatient, important, checkins]);
 
+  // cercana-care: scheduled morning brief (brief_time / brief_enabled, see the Scope-add 14:25).
+  const [briefSettings, setBriefSettings] = useState<BriefSettings>({ brief_time: '09:00', brief_enabled: true });
+  const [lastSeenFeedAt, setLastSeenFeedAt] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isPatient) return;
+    void getBriefSettings(session.circleId).then(setBriefSettings);
+  }, [isPatient, session.circleId, version]);
+  useEffect(() => {
+    if (!isPatient) return;
+    void (async () => {
+      const prev = demo ? new Date(0).toISOString() : await getFlag('lastSeenFeedAt');
+      setLastSeenFeedAt(prev);
+      if (!demo) await setFlag('lastSeenFeedAt', new Date().toISOString());
+    })(); // once per app open, like a feed "seen" watermark
+  }, [isPatient]);
+
+  /** The full spoken brief and its short notification `items`, in the order set by briefing.ts. */
+  const composeBrief = useCallback((sinceIso: string | null) => {
+    const briefingEvents = mergeBriefingEvents(events, people);
+    const leadLines = todaysImportantSentences(important, new Date());
+    const familyLines = todaySentences(briefingEvents, new Date());
+    const bday = upcomingBirthday(people, new Date(), 1); // today/tomorrow only, for the brief
+    const bdayPhrase = bday ? birthdayPhrase(bday.person.name, bday.days, new Date(), bday.birthday, bday.person.relation) : null;
+    const newPhotos = countNewPhotos(moments, sinceIso ? new Date(sinceIso) : null);
+    const full = buildBriefing({
+      patientName: session.patientName, now: new Date(), events: briefingEvents,
+      leadLines, birthdayPhrase: bdayPhrase, newPhotosPhrase: newPhotosPhrase(newPhotos),
+    });
+    return { full, items: [...leadLines, ...familyLines], newPhotos };
+  }, [events, people, important, moments, session.patientName]);
+
+  // Native: (re)schedule the daily local notification whenever its content or the time/on-off changes.
+  useEffect(() => {
+    if (!isPatient) return;
+    const { items, newPhotos } = composeBrief(lastSeenFeedAt);
+    void scheduleMorningBrief(session.patientName, items, newPhotos, briefSettings);
+  }, [isPatient, composeBrief, lastSeenFeedAt, briefSettings, session.patientName]);
+
+  // Web: no local notifications — speak the brief in-app when the page happens to be open at brief_time.
+  // Demo: speaks it once so the feature is visible without waiting for the clock (see composeBrief above).
+  useEffect(() => {
+    if (!isPatient || Platform.OS !== 'web') return;
+    if (demo) {
+      if (spokeMorningBriefDemo) return;
+      spokeMorningBriefDemo = true;
+      say(composeBrief(lastSeenFeedAt).full);
+      return;
+    }
+    if (!briefSettings.brief_enabled) return;
+    const [h, m] = briefSettings.brief_time.split(':').map(Number);
+    const now = new Date();
+    if (now.getHours() !== h || now.getMinutes() !== m) return;
+    void getFlag('morning-brief-day').then(async (seen) => {
+      const today = now.toDateString();
+      if (seen === today) return;
+      await setFlag('morning-brief-day', today);
+      say(composeBrief(lastSeenFeedAt).full);
+    });
+  }, [isPatient, tick, briefSettings, composeBrief, lastSeenFeedAt]);
+
   useEffect(() => {
     if (!isPatient || demo) return; // demo: no push registration, no browser permission prompt
     void registerForPush(session.circleId, 'patient');
@@ -209,13 +274,14 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
       const p = pingFromNotificationData(data);
       if (p) { showPing(p); return; }
       const checkEventId = checkinEventFromNotificationData(data);
-      if (checkEventId) setMomCheckEvent(important.find((e) => e.id === checkEventId) ?? null);
+      if (checkEventId) { setMomCheckEvent(important.find((e) => e.id === checkEventId) ?? null); return; }
+      if (isBriefNotificationData(data)) say(composeBrief(lastSeenFeedAt).full);
     });
     const last = Notifications.getLastNotificationResponse();
     const initial = last && pingFromNotificationData(last.notification.request.content.data);
     if (initial) showPing(initial);
     return () => sub.remove();
-  }, [isPatient, session.circleId, showPing, important]);
+  }, [isPatient, session.circleId, showPing, important, composeBrief, lastSeenFeedAt]);
 
   const home = () => setRoute({ name: 'home' });
   const openPerson = (id: string) => setRoute({ name: 'person', id });
@@ -224,7 +290,8 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
   let body: React.ReactNode;
   if (route.name === 'settings') {
     body = (
-      <Settings session={session} canInvite={isPatient || can(actor, { type: 'invite.share' })} onBack={home} onLeave={onLeave} />
+      <Settings session={session} canInvite={isPatient || can(actor, { type: 'invite.share' })} onBack={home} onLeave={onLeave}
+        canEditBrief={can(actor, { type: 'editBrief' })} onHearBrief={() => say(composeBrief(lastSeenFeedAt).full)} />
     );
   } else if (!isPatient && route.name === 'important-create') {
     body = (

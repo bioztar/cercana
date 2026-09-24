@@ -147,3 +147,6 @@ export type DeviceEventRow = {
   ends_at: string | null;
   all_day: boolean;
 };
+
+/** The scheduled morning brief, per circle (`circles.brief_time`/`brief_enabled`). `brief_time` is "HH:MM". */
+export type BriefSettings = { brief_time: string; brief_enabled: boolean };

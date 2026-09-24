@@ -92,6 +92,26 @@ export function eventPhrase(e: EventLite, now: Date, owner: string | null = null
   return `${dayLabel(s.firstDay, today)}${at}${until} — ${e.title}`;
 }
 
+/** One row per real-world event: the same event on several people's calendars lists all owners.
+ * Structural match to EventRow/Person so App.tsx can build a brief without importing PatientHome's
+ * private copy of this merge. */
+export function mergeBriefingEvents(
+  events: { uid: string; title: string | null; starts_at: string; ends_at: string | null; all_day: boolean; person_ids: string[] }[],
+  people: { id: string; name: string }[],
+): BriefingEvent[] {
+  const merged = new Map<string, BriefingEvent>();
+  for (const e of events) {
+    const owners = e.person_ids.map((id) => people.find((p) => p.id === id)?.name).filter((n): n is string => !!n);
+    const key = `${e.uid}|${e.starts_at}`;
+    const prev = merged.get(key);
+    merged.set(key, {
+      title: e.title ?? '(no title)', starts_at: e.starts_at, ends_at: e.ends_at, all_day: e.all_day,
+      owners: [...new Set([...(prev?.owners ?? []), ...owners])],
+    });
+  }
+  return [...merged.values()];
+}
+
 export type ComingUp = { event: EventLite; phrase: string; ongoing: boolean };
 
 /** Ongoing multi-day events first, then upcoming ones by start time. */
