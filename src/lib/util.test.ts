@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   generateCode, isValidCode, normalizeCode, whatsappUrl, telUrl,
-  normalizeBirthdayInput, birthdayToInput, spokenPing, urlHint, uuidv4, inviteUrl, parseJoinUrl,
+  normalizeBirthdayInput, birthdayToInput, spokenPing, urlHint, uuidv4, inviteUrl, parseJoinUrl, familyRelation,
 } from './util.ts';
 
 test('generateCode: 6 chars, no 0/O/1/I', () => {
@@ -65,6 +65,16 @@ test('invite link round-trips', () => {
   assert.equal(parseJoinUrl('/joined/K7M4QX'), null);
   assert.equal(parseJoinUrl('/'), null);
   assert.equal(parseJoinUrl(null), null);
+});
+
+test('familyRelation: third person for family screens', () => {
+  assert.equal(familyRelation('your son', 'Maria'), "Maria's son");
+  assert.equal(familyRelation('Your granddaughter', 'Maria'), "Maria's granddaughter");
+  assert.equal(familyRelation('  your   old neighbour ', 'Maria'), "Maria's old neighbour");
+  assert.equal(familyRelation('the doctor', 'Maria'), 'the doctor'); // not "your …": left as typed
+  assert.equal(familyRelation('yourself', 'Maria'), 'yourself');
+  assert.equal(familyRelation('', 'Maria'), null);
+  assert.equal(familyRelation(null, 'Maria'), null);
 });
 
 test('spokenPing', () => {

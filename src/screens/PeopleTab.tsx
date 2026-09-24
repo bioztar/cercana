@@ -3,17 +3,17 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { Person } from '../lib/types';
 import { setPersonRole, transferLead } from '../lib/api';
 import { ROLE_LABEL, can, type Actor } from '../lib/permissions';
-import { birthdayToInput } from '../lib/util';
+import { birthdayToInput, familyRelation } from '../lib/util';
 import { Avatar, BigButton, ErrorText } from '../components/ui';
 import { confirmAction } from '../components/confirm';
 import { colors } from '../theme';
 import { PersonForm } from './PersonForm';
 
-type Props = { circleId: string; actor: Actor; people: Person[]; onChanged: () => void };
+type Props = { circleId: string; patientName: string; actor: Actor; people: Person[]; onChanged: () => void };
 
 const target = (p: Person) => ({ id: p.id, role: p.role, claimed: p.claimed });
 
-export function PeopleTab({ circleId, actor, people, onChanged }: Props) {
+export function PeopleTab({ circleId, patientName, actor, people, onChanged }: Props) {
   const [editing, setEditing] = useState<Partial<Person> | null>(null);
   const [rolesFor, setRolesFor] = useState<string | null>(null); // person whose Roles panel is open
   const [error, setError] = useState<string | null>(null);
@@ -71,7 +71,9 @@ export function PeopleTab({ circleId, actor, people, onChanged }: Props) {
                   <Text style={[s.badge, p.role !== 'member' && s.badgeOn]}>{ROLE_LABEL[p.role]}</Text>
                 </View>
                 <Text style={s.sub}>
-                  {[p.relation, p.phone, p.birthday ? birthdayToInput(p.birthday) : null].filter(Boolean).join(' · ')}
+                  {[familyRelation(p.relation, patientName), p.phone, p.birthday ? birthdayToInput(p.birthday) : null]
+                    .filter(Boolean)
+                    .join(' · ')}
                 </Text>
                 {!p.claimed ? <Text style={s.hint}>Profile only, not using the app</Text> : null}
               </View>

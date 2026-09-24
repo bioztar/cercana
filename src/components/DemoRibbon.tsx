@@ -2,19 +2,19 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme';
 
-/** Small, non-interactive pill so nobody mistakes sample data for a real family. */
+/**
+ * Thin strip at the very top so nobody mistakes sample data for a real family. It sits in the
+ * layout flow (not floating), so it reserves its own space and never covers content.
+ */
 export function DemoRibbon() {
   return (
-    <View pointerEvents="none" style={s.pill} accessibilityLabel="Demo, sample family">
+    <View style={s.bar} accessibilityLabel="Demo, sample family">
       <Text style={s.text}>Demo — sample family</Text>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  pill: {
-    position: 'absolute', left: 8, bottom: 8, zIndex: 200, backgroundColor: colors.terracotta,
-    borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4, opacity: 0.92,
-  },
+  bar: { backgroundColor: colors.terracotta, alignItems: 'center', justifyContent: 'center', paddingVertical: 3 },
   text: { color: colors.white, fontSize: 13, fontWeight: '700' },
 });
