@@ -46,7 +46,8 @@ import { PhotoEvent } from './src/screens/PhotoEvent';
 import { PhotoSend } from './src/screens/PhotoSend';
 import { EventVoice } from './src/screens/EventVoice';
 import { EventConfirm } from './src/screens/EventConfirm';
-import { FamilyTabBar, type FamilyTab } from './src/components/FamilyTabBar';
+import { FAMILY_TABS, PATIENT_TABS, type FamilyTab, type PatientTab } from './src/components/FamilyTabBar';
+import { NativeFamilyTabs } from './src/components/NativeFamilyTabs';
 import type { FamilyHomeTab } from './src/screens/FamilyHome';
 import { colors } from './src/theme';
 
@@ -301,6 +302,11 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
     setFamilyTab(t);
     home();
   };
+  const activeFamilyTab: FamilyTab = route.name === 'settings' ? 'Settings' : familyTab;
+  // Carmen: the "Tell the family" flow (share → photos / event by voice) sits under its own tab.
+  const TELL_ROUTES: Route['name'][] = ['share', 'photoPick', 'photoEvent', 'photoSend', 'eventVoice', 'eventConfirm'];
+  const activePatientTab: PatientTab = TELL_ROUTES.includes(route.name) ? 'Tell family' : 'Home';
+  const selectPatientTab = (t: PatientTab) => (t === 'Tell family' ? setRoute({ name: 'share' }) : home());
   const openPerson = (id: string) => setRoute({ name: 'person', id });
   const openEvent = (id: string) => setRoute({ name: 'event', id });
 
@@ -392,7 +398,7 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
     body = (
       <PatientHome session={session} people={people} events={events} moments={moments} loading={loading} error={error}
         onOpenPerson={openPerson} onOpenEvent={openEvent} onOpenThread={(id) => setRoute({ name: 'thread', id })}
-        onTellFamily={() => setRoute({ name: 'share' })} onSettings={() => setRoute({ name: 'settings' })}
+        onSettings={() => setRoute({ name: 'settings' })}
         importantCard={
           <ImportantCard event={nextImportant(important, new Date())}
             due={!!dueCheckin(important, checkins, new Date())}
@@ -403,8 +409,11 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
 
   return (
     <View style={{ flex: 1 }}>
-      <View style={{ flex: 1 }}>{body}</View>
-      {!isPatient && <FamilyTabBar active={route.name === 'settings' ? 'Settings' : familyTab} onSelect={selectFamilyTab} />}
+      {isPatient ? (
+        <NativeFamilyTabs tabs={PATIENT_TABS} active={activePatientTab} onSelect={selectPatientTab} large>{body}</NativeFamilyTabs>
+      ) : (
+        <NativeFamilyTabs tabs={FAMILY_TABS} active={activeFamilyTab} onSelect={selectFamilyTab}>{body}</NativeFamilyTabs>
+      )}
       {isPatient && ping && <PingOverlay ping={ping} people={people} onDismiss={() => setPing(null)} />}
       {isPatient && momCheckEvent && (
         <MomCheck circleId={session.circleId} event={momCheckEvent}

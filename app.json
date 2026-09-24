@@ -43,12 +43,17 @@
       ],
       [
         "expo-audio",
-        { "microphonePermission": "Record a voice note for your family" }
+        {
+          "microphonePermission": "Record a voice note for your family"
+        }
       ],
       [
         "expo-calendar",
-        { "calendarPermission": "Cercana reads the calendar you choose so your family sees what's coming up. We never change it." }
-      ]
+        {
+          "calendarPermission": "Cercana reads the calendar you choose so your family sees what's coming up. We never change it."
+        }
+      ],
+      "react-native-bottom-tabs"
     ]
   }
 }
