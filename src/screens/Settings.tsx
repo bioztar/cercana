@@ -7,6 +7,7 @@ import { shareInvite, shareResultText } from '../lib/share';
 import { BigButton } from '../components/ui';
 import { confirmAction } from '../components/confirm';
 import { MorningBriefSettings } from '../components/MorningBriefSettings';
+import { NotificationSettings } from '../components/NotificationSettings';
 import { colors, type, fonts } from '../theme';
 
 type Props = {
@@ -44,6 +45,8 @@ export function Settings({ session, canInvite, onBack, onLeave, canEditBrief, on
           : `You are ${session.memberName}, family of ${session.patientName}.`}
       </Text>
       <Text style={s.body}>Circle code: {session.code}</Text>
+
+      <NotificationSettings circleId={session.circleId} role={session.role} patientName={session.patientName} />
 
       <MorningBriefSettings circleId={session.circleId} canEdit={canEditBrief} onHearNow={onHearBrief} />
 

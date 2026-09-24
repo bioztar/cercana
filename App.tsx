@@ -46,6 +46,8 @@ import { PhotoEvent } from './src/screens/PhotoEvent';
 import { PhotoSend } from './src/screens/PhotoSend';
 import { EventVoice } from './src/screens/EventVoice';
 import { EventConfirm } from './src/screens/EventConfirm';
+import { FamilyTabBar, type FamilyTab } from './src/components/FamilyTabBar';
+import type { FamilyHomeTab } from './src/screens/FamilyHome';
 import { colors } from './src/theme';
 
 type Route =
@@ -293,6 +295,12 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
   }, [isPatient, session.circleId, showPing, important, composeBrief, lastSeenFeedAt]);
 
   const home = () => setRoute({ name: 'home' });
+  const [familyTab, setFamilyTab] = useState<FamilyHomeTab>('Today');
+  const selectFamilyTab = (t: FamilyTab) => {
+    if (t === 'Settings') return setRoute({ name: 'settings' });
+    setFamilyTab(t);
+    home();
+  };
   const openPerson = (id: string) => setRoute({ name: 'person', id });
   const openEvent = (id: string) => setRoute({ name: 'event', id });
 
@@ -327,7 +335,7 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
   } else if (!isPatient) {
     body = (
       <FamilyHome session={session} actor={actor} people={people} events={events} moments={moments} error={error}
-        version={version} reload={reload} reloadEvents={reloadEvents} onSettings={() => setRoute({ name: 'settings' })}
+        version={version} reload={reload} reloadEvents={reloadEvents} tab={familyTab}
         important={important} checkins={checkins} briefSettings={briefSettings}
         onNewImportant={() => setRoute({ name: 'important-create' })}
         onOpenImportant={(id) => setRoute({ name: 'important-status', id })}
@@ -395,7 +403,8 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
 
   return (
     <View style={{ flex: 1 }}>
-      {body}
+      <View style={{ flex: 1 }}>{body}</View>
+      {!isPatient && <FamilyTabBar active={route.name === 'settings' ? 'Settings' : familyTab} onSelect={selectFamilyTab} />}
       {isPatient && ping && <PingOverlay ping={ping} people={people} onDismiss={() => setPing(null)} />}
       {isPatient && momCheckEvent && (
         <MomCheck circleId={session.circleId} event={momCheckEvent}
