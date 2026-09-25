@@ -5,6 +5,7 @@ import { summarizeComments } from './voice';
 import type {
   BriefSettings, CalendarPublic, Checkin, CheckinAnswer, Circle, Comment, CommentInput, CommentSummary,
   CreatedCircle, DeviceCalendarLink, DeviceEventRow, EventRow, ImportantEvent, ImportantInput, LeadInput,
+  Medication, MedicationInput, MedicationLog, MedicationLogStatus,
   Moment, MomentInput, NewEventInput, Person, PersonInput, Ping,
 } from './types';
 
@@ -321,6 +322,8 @@ export function subscribeCircle(circleId: string, h: FeedHandlers): () => void {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'comments', filter }, () => h.onChange?.())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'important_events', filter }, () => h.onChange?.())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'checkins', filter }, () => h.onChange?.())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'medications', filter }, () => h.onChange?.())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'medication_logs', filter }, () => h.onChange?.())
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'circles', filter: `id=eq.${circleId}` }, () => h.onChange?.())
     .subscribe();
   return () => {
@@ -424,4 +427,48 @@ export async function getBriefSettings(circleId: string): Promise<BriefSettings>
 
 export async function updateBriefSettings(circleId: string, settings: BriefSettings): Promise<void> {
   check(await getSupabase().from('circles').update(settings).eq('id', circleId), 'Could not save morning brief settings');
+}
+
+// ---- Medications + "Did you take it?" logs (cercana-meds) -------------------------------------
+
+export async function listMedications(circleId: string): Promise<Medication[]> {
+  const res = await getSupabase().from('medications').select().eq('circle_id', circleId).order('created_at', { ascending: true });
+  return check(res, 'Could not load medicines') ?? [];
+}
+
+export async function createMedication(circleId: string, input: MedicationInput): Promise<Medication> {
+  const res = await getSupabase().from('medications').insert({ ...input, circle_id: circleId }).select().single();
+  return check(res, 'Could not save the medicine') as Medication;
+}
+
+/** Edits a medicine (name/dose/times) or flips its active flag — the family's "edit/deactivate" list. */
+export async function updateMedication(
+  id: string,
+  patch: Partial<Pick<Medication, 'name' | 'dose' | 'times' | 'active'>>,
+): Promise<Medication> {
+  const res = await getSupabase().from('medications').update(patch).eq('id', id).select().single();
+  return check(res, 'Could not update the medicine') as Medication;
+}
+
+export async function listMedicationLogs(circleId: string): Promise<MedicationLog[]> {
+  const res = await getSupabase().from('medication_logs').select().eq('circle_id', circleId);
+  return check(res, 'Could not load medicine logs') ?? [];
+}
+
+/** One row per (medicine, scheduled dose); upserted so answering twice just overwrites. */
+export async function submitMedicationLog(
+  circleId: string,
+  medicationId: string,
+  scheduledFor: string,
+  status: MedicationLogStatus,
+): Promise<MedicationLog> {
+  const res = await getSupabase()
+    .from('medication_logs')
+    .upsert(
+      { circle_id: circleId, medication_id: medicationId, scheduled_for: scheduledFor, status, answered_at: new Date().toISOString() },
+      { onConflict: 'medication_id,scheduled_for' },
+    )
+    .select()
+    .single();
+  return check(res, 'Could not save your answer') as MedicationLog;
 }

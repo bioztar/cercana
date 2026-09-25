@@ -7,7 +7,7 @@ import { registerDevice } from './api';
 import { parseBirthday, nextOccurrence, startOfDay } from './dates';
 import { briefNotificationBody } from './briefing';
 import { notificationPlan } from './important';
-import type { BriefSettings, Checkin, ImportantEvent, Person, Ping, Role } from './types';
+import type { BriefSettings, Checkin, ImportantEvent, Medication, Person, Ping, Role } from './types';
 
 const isNative = Platform.OS !== 'web';
 let warnedNoProject = false;
@@ -159,6 +159,28 @@ export async function scheduleImportantReminders(events: ImportantEvent[], check
     }
   } catch (e) {
     console.warn('scheduling important reminders failed', e);
+  }
+}
+
+/** Native: cancel + reschedule one daily local notification per active medicine per dose time. */
+export async function scheduleMedicationReminders(meds: Medication[]): Promise<void> {
+  if (!isNative) return;
+  try {
+    if (!(await ensurePermission())) return;
+    await cancelByPrefix('med-');
+    for (const med of meds) {
+      if (!med.active) continue;
+      for (const time of med.times) {
+        const [hour, minute] = time.split(':').map(Number);
+        await Notifications.scheduleNotificationAsync({
+          identifier: `med-${med.id}-${time}`,
+          content: { title: `Time for your ${med.name}`, body: `${med.dose}. Did you take it?`, data: { medId: med.id, medTime: time } },
+          trigger: { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour, minute },
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('scheduling medication reminders failed', e);
   }
 }
 

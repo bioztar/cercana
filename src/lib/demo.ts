@@ -3,6 +3,7 @@
 import type {
   BriefSettings, CalendarPublic, Checkin, CheckinAnswer, Circle, Comment, CommentInput, CommentSummary,
   CreatedCircle, DeviceCalendarLink, DeviceEventRow, EventRow, ImportantEvent, ImportantInput, LeadInput,
+  Medication, MedicationInput, MedicationLog, MedicationLogStatus,
   MemberRole, Moment, MomentInput, NewEventInput, Person, PersonInput, Ping, Session,
 } from './types';
 import type { FeedHandlers } from './api.real';
@@ -120,6 +121,21 @@ let importantEvents: ImportantEvent[] = [
 ];
 let checkins: Checkin[] = [];
 let briefSettings: BriefSettings = { brief_time: '09:00', brief_enabled: true };
+
+// Medicines (cercana-meds): "Blood pressure pill" already taken this morning, "Memory pill" due
+// right now (its time is computed from the clock the demo happens to load at) so the full-screen
+// "Did you take it?" is visible without waiting for the real clock.
+const pad = (n: number) => String(n).padStart(2, '0');
+const nowHHMM = `${pad(now().getHours())}:${pad(now().getMinutes())}`;
+let medications: Medication[] = [
+  { id: 'med-bp', circle_id: CIRCLE.id, name: 'Blood pressure pill', dose: '1 pill', times: ['08:00'], active: true, created_by_person_id: 'pedro', created_at: isoDaysAgo(30) },
+  { id: 'med-memory', circle_id: CIRCLE.id, name: 'Memory pill', dose: '1 pill', times: [nowHHMM], active: true, created_by_person_id: 'pedro', created_at: isoDaysAgo(30) },
+];
+const bpDoseAt = new Date(now().getFullYear(), now().getMonth(), now().getDate(), 8, 0);
+const bpTakenAt = new Date(now().getFullYear(), now().getMonth(), now().getDate(), 8, 4);
+let medicationLogs: MedicationLog[] = [
+  { id: 'medlog-bp', circle_id: CIRCLE.id, medication_id: 'med-bp', scheduled_for: bpDoseAt.toISOString(), status: 'taken', answered_at: bpTakenAt.toISOString() },
+];
 
 // ---- feed (stands in for Supabase realtime) ------------------------------------------------------
 let listeners: FeedHandlers[] = [];
@@ -348,6 +364,44 @@ export async function getBriefSettings(_circleId: string): Promise<BriefSettings
 export async function updateBriefSettings(_circleId: string, settings: BriefSettings): Promise<void> {
   briefSettings = settings;
   emitChange();
+}
+
+// ---- medications + "Did you take it?" logs (cercana-meds) ----------------------------------------
+
+export async function listMedications(_circleId: string): Promise<Medication[]> {
+  return [...medications].sort((a, b) => a.created_at.localeCompare(b.created_at));
+}
+
+export async function createMedication(circleId: string, input: MedicationInput): Promise<Medication> {
+  const created: Medication = { ...input, id: uuidv4(), circle_id: circleId, active: true, created_at: new Date().toISOString() };
+  medications = [...medications, created];
+  emitChange();
+  return created;
+}
+
+export async function updateMedication(id: string, patch: Partial<Pick<Medication, 'name' | 'dose' | 'times' | 'active'>>): Promise<Medication> {
+  const found = medications.find((m) => m.id === id);
+  if (!found) throw new Error('Medicine not found');
+  const updated = { ...found, ...patch };
+  medications = medications.map((m) => (m.id === id ? updated : m));
+  emitChange();
+  return updated;
+}
+
+export async function listMedicationLogs(_circleId: string): Promise<MedicationLog[]> {
+  return medicationLogs;
+}
+
+export async function submitMedicationLog(
+  circleId: string,
+  medicationId: string,
+  scheduledFor: string,
+  status: MedicationLogStatus,
+): Promise<MedicationLog> {
+  const saved: MedicationLog = { id: uuidv4(), circle_id: circleId, medication_id: medicationId, scheduled_for: scheduledFor, status, answered_at: new Date().toISOString() };
+  medicationLogs = [...medicationLogs.filter((l) => !(l.medication_id === medicationId && l.scheduled_for === scheduledFor)), saved];
+  emitChange();
+  return saved;
 }
 
 /** Demo-only, button-free way to see an arrival: Pedro's voice note lands a few seconds after
