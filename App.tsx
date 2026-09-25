@@ -47,6 +47,7 @@ import { MomCheck } from './src/screens/MomCheck';
 import { MedsCheck } from './src/screens/MedsCheck';
 import { ImportantCreate } from './src/screens/ImportantCreate';
 import { ImportantStatus } from './src/screens/ImportantStatus';
+import { MedicationsManage } from './src/screens/MedicationsManage';
 import { CalendarConnect, syncAllDeviceCalendars } from './src/screens/CalendarConnect';
 import { FamilyHome } from './src/screens/FamilyHome';
 import { Settings } from './src/screens/Settings';
@@ -76,7 +77,8 @@ type Route =
   | { name: 'eventConfirm'; transcript: string }
   | { name: 'important-create' } // cercana-care: temporary top-level entry point — FamilyHome/CalendarsTab
   | { name: 'important-status'; id: string } // aren't ours to restructure; a real tab lands with cercana-design's merge.
-  | { name: 'calendar-connect' };
+  | { name: 'calendar-connect' }
+  | { name: 'medications' }; // cercana-meds: add/edit/deactivate, same temporary top-level pattern
 
 initNotifications();
 let spokeMorningBriefDemo = false; // mirrors PatientHome's spokeThisOpen: demo speaks the brief once
@@ -428,11 +430,19 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
           onConnected={() => { void reloadEvents(); home(); }} />
       </Panel>
     );
+  } else if (!isPatient && route.name === 'medications') {
+    body = (
+      <Panel>
+        <MedicationsManage circleId={session.circleId} createdByPersonId={actor.kind === 'member' ? actor.id : null}
+          medications={medications} onClose={home} onChanged={() => void reloadMedications()} />
+      </Panel>
+    );
   } else if (!isPatient) {
     body = (
       <FamilyHome session={session} actor={actor} people={people} events={events} moments={moments} error={error}
         version={version} reload={reload} reloadEvents={reloadEvents} tab={familyTab}
         important={important} checkins={checkins} briefSettings={briefSettings}
+        medications={medications} medicationLogs={medicationLogs} onManageMedications={() => setRoute({ name: 'medications' })}
         onNewImportant={() => setRoute({ name: 'important-create' })}
         onOpenImportant={(id) => setRoute({ name: 'important-status', id })}
         onHearBrief={() => say(composeBrief(null).full)}

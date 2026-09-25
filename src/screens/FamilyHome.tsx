@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Text } from '../components/Text';
-import type { BriefSettings, Checkin, EventRow, ImportantEvent, Moment, Person, Session } from '../lib/types';
+import type { BriefSettings, Checkin, EventRow, ImportantEvent, Medication, MedicationLog, Moment, Person, Session } from '../lib/types';
 import { can, ROLE_LABEL, type Actor } from '../lib/permissions';
 import { shareInvite, shareResultText } from '../lib/share';
 import { inviteUrl } from '../lib/util';
@@ -35,17 +35,20 @@ type Props = {
   important: ImportantEvent[];
   checkins: Checkin[];
   briefSettings: BriefSettings;
+  medications: Medication[];
+  medicationLogs: MedicationLog[];
   onNewImportant: () => void;
   onOpenImportant: (id: string) => void;
   onHearBrief: () => void;
+  onManageMedications: () => void;
   onConnectDeviceCalendar?: () => void;
   onSelectTab: (tab: FamilyHomeTab) => void; // ☰ menu's "Important events" jumps to Today
 };
 
 export function FamilyHome({
   session, actor, people, events, moments, error, version, reload, reloadEvents, tab,
-  important, checkins, briefSettings, onNewImportant, onOpenImportant, onHearBrief, onConnectDeviceCalendar,
-  onSelectTab,
+  important, checkins, briefSettings, medications, medicationLogs, onNewImportant, onOpenImportant, onHearBrief,
+  onManageMedications, onConnectDeviceCalendar, onSelectTab,
 }: Props) {
   const { width } = useWindowDimensions();
   const wide = width >= WIDE;
@@ -62,7 +65,9 @@ export function FamilyHome({
     <FamilyDashboard
       circleId={session.circleId} patientName={session.patientName} important={important} checkins={checkins}
       events={events} people={people} moments={moments} version={version} briefSettings={briefSettings}
+      medications={medications} medicationLogs={medicationLogs} canManageMedications={can(actor, { type: 'medication.manage' })}
       onNewImportant={onNewImportant} onOpenImportant={onOpenImportant} onHearBrief={onHearBrief}
+      onManageMedications={onManageMedications}
     />
   );
 
