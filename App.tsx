@@ -12,23 +12,30 @@ import { demoBoot, demoTriggerArrival } from './src/lib/demo';
 import { arrivalFromComment, arrivalFromMoment, enqueueArrival, type Arrival } from './src/lib/arrivals';
 import { ArrivalOverlay } from './src/components/ArrivalOverlay';
 import { keepAliveEnabled, startKeepAlive, stopKeepAlive } from './src/lib/keepAlive';
-import { findCircleByCode, getBriefSettings, listCheckins, listImportant, unclaimPerson } from './src/lib/api';
+import {
+  findCircleByCode, getBriefSettings, listCheckins, listImportant, listMedicationLogs, listMedications,
+  unclaimPerson,
+} from './src/lib/api';
 import { DemoRibbon } from './src/components/DemoRibbon';
 import { clearSession, getFlag, loadSession, saveSession, setFlag } from './src/lib/session';
 import { useCircle } from './src/lib/useCircle';
 import {
   checkinEventFromNotificationData, initNotifications, isBriefNotificationData, pingFromNotificationData,
   notifyArrival, registerForPush, requestWebNotificationPermission, scheduleImportantReminders,
-  scheduleMorningBrief, showWebNotification,
+  scheduleMedicationReminders, scheduleMorningBrief, showWebNotification,
 } from './src/lib/notify';
 import { dueCheckin, nextImportant, todaysImportantSentences } from './src/lib/important';
+import { dueDoseNow, snoozeUntil, todaysDoses, type Dose } from './src/lib/meds';
 import { ImportantCard } from './src/components/ImportantCard';
+import { MedsCard } from './src/components/MedsCard';
 import { briefNotificationBody, buildBriefing, countNewPhotos, mergeBriefingEvents, newPhotosPhrase, todaySentences } from './src/lib/briefing';
 import { birthdayPhrase, upcomingBirthday } from './src/lib/dates';
 import { say } from './src/lib/speech';
 import { actorFor, can } from './src/lib/permissions';
 import { parseJoinUrl } from './src/lib/util';
-import type { BriefSettings, Checkin, Comment, ImportantEvent, Moment, Person, Ping, Session } from './src/lib/types';
+import type {
+  BriefSettings, Checkin, Comment, ImportantEvent, Medication, MedicationLog, Moment, Person, Ping, Session,
+} from './src/lib/types';
 import { MissingConfig } from './src/screens/MissingConfig';
 import { Welcome } from './src/screens/Welcome';
 import { Join } from './src/screens/Join';
@@ -37,6 +44,7 @@ import { PersonScreen } from './src/screens/PersonScreen';
 import { EventDetail } from './src/screens/EventDetail';
 import { PingOverlay } from './src/screens/PingOverlay';
 import { MomCheck } from './src/screens/MomCheck';
+import { MedsCheck } from './src/screens/MedsCheck';
 import { ImportantCreate } from './src/screens/ImportantCreate';
 import { ImportantStatus } from './src/screens/ImportantStatus';
 import { CalendarConnect, syncAllDeviceCalendars } from './src/screens/CalendarConnect';
@@ -241,6 +249,16 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
   }, [session.circleId]);
   useEffect(() => { void reloadImportant(); }, [reloadImportant, version]);
 
+  // cercana-meds: medicines + their "Did you take it?" logs, refetched alongside the important events.
+  const [medications, setMedications] = useState<Medication[]>([]);
+  const [medicationLogs, setMedicationLogs] = useState<MedicationLog[]>([]);
+  const reloadMedications = useCallback(async () => {
+    const [meds, logs] = await Promise.all([listMedications(session.circleId), listMedicationLogs(session.circleId)]);
+    setMedications(meds);
+    setMedicationLogs(logs);
+  }, [session.circleId]);
+  useEffect(() => { void reloadMedications(); }, [reloadMedications, version]);
+
   // cercana-care: re-sync connected iPhone calendars on family app open and whenever the app
   // comes back from the background (iOS only; no-op elsewhere). One sync at a time.
   const deviceSyncing = useRef(false);
@@ -273,6 +291,21 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
   useEffect(() => {
     if (isPatient) void scheduleImportantReminders(important, checkins);
   }, [isPatient, important, checkins]);
+
+  // cercana-meds: the doses due right now, and the full-screen "Did you take it?" for the earliest
+  // one — same on-tick + on-app-open pattern as momCheckEvent above, with a local-only 30-min snooze
+  // ("Not yet") that never reopens the same dose within that window.
+  const [medsCheckDose, setMedsCheckDose] = useState<Dose | null>(null);
+  const [snoozedUntil, setSnoozedUntil] = useState<Record<string, string>>({});
+  const todaysDosesNow = useMemo(() => todaysDoses(medications, medicationLogs, new Date()), [medications, medicationLogs, tick]);
+  useEffect(() => {
+    if (!isPatient) return;
+    const due = dueDoseNow(todaysDosesNow, new Date(), snoozedUntil);
+    if (due) setMedsCheckDose((cur) => cur ?? due);
+  }, [isPatient, todaysDosesNow, snoozedUntil, tick]);
+  useEffect(() => {
+    if (isPatient) void scheduleMedicationReminders(medications);
+  }, [isPatient, medications]);
 
   // cercana-care: scheduled morning brief (brief_time / brief_enabled, see the Scope-add 14:25).
   const [briefSettings, setBriefSettings] = useState<BriefSettings>({ brief_time: '09:00', brief_enabled: true });
@@ -462,7 +495,8 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
           <ImportantCard event={nextImportant(important, new Date())}
             due={!!dueCheckin(important, checkins, new Date())}
             onOpenCheck={() => setMomCheckEvent(nextImportant(important, new Date()))} />
-        } />
+        }
+        medsCard={<MedsCard doses={todaysDosesNow} onOpenCheck={setMedsCheckDose} />} />
     );
   }
 
@@ -474,13 +508,18 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
         <NativeFamilyTabs tabs={FAMILY_TABS} active={activeFamilyTab} onSelect={selectFamilyTab}>{body}</NativeFamilyTabs>
       )}
       {isPatient && ping && <PingOverlay ping={ping} people={people} onDismiss={() => setPing(null)} />}
-      {isPatient && !ping && !momCheckEvent && arrivals[0] && (
+      {isPatient && !ping && !momCheckEvent && !medsCheckDose && arrivals[0] && (
         <ArrivalOverlay arrival={arrivals[0]} onDismiss={() => setArrivals((q) => q.slice(1))} />
       )}
-      {isPatient && momCheckEvent && (
+      {isPatient && !ping && momCheckEvent && (
         <MomCheck circleId={session.circleId} event={momCheckEvent}
           existing={checkins.find((c) => c.important_event_id === momCheckEvent.id) ?? null}
           onDone={() => { setMomCheckEvent(null); void reloadImportant(); }} />
+      )}
+      {isPatient && !ping && !momCheckEvent && medsCheckDose && (
+        <MedsCheck circleId={session.circleId} dose={medsCheckDose}
+          onSnooze={() => setSnoozedUntil((m) => ({ ...m, [medsCheckDose.key]: snoozeUntil(new Date()) }))}
+          onDone={() => { setMedsCheckDose(null); void reloadMedications(); }} />
       )}
     </View>
   );
