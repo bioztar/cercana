@@ -157,3 +157,28 @@ export type BriefSettings = { brief_time: string; brief_enabled: boolean };
 /** A connected iPhone calendar: our row id plus the device-local calendar id (stored in
  * `calendars.url_hint` for source:'device' rows) needed to re-sync it later. */
 export type DeviceCalendarLink = { id: string; device_calendar_id: string };
+
+// ---- Medications + daily "Did you take it?" logs (cercana-meds) -------------------------------
+export type Medication = {
+  id: string;
+  circle_id: string;
+  name: string;
+  dose: string;
+  times: string[]; // 'HH:MM' local Europe/Madrid, 1-4 per medicine
+  active: boolean;
+  created_by_person_id: string | null;
+  created_at: string;
+};
+
+export type MedicationInput = Pick<Medication, 'name' | 'dose' | 'times' | 'created_by_person_id'>;
+
+export type MedicationLogStatus = 'taken' | 'skipped';
+
+export type MedicationLog = {
+  id: string;
+  circle_id: string;
+  medication_id: string;
+  scheduled_for: string; // ISO instant of the dose this answers
+  status: MedicationLogStatus;
+  answered_at: string;
+};

@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../components/Text';
-import type { BriefSettings, Checkin, CommentSummary, EventRow, ImportantEvent, Moment, Person } from '../lib/types';
+import type { BriefSettings, Checkin, CommentSummary, EventRow, ImportantEvent, Medication, MedicationLog, Moment, Person } from '../lib/types';
 import { commentSummaries } from '../lib/api';
 import { dashboardImportant } from '../lib/dashboard';
 import { mergeBriefingEvents, timeLabel, todaySentences } from '../lib/briefing';
 import { cardText, todaysImportantSentences } from '../lib/important';
+import { STATUS_ICON, statusLabel, todaysDoses } from '../lib/meds';
 import { commentText } from '../lib/voice';
 import { BigButton } from '../components/ui';
 import { VoicePlayer } from '../components/VoicePlayer';
@@ -21,9 +22,13 @@ type Props = {
   moments: Moment[]; // for "From <patient>": her own posts (by_patient) + her voice replies
   version: number; // bumps on realtime changes, incl. new comments — refetches commentSummaries
   briefSettings: BriefSettings;
+  medications: Medication[];
+  medicationLogs: MedicationLog[];
+  canManageMedications: boolean;
   onNewImportant: () => void;
   onOpenImportant: (id: string) => void;
   onHearBrief: () => void;
+  onManageMedications: () => void;
 };
 
 type FromPatientItem = { key: string; at: string; text: string; audioUrl: string | null };
@@ -33,10 +38,12 @@ type FromPatientItem = { key: string; at: string; text: string; audioUrl: string
  * "Important events" box App.tsx carried for cercana-care. */
 export function FamilyDashboard({
   circleId, patientName, important, checkins, events, people, moments, version, briefSettings,
-  onNewImportant, onOpenImportant, onHearBrief,
+  medications, medicationLogs, canManageMedications, onNewImportant, onOpenImportant, onHearBrief,
+  onManageMedications,
 }: Props) {
   const now = new Date();
   const rows = dashboardImportant(important, checkins, now);
+  const doses = todaysDoses(medications, medicationLogs, now);
   const [h, m] = briefSettings.brief_time.split(':').map(Number);
   const briefTime = timeLabel(new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m));
   // Her own day is her important events; calendar events belong to other family members and are
@@ -62,6 +69,20 @@ export function FamilyDashboard({
 
   return (
     <View style={{ gap: 20 }}>
+      <View style={s.card}>
+        <Text style={s.cardTitle}>Medicines today</Text>
+        {doses.length === 0 && <Text style={s.empty}>No medicines set up yet.</Text>}
+        {doses.map((d) => (
+          <View key={d.key} style={s.row}>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={s.rowTitle}>{d.medication.name} — {d.medication.dose}</Text>
+              <Text style={s.rowStatus}>{timeLabel(d.scheduledFor)} · {STATUS_ICON[d.status]} {statusLabel(d)}</Text>
+            </View>
+          </View>
+        ))}
+        {canManageMedications && <BigButton label="+ Add medicine" tone="plain" onPress={onManageMedications} style={s.addBtn} />}
+      </View>
+
       <View style={s.card}>
         <Text style={s.cardTitle}>Important events</Text>
         {rows.length === 0 && <Text style={s.empty}>No important events yet.</Text>}

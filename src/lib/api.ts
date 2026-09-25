@@ -45,3 +45,10 @@ export const upsertDeviceEvents = impl.upsertDeviceEvents;
 export const listDeviceCalendars = impl.listDeviceCalendars;
 export const getBriefSettings = impl.getBriefSettings;
 export const updateBriefSettings = impl.updateBriefSettings;
+
+// ---- cercana-meds: medications, daily "Did you take it?" logs -----------------------------------
+export const listMedications = impl.listMedications;
+export const createMedication = impl.createMedication;
+export const updateMedication = impl.updateMedication;
+export const listMedicationLogs = impl.listMedicationLogs;
+export const submitMedicationLog = impl.submitMedicationLog;
