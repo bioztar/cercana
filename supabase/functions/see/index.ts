@@ -2,21 +2,15 @@
 //   who    — "Who is this?": match a photo against the circle's people photos.
 //   letter — "Read this for me": plain-words summary + scam check of a letter/bill/SMS photo.
 // Deploy: supabase functions deploy see   (helm deploys; needs THALAMUS_* secrets, see _shared/ai.ts)
-import { createClient } from 'jsr:@supabase/supabase-js@2';
+import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 import { chat } from '../_shared/ai.ts';
+import { cors, json, overDailyCap, serviceClient, writeLog } from '../_shared/aiGuard.ts';
 import {
-  DAILY_CAP, isMediaUrl, letterFeedBody, letterMessages, letterSpoken, parseLetter, parseWho, shouldAlert,
+  isMediaUrl, letterFeedBody, letterMessages, letterSpoken, parseLetter, parseWho, shouldAlert,
   whoMessages, whoReply, type Known,
 } from '../_shared/see.ts';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
@@ -33,15 +27,14 @@ Deno.serve(async (req) => {
   if (!circle_id || (mode !== 'who' && mode !== 'letter')) return json({ error: 'circle_id and mode (who|letter) are required' }, 400);
   if (!isMediaUrl(image_url, supabaseUrl)) return json({ error: 'image_url must be an uploaded photo' }, 400);
 
-  const db = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+  const db = serviceClient();
 
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-  const { count, error: capErr } = await db
-    .from('ai_log').select('id', { count: 'exact', head: true })
-    .eq('circle_id', circle_id).gte('created_at', today.toISOString());
-  if (capErr) return json({ error: 'Could not check usage' }, 500);
-  if ((count ?? 0) >= DAILY_CAP) return json({ error: 'Daily limit reached. Please try again tomorrow.' }, 429);
+  try {
+    if (await overDailyCap(db, circle_id)) return json({ error: 'Daily limit reached. Please try again tomorrow.' }, 429);
+  } catch (e) {
+    console.error('cap check failed', e instanceof Error ? e.message : e);
+    return json({ error: 'Could not check usage' }, 500);
+  }
 
   const [{ data: circle }, { data: people, error: pErr }] = await Promise.all([
     db.from('circles').select('patient_name').eq('id', circle_id).maybeSingle(),
@@ -51,7 +44,7 @@ Deno.serve(async (req) => {
   const family = (people ?? []) as Known[];
 
   const log = (output: unknown) =>
-    db.from('ai_log').insert({ circle_id, kind: mode, speaker_person_id: null, input: image_url, output, distress: false });
+    writeLog(db, { circle_id, kind: mode, speaker_person_id: null, input: image_url, output });
 
   try {
     if (mode === 'who') {
@@ -79,7 +72,7 @@ Deno.serve(async (req) => {
   }
 });
 
-async function pushFamily(db: ReturnType<typeof createClient>, circleId: string, title: string, body: string) {
+async function pushFamily(db: SupabaseClient, circleId: string, title: string, body: string) {
   const { data } = await db.from('devices').select('push_token').eq('circle_id', circleId).eq('role', 'family');
   const tokens = (data ?? []).map((d: { push_token: string | null }) => d.push_token).filter((t): t is string => !!t);
   if (!tokens.length) return;

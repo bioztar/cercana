@@ -6,7 +6,6 @@ export type Known = { id: string; name: string; relation: string | null; photo_u
 export type Part = { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } };
 export type Msg = { role: 'system' | 'user'; content: string | Part[] };
 
-export const DAILY_CAP = 300;
 export const MIN_CONFIDENCE = 0.9;
 export const UNSURE = "I'm not sure who that is. Would you like to ask your family?";
 
