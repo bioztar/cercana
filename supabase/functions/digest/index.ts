@@ -15,9 +15,11 @@ const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  if (!serviceKey) return json({ error: 'missing setting SUPABASE_SERVICE_ROLE_KEY' }, 500);
-  if (req.headers.get('Authorization') !== `Bearer ${serviceKey}`) return json({ error: 'forbidden' }, 403);
+  // Only the database (pg_cron / the distress trigger) may call this: it sends CRON_SECRET from Vault.
+  // The Authorization header only has to pass the gateway's JWT check; the anon key does that too.
+  const secret = Deno.env.get('CRON_SECRET');
+  if (!secret) return json({ error: 'missing setting CRON_SECRET' }, 500);
+  if (req.headers.get('x-cron-secret') !== secret) return json({ error: 'forbidden' }, 403);
 
   let input: { circle_id?: string; day?: string };
   try {
