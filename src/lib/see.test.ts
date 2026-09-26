@@ -76,8 +76,22 @@ test('letterSpoken says "I\'ve told" only when it alerts', () => {
   assert.doesNotMatch(letterSpoken({ ...base, scam_risk: 'medium' }, 'Pedro'), /told/);
 });
 
+test('letterSpoken uses the letter language: no fixed English after a Spanish summary', () => {
+  const es = parseLetter({
+    summary: 'Es la factura del agua de este mes.', action_needed: false, scam_risk: 'low', reasons: [],
+    advice: 'No tienes que hacer nada.', told: 'Se lo he dicho a {name}.',
+  });
+  assert.equal(letterSpoken(es, 'Pedro'), 'Es la factura del agua de este mes. No tienes que hacer nada.');
+  const scam = { ...es, scam_risk: 'high' as const, advice: 'No pagues ni llames.' };
+  assert.equal(letterSpoken(scam, 'Pedro'), 'Es la factura del agua de este mes. No pagues ni llames. Se lo he dicho a Pedro.');
+  assert.doesNotMatch(letterSpoken(scam, 'Pedro'), /I've told|nothing you need/);
+  // a "told" template without the placeholder is discarded; the scam warning still falls back to English
+  assert.equal(parseLetter({ summary: 's', told: 'Se lo he dicho.' }).told, '');
+  assert.match(letterSpoken({ ...es, advice: '', told: '', scam_risk: 'high' }, 'Pedro'), /Don't pay or call anyone/);
+});
+
 test('letterFeedBody card text', () => {
-  const l = { summary: 'Pay the water bill.', action_needed: true, due: 'Oct 3', scam_risk: 'low' as const, reasons: [] };
+  const l = { summary: 'Pay the water bill.', action_needed: true, due: 'Oct 3', scam_risk: 'low' as const, reasons: [], advice: '', told: '' };
   assert.equal(letterFeedBody('Carmen', l), '✉️ Carmen photographed a letter: Pay the water bill. Needs action, due Oct 3.');
 });
 
