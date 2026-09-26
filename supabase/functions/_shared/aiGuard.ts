@@ -27,7 +27,7 @@ export async function overDailyCap(db: SupabaseClient, circleId: string): Promis
 
 export type LogRow = {
   circle_id: string;
-  kind: 'assistant' | 'dictation' | 'visit';
+  kind: 'assistant' | 'dictation' | 'who' | 'letter' | 'visit' | 'digest'; // = ai_log.kind check constraint
   speaker_person_id: string | null;
   input: string;
   output: unknown;
