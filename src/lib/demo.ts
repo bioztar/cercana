@@ -6,8 +6,9 @@ import type {
   AssistantAnswer, AssistantAsk, BriefSettings, CalendarPublic, Checkin, CheckinAnswer, Circle, Comment, CommentInput, CommentSummary,
   CreatedCircle, DeviceCalendarLink, DeviceEventRow, EventRow, ImportantEvent, ImportantInput, LeadInput,
   Medication, MedicationInput, MedicationLog, MedicationLogStatus,
-  MemberRole, Moment, MomentInput, NewEventInput, Person, PersonInput, Ping, Session,
+  MemberRole, Moment, MomentInput, NewEventInput, Person, PersonInput, Ping, Proposals, Session, Visit,
 } from './types';
+import { parseVisit } from '../../supabase/functions/_shared/visit';
 import type { FeedHandlers } from './api.real';
 import { defaultReminders } from './important';
 import { normalizeCode, urlHint, uuidv4 } from './util';
@@ -440,6 +441,59 @@ export async function submitMedicationLog(
   medicationLogs = [...medicationLogs.filter((l) => !(l.medication_id === medicationId && l.scheduled_for === scheduledFor)), saved];
   emitChange();
   return saved;
+}
+
+// ---- doctor visits (cercana-visit) ---------------------------------------------------------------
+
+// What the transcript and the model "said" for a fresh demo recording. It goes through the real
+// validator (parseVisit), so the demo drops the same malformed proposals the edge function does.
+const DEMO_TRANSCRIPT =
+  'Your blood pressure is a little high. Let us start amlodipine, 5 milligrams every morning. ' +
+  'You can stop the memory pill, it is not helping. Come back and see me on Thursday at 10 in the morning.';
+
+function demoVisitRaw(): unknown {
+  const thursday = new Date(now());
+  thursday.setDate(thursday.getDate() + ((4 - thursday.getDay() + 7) % 7 || 7));
+  thursday.setHours(10, 0, 0, 0);
+  return {
+    summary: 'Blood pressure is a little high. The doctor started amlodipine (5 mg every morning) and said to stop the memory pill. Next check-up is on Thursday at 10:00.',
+    patient_summary: 'Your visit went well. The doctor gave you a new morning pill for your blood pressure. You will see the doctor again on Thursday.',
+    med_changes: [
+      { action: 'add', name: 'Amlodipine', dose: '5 mg', times: ['08:00'] },
+      { action: 'stop', name: 'Memory pill', dose: '', times: [] },
+      { action: 'add', name: 'Invented pill', dose: '40 mg', times: [] }, // never said → the validator drops it
+    ],
+    follow_ups: [{ title: 'Doctor check-up', starts_at: thursday.toISOString() }],
+  };
+}
+
+const fixtureVisit = (id: string, created_at: string, by: string | null): Visit => {
+  const r = parseVisit(demoVisitRaw(), DEMO_TRANSCRIPT)!;
+  const { summary, patient_summary, med_changes, follow_ups } = r;
+  return {
+    id, circle_id: CIRCLE.id, recorded_by_person_id: by, audio_url: null, transcript: DEMO_TRANSCRIPT,
+    summary, patient_summary, proposals: { med_changes, follow_ups }, created_at,
+  };
+};
+
+let visits: Visit[] = [fixtureVisit('visit-demo', isoDaysAgo(0.1), 'pedro')];
+
+export async function listVisits(_circleId: string): Promise<Visit[]> {
+  return [...visits].sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+/** Demo: no network, no upload — a short pause, then a new visit built from the canned response. */
+export async function createVisit(_circleId: string, _audioUrl: string, recordedByPersonId: string | null): Promise<Visit> {
+  await new Promise((r) => setTimeout(r, 1200));
+  const created = fixtureVisit(uuidv4(), new Date().toISOString(), recordedByPersonId);
+  visits = [created, ...visits];
+  emitChange();
+  return created;
+}
+
+export async function updateVisitProposals(id: string, proposals: Proposals): Promise<void> {
+  visits = visits.map((v) => (v.id === id ? { ...v, proposals } : v));
+  emitChange();
 }
 
 /** Demo-only, button-free way to see an arrival: Pedro's voice note lands a few seconds after

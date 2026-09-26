@@ -6,6 +6,7 @@ import { addMoment, uploadMedia } from '../lib/api';
 import { say } from '../lib/speech';
 import { VoiceRecorder } from '../components/VoiceRecorder';
 import { BigButton, ErrorText } from '../components/ui';
+import { VisitRecord } from './VisitRecord';
 import { colors, fonts, radius, type } from '../theme';
 
 type Props = {
@@ -13,7 +14,7 @@ type Props = {
   onOpenAssistant: () => void; // third floating-"+" choice: AssistantChat (Vitaly, 2026-09-24)
 };
 
-type Step = 'choose' | 'voice' | 'photo';
+type Step = 'choose' | 'voice' | 'photo' | 'visit';
 
 /** Mom's floating "+" (Vitaly, 2026-09-24 15:55): one tap, two big choices, both straight into the
  * whole family feed with no further questions — unlike `Share.tsx`'s fuller Voice/Photos/Event menu
@@ -82,6 +83,14 @@ export function TalkToFamily({ circleId, patientName, onSent, onCancel, onOpenAs
     );
   }
 
+  if (step === 'visit') {
+    return (
+      <View style={s.wrap}>
+        <VisitRecord large circleId={circleId} recordedByPersonId={null} onDone={onSent} onCancel={() => setStep('choose')} />
+      </View>
+    );
+  }
+
   if (step === 'photo') {
     return (
       <View style={s.wrap}>
@@ -116,6 +125,10 @@ export function TalkToFamily({ circleId, patientName, onSent, onCancel, onOpenAs
       <Pressable accessibilityRole="button" style={s.choice} onPress={onOpenAssistant}>
         <Text style={s.choiceIcon}>💬</Text>
         <Text style={s.choiceLabel}>Chat with assistant</Text>
+      </Pressable>
+      <Pressable accessibilityRole="button" style={s.choice} onPress={() => setStep('visit')}>
+        <Text style={s.choiceIcon}>🩺</Text>
+        <Text style={s.choiceLabel}>Record doctor visit</Text>
       </Pressable>
       <BigButton label="Cancel" tone="plain" onPress={onCancel} />
     </View>

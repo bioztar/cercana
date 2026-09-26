@@ -56,3 +56,8 @@ export const createMedication = impl.createMedication;
 export const updateMedication = impl.updateMedication;
 export const listMedicationLogs = impl.listMedicationLogs;
 export const submitMedicationLog = impl.submitMedicationLog;
+
+// ---- cercana-visit: doctor-visit recording -> summary + proposed changes ------------------------
+export const listVisits = impl.listVisits;
+export const createVisit = impl.createVisit;
+export const updateVisitProposals = impl.updateVisitProposals;

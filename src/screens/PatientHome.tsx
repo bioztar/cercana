@@ -48,6 +48,8 @@ type Props = {
   importantCard?: React.ReactNode;
   /** cercana-meds's "Medicines today" card, shown above importantCard; nothing renders without medicines. */
   medsCard?: React.ReactNode;
+  /** cercana-visit's gentle doctor-visit summary, shown above medsCard; nothing renders when absent. */
+  visitCard?: React.ReactNode;
 };
 
 /** One row per real-world event: the same event on several people's calendars lists all owners. */
@@ -67,7 +69,7 @@ function briefingEvents(events: EventRow[], people: Person[]): BriefingEvent[] {
 
 export function PatientHome({
   session, people, events, moments, important, checkins, briefSettings, loading, error, onOpenPerson, onOpenEvent,
-  onOpenThread, onSettings, onSharePhotos, onAddEvent, importantCard, medsCard, tab,
+  onOpenThread, onSettings, onSharePhotos, onAddEvent, importantCard, medsCard, visitCard, tab,
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [sending, setSending] = useState(false);
@@ -157,6 +159,7 @@ export function PatientHome({
             </Pressable>
           )}
 
+          {visitCard}
           {medsCard}
           {importantCard}
 

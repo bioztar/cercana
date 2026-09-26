@@ -6,7 +6,7 @@ import type {
   AssistantAnswer, AssistantAsk, BriefSettings, CalendarPublic, Checkin, CheckinAnswer, Circle, Comment, CommentInput, CommentSummary,
   CreatedCircle, DeviceCalendarLink, DeviceEventRow, EventRow, ImportantEvent, ImportantInput, LeadInput,
   Medication, MedicationInput, MedicationLog, MedicationLogStatus,
-  Moment, MomentInput, NewEventInput, Person, PersonInput, Ping,
+  Moment, MomentInput, NewEventInput, Person, PersonInput, Ping, Proposals, Visit,
 } from './types';
 
 function check<T>(res: { data: T | null; error: { message: string } | null }, what: string): T {
@@ -339,6 +339,7 @@ export function subscribeCircle(circleId: string, h: FeedHandlers): () => void {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'checkins', filter }, () => h.onChange?.())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'medications', filter }, () => h.onChange?.())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'medication_logs', filter }, () => h.onChange?.())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'visits', filter }, () => h.onChange?.())
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'circles', filter: `id=eq.${circleId}` }, () => h.onChange?.())
     .subscribe();
   return () => {
@@ -486,4 +487,27 @@ export async function submitMedicationLog(
     .select()
     .single();
   return check(res, 'Could not save your answer') as MedicationLog;
+}
+
+// ---- Doctor visits (cercana-visit) --------------------------------------------------------------
+
+export async function listVisits(circleId: string): Promise<Visit[]> {
+  const res = await getSupabase().from('visits').select().eq('circle_id', circleId).order('created_at', { ascending: false }).limit(20);
+  return (check(res, 'Could not load doctor visits') ?? []) as Visit[];
+}
+
+/** Sends an uploaded recording to the `visit` edge function; resolves when the summary is saved. */
+export async function createVisit(circleId: string, audioUrl: string, recordedByPersonId: string | null): Promise<Visit> {
+  const res = await getSupabase().functions.invoke('visit', {
+    body: {
+      circle_id: circleId, audio_url: audioUrl, recorded_by_person_id: recordedByPersonId,
+      now: new Date().toISOString(), tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    },
+  });
+  if (res.error) throw new Error(`Could not make the visit summary: ${res.error.message}`);
+  return (res.data as { visit: Visit }).visit;
+}
+
+export async function updateVisitProposals(id: string, proposals: Proposals): Promise<void> {
+  check(await getSupabase().from('visits').update({ proposals }).eq('id', id), 'Could not save your choice');
 }

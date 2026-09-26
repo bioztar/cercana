@@ -17,17 +17,22 @@ type Props = {
   upload?: boolean;
   /** When set, an empty on-device transcript is filled in by the `transcribe` edge function. */
   circleId?: string;
+  /** A long recording (a doctor visit): smaller file, stops itself at LONG_MAX_SECONDS. Tap to start, tap to stop. */
+  long?: boolean;
 };
 
 const HOLD_MS = 700; // held at least this long → release stops; a shorter press is a tap and toggles
+export const LONG_MAX_SECONDS = 45 * 60; // ~20 MB at LOW_QUALITY, well under the upload limit
+
+const clock = (secs: number) => `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
 
 /**
  * One record control for the whole app. Hold it and let go to stop, or tap once to start and tap
  * again to stop. Uploads to `media` and hands back url + seconds + transcript (empty if the device
  * cannot transcribe).
  */
-export function VoiceRecorder({ onDone, onError, size = 'big', idleLabel, disabled, upload = true, circleId }: Props) {
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+export function VoiceRecorder({ onDone, onError, size = 'big', idleLabel, disabled, upload = true, circleId, long = false }: Props) {
+  const recorder = useAudioRecorder(long ? RecordingPresets.LOW_QUALITY : RecordingPresets.HIGH_QUALITY);
   const [recording, setRecording] = useState(false);
   const [busy, setBusy] = useState(false);
   const [live, setLive] = useState('');
@@ -39,9 +44,13 @@ export function VoiceRecorder({ onDone, onError, size = 'big', idleLabel, disabl
 
   useEffect(() => {
     if (!recording) return;
-    const t = setInterval(() => setElapsed(Math.floor((Date.now() - startedAt.current) / 1000)), 250);
+    const t = setInterval(() => {
+      const secs = Math.floor((Date.now() - startedAt.current) / 1000);
+      setElapsed(secs);
+      if (long && secs >= LONG_MAX_SECONDS && active.current) void stopRef.current();
+    }, 250);
     return () => clearInterval(t);
-  }, [recording]);
+  }, [recording, long]);
 
   const fail = (e: unknown) => {
     active.current = false;
@@ -92,6 +101,9 @@ export function VoiceRecorder({ onDone, onError, size = 'big', idleLabel, disabl
     }
   };
 
+  const stopRef = useRef(stop); // the timer above always calls the latest `stop`
+  stopRef.current = stop;
+
   const pressIn = () => {
     if (disabled || busy) return;
     pressedAt.current = Date.now();
@@ -101,7 +113,7 @@ export function VoiceRecorder({ onDone, onError, size = 'big', idleLabel, disabl
 
   const pressOut = () => {
     // Held long enough = hold-to-talk: letting go ends it. A short tap leaves it running.
-    if (recording && Date.now() - pressedAt.current >= HOLD_MS) void stop();
+    if (!long && recording && Date.now() - pressedAt.current >= HOLD_MS) void stop(); // long: tap-to-stop only, a slow tap must not end the visit
   };
 
   const big = size === 'big';
@@ -127,7 +139,7 @@ export function VoiceRecorder({ onDone, onError, size = 'big', idleLabel, disabl
         </View>
       </Pressable>
       {big ? <Text style={[s.label, recording && { color: colors.terracotta }]}>{label}</Text> : null}
-      {recording ? <Text style={s.timer}>{`0:${String(elapsed).padStart(2, '0')}`}</Text> : null}
+      {recording ? <Text style={s.timer}>{clock(elapsed)}</Text> : null}
       {big && live ? <Text style={s.live}>{`“${live}”`}</Text> : null}
     </View>
   );

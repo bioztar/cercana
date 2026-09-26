@@ -13,7 +13,7 @@ import { arrivalFromComment, arrivalFromMoment, enqueueArrival, type Arrival } f
 import { ArrivalOverlay } from './src/components/ArrivalOverlay';
 import { keepAliveEnabled, startKeepAlive, stopKeepAlive } from './src/lib/keepAlive';
 import {
-  findCircleByCode, getBriefSettings, listCheckins, listImportant, listMedicationLogs, listMedications,
+  findCircleByCode, getBriefSettings, listCheckins, listImportant, listMedicationLogs, listMedications, listVisits,
   unclaimPerson,
 } from './src/lib/api';
 import { DemoRibbon } from './src/components/DemoRibbon';
@@ -28,13 +28,17 @@ import { dueCheckin, nextImportant, todaysImportantSentences } from './src/lib/i
 import { dueDoseNow, snoozeUntil, todaysDoses, type Dose } from './src/lib/meds';
 import { ImportantCard } from './src/components/ImportantCard';
 import { MedsCard } from './src/components/MedsCard';
+import { PatientVisitCard } from './src/components/VisitCards';
+import { visitForPatient } from './src/lib/visit';
+import { VisitRecord } from './src/screens/VisitRecord';
+import { VisitReview } from './src/screens/VisitReview';
 import { briefNotificationBody, buildBriefing, countNewPhotos, mergeBriefingEvents, newPhotosPhrase, todaySentences } from './src/lib/briefing';
 import { birthdayPhrase, upcomingBirthday } from './src/lib/dates';
 import { say } from './src/lib/speech';
 import { actorFor, can } from './src/lib/permissions';
 import { parseJoinUrl } from './src/lib/util';
 import type {
-  AssistantProposal, BriefSettings, Checkin, Comment, ImportantEvent, Medication, MedicationLog, Moment, Person, Ping, Session,
+  AssistantProposal, BriefSettings, Checkin, Comment, ImportantEvent, Medication, MedicationLog, Moment, Person, Ping, Session, Visit,
 } from './src/lib/types';
 import { MissingConfig } from './src/screens/MissingConfig';
 import { Welcome } from './src/screens/Welcome';
@@ -78,7 +82,9 @@ type Route =
   | { name: 'important-create' } // cercana-care: temporary top-level entry point — FamilyHome/CalendarsTab
   | { name: 'important-status'; id: string } // aren't ours to restructure; a real tab lands with cercana-design's merge.
   | { name: 'calendar-connect' }
-  | { name: 'medications' }; // cercana-meds: add/edit/deactivate, same temporary top-level pattern
+  | { name: 'medications' } // cercana-meds: add/edit/deactivate, same temporary top-level pattern
+  | { name: 'visit-record' } // cercana-visit: same pattern — record, then review, a doctor visit
+  | { name: 'visit'; id: string };
 
 initNotifications();
 let spokeMorningBriefDemo = false; // mirrors PatientHome's spokeThisOpen: demo speaks the brief once
@@ -261,6 +267,17 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
   }, [session.circleId]);
   useEffect(() => { void reloadMedications(); }, [reloadMedications, version]);
 
+  // cercana-visit: doctor visits (summary + proposed changes), refetched alongside the medicines.
+  const [visits, setVisits] = useState<Visit[]>([]);
+  const reloadVisits = useCallback(async () => {
+    try {
+      setVisits(await listVisits(session.circleId));
+    } catch (e) {
+      console.warn('visits load failed', e); // the app works without them (e.g. migration not applied yet)
+    }
+  }, [session.circleId]);
+  useEffect(() => { void reloadVisits(); }, [reloadVisits, version]);
+
   // cercana-care: re-sync connected iPhone calendars on family app open and whenever the app
   // comes back from the background (iOS only; no-op elsewhere). One sync at a time.
   const deviceSyncing = useRef(false);
@@ -437,6 +454,23 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
           medications={medications} onClose={home} onChanged={() => void reloadMedications()} />
       </Panel>
     );
+  } else if (!isPatient && route.name === 'visit-record') {
+    body = (
+      <Panel>
+        <VisitRecord circleId={session.circleId} recordedByPersonId={actor.kind === 'member' ? actor.id : null}
+          onDone={() => { void reloadVisits(); home(); }} onCancel={home} />
+      </Panel>
+    );
+  } else if (!isPatient && route.name === 'visit' && visits.some((v) => v.id === route.id)) {
+    const visit = visits.find((v) => v.id === route.id)!;
+    body = (
+      <Panel>
+        <VisitReview key={visit.id} visit={visit} medications={medications} canReview={can(actor, { type: 'visit.review' })}
+          actorPersonId={actor.kind === 'member' ? actor.id : null}
+          recordedBy={people.find((p) => p.id === visit.recorded_by_person_id)?.name ?? null}
+          onBack={home} onChanged={() => { void reloadMedications(); void reloadVisits(); void reloadEvents(); }} />
+      </Panel>
+    );
   } else if (!isPatient && route.name !== 'eventVoice' && route.name !== 'eventConfirm') {
     body = (
       <FamilyHome session={session} actor={actor} people={people} events={events} moments={moments} error={error}
@@ -444,6 +478,7 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
         important={important} checkins={checkins} briefSettings={briefSettings}
         medications={medications} medicationLogs={medicationLogs} onManageMedications={() => setRoute({ name: 'medications' })}
         onDictate={() => setRoute({ name: 'eventVoice' })}
+        visits={visits} onRecordVisit={() => setRoute({ name: 'visit-record' })} onOpenVisit={(id) => setRoute({ name: 'visit', id })}
         onNewImportant={() => setRoute({ name: 'important-create' })}
         onOpenImportant={(id) => setRoute({ name: 'important-status', id })}
         onHearBrief={() => say(composeBrief(null).full)}
@@ -511,6 +546,7 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
             due={!!dueCheckin(important, checkins, new Date())}
             onOpenCheck={() => setMomCheckEvent(nextImportant(important, new Date()))} />
         }
+        visitCard={(() => { const v = visitForPatient(visits, new Date()); return v ? <PatientVisitCard visit={v} /> : null; })()}
         medsCard={<MedsCard doses={todaysDosesNow} onOpenCheck={setMedsCheckDose} />} />
     );
   }
