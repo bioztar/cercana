@@ -15,10 +15,20 @@ create table if not exists messages (
 );
 create index if not exists messages_thread_idx on messages (circle_id, person_id, created_at);
 
--- DEMO ONLY: permissive anon policy, same as the other tables.
+-- DEMO ONLY: no login yet, so anon may read and write — but messages are never deletable, and the
+-- only column an update may touch is read_at (the transcript is written with the insert, client side).
 alter table messages enable row level security;
 drop policy if exists "demo_all" on messages;
-create policy "demo_all" on messages for all to anon, authenticated using (true) with check (true);
+drop policy if exists "demo_select" on messages;
+drop policy if exists "demo_insert" on messages;
+drop policy if exists "demo_update" on messages;
+create policy "demo_select" on messages for select to anon, authenticated using (true);
+create policy "demo_insert" on messages for insert to anon, authenticated with check (true);
+create policy "demo_update" on messages for update to anon, authenticated using (true) with check (true);
+
+revoke all on messages from anon, authenticated;
+grant select, insert on messages to anon, authenticated;
+grant update (read_at) on messages to anon, authenticated;
 
 do $$ begin
   if not exists (
