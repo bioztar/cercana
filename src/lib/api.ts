@@ -67,3 +67,5 @@ export const listDigests = impl.listDigests;
 export const listMessages = impl.listMessages;
 export const sendMessage = impl.sendMessage;
 export const markMessagesRead = impl.markMessagesRead;
+// ---- cercana-see ---------------------------------------------------------------------------------
+export const seeImage = impl.seeImage;

@@ -6,7 +6,8 @@ import type {
   AssistantAnswer, AssistantAsk, BriefSettings, CalendarPublic, Checkin, CheckinAnswer, Circle, Comment, CommentInput, CommentSummary,
   CreatedCircle, DeviceCalendarLink, DeviceEventRow, Digest, EventRow, ImportantEvent, ImportantInput, LeadInput,
   Medication, MedicationInput, MedicationLog, MedicationLogStatus,
-  MemberRole, Message, MessageInput, Moment, MomentInput, NewEventInput, Person, PersonInput, Ping, Proposals, Session, Visit,
+  MemberRole, Message, MessageInput, Moment, MomentInput, NewEventInput, Person, PersonInput, Ping, Proposals, SeeMode, SeeResult,
+  Session, Visit,
 } from './types';
 import { parseVisit } from '../../supabase/functions/_shared/visit';
 import type { FeedHandlers } from './api.real';
@@ -589,4 +590,21 @@ export async function markMessagesRead(ids: string[]): Promise<void> {
   const at = new Date().toISOString();
   messages = messages.map((m) => (ids.includes(m.id) ? { ...m, read_at: at } : m));
   emitChange();
+}
+
+// ---- cercana-see: canned results, no network. "Who" alternates known / unsure so both show. ----------
+let seeCalls = 0;
+export async function seeImage(circleId: string, mode: SeeMode, _imageUrl: string): Promise<SeeResult> {
+  seeCalls += 1;
+  if (mode === 'who') {
+    return seeCalls % 2 === 1
+      ? { mode, person_id: 'pedro', reply: "That's Pedro, your son." }
+      : { mode, person_id: null, reply: "I'm not sure who that is. Would you like to ask your family?" };
+  }
+  const reply = "This says you've won a prize if you pay a fee. This looks like a scam. Don't pay or call anyone. I've told Pedro.";
+  await addMoment(circleId, {
+    person_id: null, author_person_id: null, author: CIRCLE.patient_name, photo_url: null, audio_url: null, by_patient: true,
+    body: "✉️ Carmen photographed a letter: A message says you've won a prize if you pay a fee. ⚠️ Looks like a scam.",
+  });
+  return { mode, reply, alerted: true, scam_risk: 'high' };
 }
