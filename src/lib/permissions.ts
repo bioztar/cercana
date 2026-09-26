@@ -31,7 +31,8 @@ export type Action =
   | { type: 'editBrief' } // morning brief settings: Mom (patient device) or lead/admin
   | { type: 'viewCheckin'; creatorId: string | null } // Mom's "Did you go?" answer: creator + lead/admin only
   | { type: 'medication.manage' } // add/edit/deactivate Mom's medicines: lead/admin only
-  | { type: 'visit.review' }; // approve/skip the changes proposed from a doctor visit: lead/admin only
+  | { type: 'visit.review' } // approve/skip the changes proposed from a doctor visit: lead/admin only
+  | { type: 'chat.viewAll' }; // read every family member's chat with Mom: lead/admin only
 
 export type ActionType = Action['type'];
 
@@ -53,6 +54,7 @@ export function can(actor: Actor, action: Action): boolean {
     case 'moment.delete':
     case 'medication.manage':
     case 'visit.review':
+    case 'chat.viewAll':
       return isStaff(actor);
 
     case 'person.edit':

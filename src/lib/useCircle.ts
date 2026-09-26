@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { listEvents, listMoments, listPeople, subscribeCircle } from './api';
-import type { Comment, EventRow, Moment, Person, Ping } from './types';
+import type { Comment, EventRow, Message, Moment, Person, Ping } from './types';
 
 const EVENT_REFRESH_MS = 10 * 60 * 1000; // calendars are synced server-side every ~30 min
 const FEED_SIZE = 40;
@@ -10,6 +10,7 @@ export type CircleHandlers = {
   /** A new moment/comment row, straight off the wire (see src/lib/arrivals.ts). */
   onMomentInsert?: (m: Moment) => void;
   onCommentInsert?: (c: Comment) => void;
+  onMessageInsert?: (m: Message) => void;
 };
 
 /** People, calendar events and the family feed of a circle, kept fresh via realtime. */
@@ -50,6 +51,7 @@ export function useCircle(circleId: string, handlers?: CircleHandlers) {
       onPing: (p) => handlersRef.current?.onPing?.(p),
       onMomentInsert: (m) => handlersRef.current?.onMomentInsert?.(m),
       onCommentInsert: (c) => handlersRef.current?.onCommentInsert?.(c),
+      onMessageInsert: (m) => handlersRef.current?.onMessageInsert?.(m),
       onChange: () => {
         setVersion((v) => v + 1);
         void reload();

@@ -6,7 +6,7 @@ import type {
   AssistantAnswer, AssistantAsk, BriefSettings, CalendarPublic, Checkin, CheckinAnswer, Circle, Comment, CommentInput, CommentSummary,
   CreatedCircle, DeviceCalendarLink, DeviceEventRow, Digest, EventRow, ImportantEvent, ImportantInput, LeadInput,
   Medication, MedicationInput, MedicationLog, MedicationLogStatus,
-  MemberRole, Moment, MomentInput, NewEventInput, Person, PersonInput, Ping, Proposals, Session, Visit,
+  MemberRole, Message, MessageInput, Moment, MomentInput, NewEventInput, Person, PersonInput, Ping, Proposals, Session, Visit,
 } from './types';
 import { parseVisit } from '../../supabase/functions/_shared/visit';
 import type { FeedHandlers } from './api.real';
@@ -557,4 +557,36 @@ export function demoBoot(): DemoBoot | null {
       memberName: me.name, memberId: me.id, relation: me.relation ?? undefined,
     },
   };
+}
+
+// ---- 1:1 chats (cercana-chats) -------------------------------------------------------------------
+const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
+const chat = (id: string, personId: string, fromPatient: boolean, h: number, extra: Partial<Message>): Message => ({
+  id, circle_id: CIRCLE.id, person_id: personId, from_patient: fromPatient, body: null, audio_url: null, transcript: null,
+  created_at: hoursAgo(h), read_at: null, ...extra,
+});
+let messages: Message[] = [
+  chat('c1', 'pedro', false, 26, { body: 'Good morning Mamá! Did you sleep well?', read_at: hoursAgo(25) }),
+  chat('c2', 'pedro', true, 25, { body: 'Yes, very well. The sun is out.', read_at: hoursAgo(24) }),
+  chat('c3', 'pedro', false, 1, { audio_url: img('v_pedro.mp3'), transcript: "We're coming on Sunday with the cake. Diego made you a drawing." }),
+  chat('c4', 'anna', false, 5, { body: 'Landed in London! I will call you tonight.' }),
+  chat('c5', 'anna', true, 4, { body: 'Safe travels, mi hija. Send me a photo of the rain.', read_at: hoursAgo(3) }),
+];
+
+export async function listMessages(_circleId: string): Promise<Message[]> {
+  return messages;
+}
+
+export async function sendMessage(circleId: string, m: MessageInput): Promise<Message> {
+  const row: Message = { ...m, id: uuidv4(), circle_id: circleId, created_at: new Date().toISOString(), read_at: null };
+  messages = [...messages, row];
+  emitChange();
+  listeners.forEach((l) => l.onMessageInsert?.(row));
+  return row;
+}
+
+export async function markMessagesRead(ids: string[]): Promise<void> {
+  const at = new Date().toISOString();
+  messages = messages.map((m) => (ids.includes(m.id) ? { ...m, read_at: at } : m));
+  emitChange();
 }

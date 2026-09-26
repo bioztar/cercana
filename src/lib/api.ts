@@ -63,3 +63,7 @@ export const createVisit = impl.createVisit;
 export const updateVisitProposals = impl.updateVisitProposals;
 // ---- cercana-digest: evening "Today with <patient>" notes ---------------------------------------
 export const listDigests = impl.listDigests;
+// ---- cercana-chats: 1:1 chats between Mom and each family member ---------------------------------
+export const listMessages = impl.listMessages;
+export const sendMessage = impl.sendMessage;
+export const markMessagesRead = impl.markMessagesRead;

@@ -241,3 +241,18 @@ export type MedicationLog = {
   status: MedicationLogStatus;
   answered_at: string;
 };
+
+// ---- 1:1 chats (Mom <-> one family member) ---------------------------------------------------------
+export type Message = {
+  id: string;
+  circle_id: string;
+  person_id: string; // the family side of the pair
+  from_patient: boolean;
+  body: string | null;
+  audio_url: string | null;
+  transcript: string | null; // voice notes only; null = none (yet, or transcription failed)
+  created_at: string;
+  read_at: string | null;
+};
+
+export type MessageInput = Pick<Message, 'person_id' | 'from_patient' | 'body' | 'audio_url' | 'transcript'>;
