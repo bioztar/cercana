@@ -17,11 +17,17 @@ create table if not exists visits (
 
 create index if not exists visits_circle_idx on visits (circle_id, created_at desc);
 
--- DEMO ONLY: permissive anon policies, like the rest of the schema.
+-- The anon key is public, so visits are NOT anon-writable: the app may read them and update only
+-- `proposals` (the approve/skip step). Rows are inserted by the `visit` edge function (service role).
 alter table visits enable row level security;
 drop policy if exists "demo_all" on visits;
-create policy "demo_all" on visits for all to anon, authenticated using (true) with check (true);
-grant select, insert, update, delete on visits to anon, authenticated;
+drop policy if exists "visits_select" on visits;
+drop policy if exists "visits_update" on visits;
+create policy "visits_select" on visits for select to anon, authenticated using (true);
+create policy "visits_update" on visits for update to anon, authenticated using (true) with check (true);
+revoke all on visits from anon, authenticated;
+grant select on visits to anon, authenticated;
+grant update (proposals) on visits to anon, authenticated; -- column-level: nothing else is editable
 
 do $$
 begin
