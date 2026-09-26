@@ -1,20 +1,17 @@
-# HANDOVER — cercana (branch cercana-ai-core) — 2026-09-26
-## State: AI core built and committed locally (mission local-only); needs helm to merge, apply migration, deploy 2 functions, validate live.
-## Done this session
-- Migration `supabase/migrations/20260926_01_ai_log.sql` (demo RLS). Not appended to schema.sql: migrations 04–07 never were either.
-- Edge fns `assistant` (chat + dictate) and `transcribe`; pure logic in `supabase/functions/_shared/assistantCore.ts` (EN/ES dates, tz, distress, validation, prompt, output shaping; tests in `src/lib/assistantCore.test.ts`); cap + logging in `_shared/aiGuard.ts` (300 ai_log rows/circle/UTC day; transcribe only accepts our `media` bucket URLs).
-- App: AssistantChat real replies + Yes saves event (created_by null = Carmen); EventVoice → `assistant` dictate → EventConfirm prefilled (exact time kept unless day changed); family "🎤 Dictate an event" (Calendar tab + ☰ menu); "Doctor" relation chip in PersonForm; VoiceRecorder server-transcribes when on-device transcript is empty (pass `circleId`).
-- Demo mode: offline stand-in in `demo.ts` (script + same pure date rules), no network.
-- Screenshots in `docs/screenshots/ai-*.png`.
-## In flight / partially done
-- none
+# HANDOVER — cercana — 2026-09-26 07:05
+## State: AI features live on cercana.pro7ocol.com + Supabase (main 0c97de0): real assistant, dictated events, server transcription, 1:1 chats, Who is this? / Read this for me, doctor-visit capture, evening digest + distress alerts.
+## Done this session (PRs #42–#49)
+- `_shared/ai.ts`: chat() via thalamus (key alias `cercana`, nebius/* only, rpm 60) → Nebius Kimi-K3; transcribe() via Deepgram nova-3.
+- Edge fns (all deployed from main): assistant, transcribe, see, visit (anon-callable, per-circle 300/day cap in `_shared/aiGuard.ts`, media-bucket URLs only), digest + distress-alert (DB-only: `x-cron-secret`).
+- Migrations applied live: 20260926_01 ai_log, 02 messages, 04 visits, 05 digest (pg_cron hourly, fires 20:00 circle-local), 06 ai_log lockdown, 07 cron secret. (03 intentionally absent.)
+- Secrets: Supabase fn secrets THALAMUS_API_KEY, THALAMUS_BASE_URL, DEEPGRAM_API_KEY, CRON_SECRET; Vault cercana_functions_url, cercana_service_key, cercana_cron_secret. Never commit values.
+- Live-validated: assistant (EN/ES dates, family, distress), transcribe, visit (meds/follow-up proposals), digest via pg_net, see eval 24 checks / 0 wrong names, letter scam vs normal. Test rows deleted; eval photos kept at media/helm-test/eval/.
 ## Next steps (ordered)
-1. helm: merge, apply migration, `supabase functions deploy assistant transcribe`.
-2. Validate live: chat "dentist Tuesday at 11" → Yes → event visible to family; dictate a cardiology sentence; record on iPhone → transcript non-empty; "where am I" → ai_log row with distress=true.
-## Blockers / needs human
-- Live model behaviour (thalamus/Kimi-K3 JSON output) untested here: no keys in worktree by design.
-- `events` has no note column: dictated note is folded into the title "Title (note)".
-## Key files touched
-- supabase/functions/{assistant,transcribe,_shared/assistantCore.ts,_shared/aiGuard.ts}
-- src/screens/{AssistantChat,EventVoice,EventConfirm,FamilyHome,PersonForm}.tsx, App.tsx (eventVoice/eventConfirm routes now serve family too)
-- src/lib/{api,api.real,demo,types,voice}.ts
+1. Vitaly: try on phone — ?demo=patient / ?demo=family, then the real circle.
+2. devices has no person link → distress/letter alerts go to ALL family devices, not only the lead. Add devices.person_id.
+3. Events have no note column; notes are folded into the title "Title (note)".
+4. Real auth + RLS (everything is still anon-wide demo policies apart from ai_log/visits/messages/digests).
+5. Native iOS build to test mic + camera on device.
+## Key files
+- supabase/functions/_shared/{ai,aiGuard,assistantCore,see,visit,digestMetrics}.ts — AI logic (pure parts tested from src/lib/*.test.ts)
+- src/screens/{AssistantChat,SeeHelper,Chat*,Visit*}.tsx, src/components/DigestCard.tsx
