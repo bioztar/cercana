@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Text } from '../components/Text';
-import type { BriefSettings, Checkin, EventRow, ImportantEvent, Medication, MedicationLog, Moment, Person, Session } from '../lib/types';
+import type { BriefSettings, Checkin, EventRow, ImportantEvent, Medication, MedicationLog, Moment, Person, Session, Visit } from '../lib/types';
+import { FamilyVisitCard } from '../components/VisitCards';
 import { can, ROLE_LABEL, type Actor } from '../lib/permissions';
 import { shareInvite, shareResultText } from '../lib/share';
 import { inviteUrl } from '../lib/util';
@@ -42,6 +43,9 @@ type Props = {
   onHearBrief: () => void;
   onManageMedications: () => void;
   onDictate: () => void; // 🎤 Dictate an event → EventVoice (family) → prefilled EventConfirm
+  visits: Visit[]; // newest first
+  onRecordVisit: () => void;
+  onOpenVisit: (id: string) => void;
   onConnectDeviceCalendar?: () => void;
   onSelectTab: (tab: FamilyHomeTab) => void; // ☰ menu's "Important events" jumps to Today
 };
@@ -49,7 +53,7 @@ type Props = {
 export function FamilyHome({
   session, actor, people, events, moments, error, version, reload, reloadEvents, tab,
   important, checkins, briefSettings, medications, medicationLogs, onNewImportant, onOpenImportant, onHearBrief,
-  onManageMedications, onDictate, onConnectDeviceCalendar, onSelectTab,
+  onManageMedications, onDictate, visits, onRecordVisit, onOpenVisit, onConnectDeviceCalendar, onSelectTab,
 }: Props) {
   const { width } = useWindowDimensions();
   const wide = width >= WIDE;
@@ -88,6 +92,7 @@ export function FamilyHome({
     <>
       <ErrorText message={error} />
       {content === 'Today' && dashboard}
+      {content === 'Feed' && visits.slice(0, 3).map((v) => <FamilyVisitCard key={v.id} visit={v} onOpen={onOpenVisit} />)}
       {content === 'Feed' && (
         <MomentsTab
           circleId={session.circleId}
@@ -118,6 +123,7 @@ export function FamilyHome({
   const menuItems = [
     { label: '📣 Ping', onPress: () => setPing((v) => !v) },
     { label: '🎤 Dictate an event', onPress: onDictate },
+    { label: '🩺 Record doctor visit', onPress: onRecordVisit },
     ...(canInvite ? [{ label: 'Share invite', onPress: share }] : []),
     { label: 'Important events', onPress: () => onSelectTab('Today') },
     ...(onConnectDeviceCalendar && Platform.OS === 'ios' ? [{ label: 'Connect iPhone calendar', onPress: onConnectDeviceCalendar }] : []),

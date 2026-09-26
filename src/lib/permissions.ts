@@ -30,7 +30,8 @@ export type Action =
   | { type: 'ping.send' }
   | { type: 'editBrief' } // morning brief settings: Mom (patient device) or lead/admin
   | { type: 'viewCheckin'; creatorId: string | null } // Mom's "Did you go?" answer: creator + lead/admin only
-  | { type: 'medication.manage' }; // add/edit/deactivate Mom's medicines: lead/admin only
+  | { type: 'medication.manage' } // add/edit/deactivate Mom's medicines: lead/admin only
+  | { type: 'visit.review' }; // approve/skip the changes proposed from a doctor visit: lead/admin only
 
 export type ActionType = Action['type'];
 
@@ -51,6 +52,7 @@ export function can(actor: Actor, action: Action): boolean {
     case 'calendar.refresh':
     case 'moment.delete':
     case 'medication.manage':
+    case 'visit.review':
       return isStaff(actor);
 
     case 'person.edit':

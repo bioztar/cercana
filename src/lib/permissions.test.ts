@@ -30,6 +30,14 @@ test('everyone can always edit their own profile; members cannot edit others', (
   assert.equal(check(lead, { type: 'person.edit', target: t('X') }), true);
 });
 
+test('visit.review: lead/admin only', () => {
+  assert.equal(check(lead, { type: 'visit.review' }), true);
+  assert.equal(check(admin, { type: 'visit.review' }), true);
+  assert.equal(check(member, { type: 'visit.review' }), false);
+  assert.equal(check(drifter, { type: 'visit.review' }), false);
+  assert.equal(check(patient, { type: 'visit.review' }), false);
+});
+
 test('editBrief: Mom (patient device), lead/admin — not plain members or an unclaimed device', () => {
   assert.equal(check(patient, { type: 'editBrief' }), true);
   assert.equal(check(lead, { type: 'editBrief' }), true);

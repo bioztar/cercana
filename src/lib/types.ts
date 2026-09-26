@@ -175,6 +175,22 @@ export type BriefSettings = { brief_time: string; brief_enabled: boolean };
  * `calendars.url_hint` for source:'device' rows) needed to re-sync it later. */
 export type DeviceCalendarLink = { id: string; device_calendar_id: string };
 
+// ---- Doctor visits (cercana-visit): recording -> summary + proposed changes ----------------------
+export type { FollowUp, MedAction, MedChange, ProposalStatus, Proposals } from '../../supabase/functions/_shared/visit.ts';
+import type { Proposals } from '../../supabase/functions/_shared/visit.ts';
+
+export type Visit = {
+  id: string;
+  circle_id: string;
+  recorded_by_person_id: string | null; // null = recorded on the patient's phone
+  audio_url: string | null;
+  transcript: string;
+  summary: string; // plain, for the family
+  patient_summary: string; // short and gentle, for the patient
+  proposals: Proposals;
+  created_at: string;
+};
+
 // ---- Medications + daily "Did you take it?" logs (cercana-meds) -------------------------------
 export type Medication = {
   id: string;
