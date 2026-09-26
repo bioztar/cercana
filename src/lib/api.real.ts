@@ -3,7 +3,7 @@ import { getSupabase } from './supabase';
 import { generateCode, normalizeCode, isValidCode, urlHint, uuidv4 } from './util';
 import { summarizeComments } from './voice';
 import type {
-  BriefSettings, CalendarPublic, Checkin, CheckinAnswer, Circle, Comment, CommentInput, CommentSummary,
+  AssistantAnswer, AssistantAsk, BriefSettings, CalendarPublic, Checkin, CheckinAnswer, Circle, Comment, CommentInput, CommentSummary,
   CreatedCircle, DeviceCalendarLink, DeviceEventRow, EventRow, ImportantEvent, ImportantInput, LeadInput,
   Medication, MedicationInput, MedicationLog, MedicationLogStatus,
   Moment, MomentInput, NewEventInput, Person, PersonInput, Ping,
@@ -279,9 +279,24 @@ export async function addEvent(
   const res = await getSupabase().from('events').insert({
     circle_id: circleId, calendar_id: calendarId, uid: uuidv4(), created_by_person_id: createdByPersonId,
     title: input.title, starts_at: input.starts_at, ends_at: input.ends_at, all_day: input.all_day,
+    location: input.location ?? null,
   }).select('id').single();
   const row = check(res, 'Could not save the event') as { id: string };
   return row.id;
+}
+
+/** One turn with the AI assistant (edge fn `assistant`). */
+export async function askAssistant(ask: AssistantAsk): Promise<AssistantAnswer> {
+  const res = await getSupabase().functions.invoke('assistant', { body: ask });
+  if (res.error) throw new Error(`Assistant unavailable: ${res.error.message}`);
+  return res.data as AssistantAnswer;
+}
+
+/** Server-side speech-to-text for an uploaded recording; '' when it cannot be heard. */
+export async function transcribeAudio(circleId: string, audioUrl: string): Promise<string> {
+  const res = await getSupabase().functions.invoke('transcribe', { body: { circle_id: circleId, audio_url: audioUrl } });
+  if (res.error) throw new Error(`Could not transcribe: ${res.error.message}`);
+  return ((res.data as { text?: string } | null)?.text ?? '').trim();
 }
 
 /** The "<patient> takes part" toggle on EventDetail (Vitaly, 2026-09-24 15:50) — app/device events

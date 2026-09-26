@@ -86,6 +86,7 @@ export function Thread({ moment: m, people, events, authorId, authorName, isPati
         <View style={s.replyBig}>
           <Text style={s.replyLabel}>Send a reply</Text>
           <VoiceRecorder
+            circleId={m.circle_id}
             onDone={(clip) => post(clip.transcript || null, clip.url)}
             onError={setError}
             disabled={busy}

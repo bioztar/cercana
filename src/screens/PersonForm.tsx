@@ -71,6 +71,9 @@ export function PersonForm({ circleId, initial, canDelete, onClose, onSaved }: P
       </View>
       <Field label="Name" value={name} onChangeText={setName} autoCapitalize="words" />
       <Field label={'Relation, from their view (e.g. "your daughter")'} value={relation} onChangeText={setRelation} />
+      <View style={{ flexDirection: 'row', marginTop: -6, marginBottom: 14 }}>
+        <BigButton label="Doctor" tone={relation === 'Doctor' ? 'terracotta' : 'outline'} onPress={() => setRelation('Doctor')} disabled={busy} />
+      </View>
       <Field label="WhatsApp / phone (international, e.g. +34612345678)" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
       <Field label="Birthday (YYYY-MM-DD, or MM-DD)" value={birthday} onChangeText={setBirthday} autoCapitalize="none" />
       <ErrorText message={error} />

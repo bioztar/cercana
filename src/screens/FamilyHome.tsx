@@ -41,6 +41,7 @@ type Props = {
   onOpenImportant: (id: string) => void;
   onHearBrief: () => void;
   onManageMedications: () => void;
+  onDictate: () => void; // 🎤 Dictate an event → EventVoice (family) → prefilled EventConfirm
   onConnectDeviceCalendar?: () => void;
   onSelectTab: (tab: FamilyHomeTab) => void; // ☰ menu's "Important events" jumps to Today
 };
@@ -48,7 +49,7 @@ type Props = {
 export function FamilyHome({
   session, actor, people, events, moments, error, version, reload, reloadEvents, tab,
   important, checkins, briefSettings, medications, medicationLogs, onNewImportant, onOpenImportant, onHearBrief,
-  onManageMedications, onConnectDeviceCalendar, onSelectTab,
+  onManageMedications, onDictate, onConnectDeviceCalendar, onSelectTab,
 }: Props) {
   const { width } = useWindowDimensions();
   const wide = width >= WIDE;
@@ -98,6 +99,11 @@ export function FamilyHome({
         />
       )}
       {content === 'Calendar' && (
+        <Pressable accessibilityRole="button" accessibilityLabel="Dictate an event" onPress={onDictate} style={s.dictate}>
+          <Text style={s.dictateText}>🎤 Dictate an event</Text>
+        </Pressable>
+      )}
+      {content === 'Calendar' && (
         <CalendarTab circleId={session.circleId} actor={actor} people={people} events={events}
           important={important} checkins={checkins} onOpenEvent={setOpenEventId} onOpenImportant={onOpenImportant}
           onSynced={reloadEvents} onConnectDeviceCalendar={onConnectDeviceCalendar} />
@@ -111,6 +117,7 @@ export function FamilyHome({
 
   const menuItems = [
     { label: '📣 Ping', onPress: () => setPing((v) => !v) },
+    { label: '🎤 Dictate an event', onPress: onDictate },
     ...(canInvite ? [{ label: 'Share invite', onPress: share }] : []),
     { label: 'Important events', onPress: () => onSelectTab('Today') },
     ...(onConnectDeviceCalendar && Platform.OS === 'ios' ? [{ label: 'Connect iPhone calendar', onPress: onConnectDeviceCalendar }] : []),
@@ -160,6 +167,11 @@ export function FamilyHome({
 const s = StyleSheet.create({
   wrap: { padding: 20, paddingBottom: 48, maxWidth: 820, width: '100%', alignSelf: 'center' },
   wrapWide: { maxWidth: 1180 },
+  dictate: {
+    minHeight: 56, borderRadius: 16, borderWidth: 2, borderColor: colors.terracotta, backgroundColor: colors.card,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 12,
+  },
+  dictateText: { fontSize: 18, fontWeight: '800', color: colors.terracotta },
   top: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 12 },
   menuBtn: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   menuIcon: { fontSize: 28, color: colors.ink },

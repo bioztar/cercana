@@ -34,7 +34,7 @@ import { say } from './src/lib/speech';
 import { actorFor, can } from './src/lib/permissions';
 import { parseJoinUrl } from './src/lib/util';
 import type {
-  BriefSettings, Checkin, Comment, ImportantEvent, Medication, MedicationLog, Moment, Person, Ping, Session,
+  AssistantProposal, BriefSettings, Checkin, Comment, ImportantEvent, Medication, MedicationLog, Moment, Person, Ping, Session,
 } from './src/lib/types';
 import { MissingConfig } from './src/screens/MissingConfig';
 import { Welcome } from './src/screens/Welcome';
@@ -74,7 +74,7 @@ type Route =
   | { name: 'photoEvent'; photos: string[] }
   | { name: 'photoSend'; photos: string[]; eventId: string | null; eventLabel: string | null }
   | { name: 'eventVoice' }
-  | { name: 'eventConfirm'; transcript: string }
+  | { name: 'eventConfirm'; transcript: string; proposal: AssistantProposal | null }
   | { name: 'important-create' } // cercana-care: temporary top-level entry point — FamilyHome/CalendarsTab
   | { name: 'important-status'; id: string } // aren't ours to restructure; a real tab lands with cercana-design's merge.
   | { name: 'calendar-connect' }
@@ -437,12 +437,13 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
           medications={medications} onClose={home} onChanged={() => void reloadMedications()} />
       </Panel>
     );
-  } else if (!isPatient) {
+  } else if (!isPatient && route.name !== 'eventVoice' && route.name !== 'eventConfirm') {
     body = (
       <FamilyHome session={session} actor={actor} people={people} events={events} moments={moments} error={error}
         version={version} reload={reload} reloadEvents={reloadEvents} tab={familyTab}
         important={important} checkins={checkins} briefSettings={briefSettings}
         medications={medications} medicationLogs={medicationLogs} onManageMedications={() => setRoute({ name: 'medications' })}
+        onDictate={() => setRoute({ name: 'eventVoice' })}
         onNewImportant={() => setRoute({ name: 'important-create' })}
         onOpenImportant={(id) => setRoute({ name: 'important-status', id })}
         onHearBrief={() => say(composeBrief(null).full)}
@@ -471,14 +472,18 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
         onPhotos={() => setRoute({ name: 'photoPick' })} onEvent={() => setRoute({ name: 'eventVoice' })} onCancel={home} />
     );
   } else if (route.name === 'eventVoice') {
-    body = (
-      <EventVoice onDone={(transcript) => setRoute({ name: 'eventConfirm', transcript })} onCancel={home} />
+    const voice = (
+      <EventVoice circleId={session.circleId} speakerPersonId={actor.kind === 'member' ? actor.id : null}
+        patientName={session.patientName} family={!isPatient}
+        onDone={(transcript, proposal) => setRoute({ name: 'eventConfirm', transcript, proposal })} onCancel={home} />
     );
+    body = isPatient ? voice : <Panel>{voice}</Panel>;
   } else if (route.name === 'eventConfirm') {
-    body = (
+    const confirm = (
       <EventConfirm circleId={session.circleId} createdByPersonId={actor.kind === 'member' ? actor.id : null}
-        transcript={route.transcript} onSaved={home} onBack={() => setRoute({ name: 'eventVoice' })} />
+        transcript={route.transcript} proposal={route.proposal} onSaved={home} onBack={() => setRoute({ name: 'eventVoice' })} />
     );
+    body = isPatient ? confirm : <Panel>{confirm}</Panel>;
   } else if (route.name === 'photoPick') {
     body = (
       <PhotoPick onNext={(photos) => setRoute({ name: 'photoEvent', photos })} onCancel={home} />

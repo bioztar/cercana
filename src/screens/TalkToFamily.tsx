@@ -74,7 +74,7 @@ export function TalkToFamily({ circleId, patientName, onSent, onCancel, onOpenAs
     return (
       <View style={s.wrap}>
         <Text style={s.title}>Say something</Text>
-        <VoiceRecorder onDone={(clip) => post(null, clip.url, clip.transcript)} onError={setError} disabled={busy}
+        <VoiceRecorder circleId={circleId} onDone={(clip) => post(null, clip.url, clip.transcript)} onError={setError} disabled={busy}
           idleLabel="Tap when you're done" />
         <ErrorText message={error} />
         <BigButton label="Cancel" tone="plain" onPress={() => setStep('choose')} disabled={busy} />
