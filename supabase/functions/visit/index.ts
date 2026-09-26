@@ -2,18 +2,9 @@
 // POST { circle_id, audio_url, recorded_by_person_id, now, tz } -> { visit }
 // Deploy: supabase functions deploy visit  (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY injected by Supabase;
 // THALAMUS_* and DEEPGRAM_API_KEY are Supabase secrets, read in _shared/ai.ts.)
-import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { chat, transcribe } from '../_shared/ai.ts';
+import { cors, json, overDailyCap, serviceClient, writeLog } from '../_shared/aiGuard.ts';
 import { MAX_TRANSCRIPT_CHARS, parseVisit, visitPrompt } from '../_shared/visit.ts';
-
-const DAILY_CAP = 300; // ai_log rows per circle per day
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
@@ -34,19 +25,13 @@ Deno.serve(async (req) => {
   const nowIso = input.now && !Number.isNaN(Date.parse(input.now)) ? input.now : new Date().toISOString();
   const tz = (input.tz ?? 'Europe/Madrid').slice(0, 64);
 
-  const db = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-
-  const circle = await db.from('circles').select('patient_name').eq('id', circle_id).maybeSingle();
-  if (circle.error || !circle.data) return json({ error: 'unknown circle' }, 404);
-
-  const dayStart = new Date();
-  dayStart.setUTCHours(0, 0, 0, 0);
-  const used = await db.from('ai_log').select('id', { count: 'exact', head: true })
-    .eq('circle_id', circle_id).gte('created_at', dayStart.toISOString());
-  if (used.error) return json({ error: `could not check the daily limit: ${used.error.message}` }, 500);
-  if ((used.count ?? 0) >= DAILY_CAP) return json({ error: 'daily AI limit reached, try again tomorrow' }, 429);
+  const db = serviceClient();
 
   try {
+    const circle = await db.from('circles').select('patient_name').eq('id', circle_id).maybeSingle();
+    if (circle.error || !circle.data) return json({ error: 'unknown circle' }, 404);
+    if (await overDailyCap(db, circle_id)) return json({ error: 'daily limit reached' }, 429);
+
     const { text } = await transcribe(audio_url);
     const transcript = text.trim();
     if (!transcript) return json({ error: 'nothing was heard in the recording' }, 422);
@@ -70,11 +55,10 @@ Deno.serve(async (req) => {
     }).select().single();
     if (inserted.error) return json({ error: inserted.error.message }, 500);
 
-    const log = await db.from('ai_log').insert({
+    await writeLog(db, {
       circle_id, kind: 'visit', speaker_person_id: input.recorded_by_person_id ?? null,
       input: transcript.slice(0, 2000), output: { visit_id: inserted.data.id, ...result },
     });
-    if (log.error) console.error('ai_log insert failed', log.error.message);
 
     return json({ visit: inserted.data });
   } catch (e) {
