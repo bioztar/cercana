@@ -1,25 +1,20 @@
-# HANDOVER — cercana (branch cercana-mvp) — 2026-09-24 14:50
-## State: MVP feature-complete on the branch (patient app, family mode, calendars, invite/roles, family feed, demo mode); web is live from an earlier merge, later commits await helm's merge + redeploy.
+# HANDOVER — cercana (branch cercana-ai-core) — 2026-09-26
+## State: AI core built and committed locally (mission local-only); needs helm to merge, apply migration, deploy 2 functions, validate live.
 ## Done this session
-- Patient home (faces, birthday banner, spoken briefing, "Hear today", press-and-hold Settings), person card (WhatsApp/phone, Coming up, Lately slice), ping overlay with speech.
-- Family mode: People (roles, badges, edit/add/remove by permission), Calendars (ICS feeds, ics_url write-only), Moments (photo/voice, delete for staff), Ping, Share invite.
-- Invite link `/join/<CODE>` + claim profile; roles lead/admin/member in `src/lib/permissions.ts`; Family Feed.
-- Supabase: schema.sql (idempotent), edge functions `ping`, `sync-calendars` (both deployed by helm).
-- Demo mode: `?demo=patient|family|join` at runtime in any web build (+ `&as=`, `&person=`), `EXPO_PUBLIC_DEMO=1` at build time.
-- 47 unit tests (`npm test`); live smoke scripts vs Supabase passed (kept in the session scratchpad, not committed).
+- Migration `supabase/migrations/20260926_01_ai_log.sql` (demo RLS). Not appended to schema.sql: migrations 04–07 never were either.
+- Edge fns `assistant` (chat + dictate) and `transcribe`; pure logic in `supabase/functions/_shared/assistantCore.ts` (EN/ES dates, tz, distress, validation, prompt, output shaping; tests in `src/lib/assistantCore.test.ts`); cap + logging in `_shared/aiGuard.ts` (300 ai_log rows/circle/UTC day; transcribe only accepts our `media` bucket URLs).
+- App: AssistantChat real replies + Yes saves event (created_by null = Carmen); EventVoice → `assistant` dictate → EventConfirm prefilled (exact time kept unless day changed); family "🎤 Dictate an event" (Calendar tab + ☰ menu); "Doctor" relation chip in PersonForm; VoiceRecorder server-transcribes when on-device transcript is empty (pass `circleId`).
+- Demo mode: offline stand-in in `demo.ts` (script + same pure date rules), no network.
+- Screenshots in `docs/screenshots/ai-*.png`.
 ## In flight / partially done
-- Nothing half-done. Not verified: audible TTS, iOS push (needs EAS projectId), real iPhone run.
+- none
 ## Next steps (ordered)
-1. helm: merge cercana-cercana-mvp, redeploy web (schema + functions already live).
-2. Run on a real iPhone (`eas build --profile development`), add `extra.eas.projectId` to app.json for push.
-3. Real auth + RLS (reuse `can(actor, action)`), then drop the anon-wide demo policies.
-4. Andrey's mockups land in `design/`; restyle after.
+1. helm: merge, apply migration, `supabase functions deploy assistant transcribe`.
+2. Validate live: chat "dentist Tuesday at 11" → Yes → event visible to family; dictate a cardiology sentence; record on iPhone → transcript non-empty; "where am I" → ai_log row with distress=true.
 ## Blockers / needs human
-- Lead profile is claimable by anyone holding the code until the lead claims it (no auth this week).
-- iOS needs an Apple developer account + EAS project for device builds and push.
+- Live model behaviour (thalamus/Kimi-K3 JSON output) untested here: no keys in worktree by design.
+- `events` has no note column: dictated note is folded into the title "Title (note)".
 ## Key files touched
-- src/lib/permissions.ts — every permission decision
-- src/lib/api.ts / api.real.ts / demo.ts — data access, real vs fixtures behind one switch
-- src/lib/briefing.ts, dates.ts, feed.ts, util.ts — pure, tested logic
-- supabase/schema.sql, supabase/functions/* — backend
-- App.tsx — role/route state, invite routing
+- supabase/functions/{assistant,transcribe,_shared/assistantCore.ts,_shared/aiGuard.ts}
+- src/screens/{AssistantChat,EventVoice,EventConfirm,FamilyHome,PersonForm}.tsx, App.tsx (eventVoice/eventConfirm routes now serve family too)
+- src/lib/{api,api.real,demo,types,voice}.ts

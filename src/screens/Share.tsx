@@ -48,7 +48,7 @@ export function Share({ circleId, patientName, onPosted, onPhotos, onEvent, onCa
     return (
       <View style={s.wrap}>
         <Text style={s.title}>Tell your news</Text>
-        <VoiceRecorder onDone={(clip) => postVoiceNews(clip.url, clip.transcript)} onError={setError} disabled={busy} />
+        <VoiceRecorder circleId={circleId} onDone={(clip) => postVoiceNews(clip.url, clip.transcript)} onError={setError} disabled={busy} />
         <ErrorText message={error} />
         <BigButton label="Cancel" tone="plain" onPress={() => setChoice('menu')} disabled={busy} />
       </View>

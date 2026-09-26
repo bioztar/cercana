@@ -106,7 +106,24 @@ export type CommentInput = Pick<Comment, 'moment_id' | 'author_person_id' | 'aut
 /** What a feed card shows under a moment: how many comments and the newest one. */
 export type CommentSummary = { count: number; last: Comment };
 
-export type NewEventInput = { title: string; starts_at: string; ends_at: string; all_day: boolean };
+export type NewEventInput = { title: string; starts_at: string; ends_at: string; all_day: boolean; location?: string | null };
+
+// ---- AI assistant (edge fn `assistant`, see supabase/functions/_shared/assistantCore.ts) ----------
+/** An event the assistant heard and proposes; all_day = day known, time not (UTC-midnight span). */
+export type AssistantProposal = {
+  title: string; starts_at: string; ends_at?: string; location?: string; note?: string; all_day?: boolean;
+};
+export type AssistantAsk = {
+  circle_id: string;
+  speaker_person_id: string | null; // null = the patient
+  mode: 'chat' | 'dictate';
+  text?: string;
+  audio_url?: string;
+  history: { role: 'user' | 'assistant'; text: string }[];
+  now: string;
+  tz: string;
+};
+export type AssistantAnswer = { reply: string; proposal?: AssistantProposal; distress: boolean };
 
 /** A finished voice recording: uploaded url, length, and what the device heard (may be empty). */
 export type VoiceClip = { url: string; seconds: number; transcript: string };

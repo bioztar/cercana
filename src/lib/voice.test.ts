@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  allDaySpan, commentText, monthGrid, nearbyEvents, rangeLabel, singleDay, summarizeComments, titleFromTranscript,
+  allDaySpan, commentText, monthGrid, nearbyEvents, proposalToEvent, rangeLabel, singleDay, summarizeComments, titleFromTranscript,
   weekendRange,
 } from './voice.ts';
 import type { Comment, EventRow } from './types.ts';
@@ -89,4 +89,15 @@ test('titleFromTranscript', () => {
   assert.equal(titleFromTranscript('  next weekend we are going to see the relatives. '), 'Next weekend we are going to see the relatives');
   assert.equal(titleFromTranscript(''), '');
   assert.ok(titleFromTranscript('word '.repeat(40)).length <= 62);
+});
+
+test('proposalToEvent folds the note into the title and defaults the end', () => {
+  const e = proposalToEvent({ title: 'Cardiology', starts_at: '2026-10-03T07:30:00.000Z', note: 'bring the blood test', location: 'Hospital Clínic' });
+  assert.equal(e.title, 'Cardiology (bring the blood test)');
+  assert.equal(e.ends_at, '2026-10-03T08:30:00.000Z');
+  assert.equal(e.all_day, false);
+  assert.equal(e.location, 'Hospital Clínic');
+  const a = proposalToEvent({ title: 'Dentist', starts_at: '2026-09-29T00:00:00.000Z', all_day: true });
+  assert.equal(a.ends_at, '2026-09-30T00:00:00.000Z');
+  assert.equal(a.location, null);
 });

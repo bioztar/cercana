@@ -204,7 +204,7 @@ export function PatientHome({
       </Modal>
 
       <Modal visible={chatting} animationType="slide" onRequestClose={() => setChatting(false)}>
-        <AssistantChat people={people} events={events} onBack={() => setChatting(false)} />
+        <AssistantChat circleId={session.circleId} onBack={() => setChatting(false)} />
       </Modal>
     </View>
   );

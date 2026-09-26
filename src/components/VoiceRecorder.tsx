@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from 'expo-audio';
-import { uploadMedia } from '../lib/api';
+import { transcribeAudio, uploadMedia } from '../lib/api';
 import { startTranscribing, type Transcriber } from '../lib/transcribe';
 import type { VoiceClip } from '../lib/types';
 import { colors, radius, type } from '../theme';
@@ -15,6 +15,8 @@ type Props = {
   disabled?: boolean;
   /** false = skip uploadMedia and hand back the local file uri (AssistantChat: local-only, no network). */
   upload?: boolean;
+  /** When set, an empty on-device transcript is filled in by the `transcribe` edge function. */
+  circleId?: string;
 };
 
 const HOLD_MS = 700; // held at least this long → release stops; a shorter press is a tap and toggles
@@ -24,7 +26,7 @@ const HOLD_MS = 700; // held at least this long → release stops; a shorter pre
  * again to stop. Uploads to `media` and hands back url + seconds + transcript (empty if the device
  * cannot transcribe).
  */
-export function VoiceRecorder({ onDone, onError, size = 'big', idleLabel, disabled, upload = true }: Props) {
+export function VoiceRecorder({ onDone, onError, size = 'big', idleLabel, disabled, upload = true, circleId }: Props) {
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const [recording, setRecording] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -77,9 +79,14 @@ export function VoiceRecorder({ onDone, onError, size = 'big', idleLabel, disabl
       await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
       if (!recorder.uri) throw new Error('Nothing was recorded. Please try again.');
       const url = upload ? await uploadMedia(recorder.uri, 'audio') : recorder.uri;
+      let transcript = heard.trim();
+      if (!transcript && upload && circleId) {
+        // Native has no live recognizer (web usually does): ask the server. Never blocks the recording.
+        try { transcript = await transcribeAudio(circleId, url); } catch (e) { console.warn('server transcription failed', e); }
+      }
       active.current = false;
       setBusy(false);
-      onDone({ url, seconds, transcript: heard.trim() });
+      onDone({ url, seconds, transcript });
     } catch (e) {
       fail(e);
     }

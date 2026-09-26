@@ -1,5 +1,5 @@
 // Pure helpers for Mom's voice flows. No React / RN imports.
-import type { Comment, CommentSummary, EventRow } from './types';
+import type { AssistantProposal, Comment, CommentSummary, EventRow, NewEventInput } from './types';
 import { MONTHS, startOfDay } from './dates.ts';
 
 const DAY = 86_400_000;
@@ -77,6 +77,16 @@ export function summarizeComments(comments: Comment[]): Record<string, CommentSu
 /** What a comment reads as in a preview line: its text, else "Voice message". */
 export const commentText = (c: Pick<Comment, 'body' | 'audio_url'>): string =>
   c.body?.trim() || (c.audio_url ? 'Voice message' : '');
+
+export const deviceTz = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Madrid';
+
+/** What the events table stores for an assistant proposal. `events` has no note column, so a note
+ * rides along in the title: "Cardiology (bring the blood test)". */
+export function proposalToEvent(p: AssistantProposal): NewEventInput {
+  const title = p.note?.trim() ? `${p.title} (${p.note.trim()})` : p.title;
+  const ends = p.ends_at ?? new Date(new Date(p.starts_at).getTime() + (p.all_day ? DAY : 3_600_000)).toISOString();
+  return { title, starts_at: p.starts_at, ends_at: ends, all_day: !!p.all_day, location: p.location ?? null };
+}
 
 /** A short title from a spoken sentence: first clause, sentence case, capped. */
 export function titleFromTranscript(t: string, max = 60): string {

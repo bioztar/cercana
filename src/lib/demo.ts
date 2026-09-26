@@ -1,7 +1,9 @@
 // In-memory fixtures behind EXPO_PUBLIC_DEMO=1 (see api.ts). Same signatures as api.real.ts.
 // State is replaced, never mutated. Nothing here runs unless the flag is set.
+import { reply as scriptReply } from './assistantScript';
+import { instants, localParts, looksDistressed, resolveWhen } from '../../supabase/functions/_shared/assistantCore';
 import type {
-  BriefSettings, CalendarPublic, Checkin, CheckinAnswer, Circle, Comment, CommentInput, CommentSummary,
+  AssistantAnswer, AssistantAsk, BriefSettings, CalendarPublic, Checkin, CheckinAnswer, Circle, Comment, CommentInput, CommentSummary,
   CreatedCircle, DeviceCalendarLink, DeviceEventRow, EventRow, ImportantEvent, ImportantInput, LeadInput,
   Medication, MedicationInput, MedicationLog, MedicationLogStatus,
   MemberRole, Moment, MomentInput, NewEventInput, Person, PersonInput, Ping, Session,
@@ -9,7 +11,7 @@ import type {
 import type { FeedHandlers } from './api.real';
 import { defaultReminders } from './important';
 import { normalizeCode, urlHint, uuidv4 } from './util';
-import { summarizeComments } from './voice';
+import { summarizeComments, titleFromTranscript } from './voice';
 
 const CIRCLE: Circle = { id: 'demo-circle', code: 'K7M4QX', patient_name: 'Carmen' };
 
@@ -294,13 +296,49 @@ export async function addEvent(
   rawEvents = [
     ...rawEvents,
     {
-      id, calendar_id: calendarId, uid: uuidv4(), title: input.title, location: null, starts_at: input.starts_at,
+      id, calendar_id: calendarId, uid: uuidv4(), title: input.title, location: input.location ?? null, starts_at: input.starts_at,
       ends_at: input.ends_at, all_day: input.all_day, created_by_person_id: createdByPersonId,
       includes_patient: createdByPersonId === null, // Carmen created it herself → it's for her
     },
   ];
   emitChange();
   return id;
+}
+
+/** Demo-only title guess: the words before the first day/time cue ("I have the dentist Tuesday at 11" → "Dentist"). */
+function eventTitle(text: string): string {
+  const head = text
+    .replace(/^\s*(i have|i've got|i got|remind me of|add)\s+(the|a|an|my)?\s*/i, '')
+    .replace(/\s+(on|at|next|this|tomorrow|today|el|a las|mañana|hoy|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b.*$/i, '');
+  return titleFromTranscript(head) || 'Event';
+}
+
+/** Offline stand-in for the `assistant` edge fn: no network. Chat uses the scripted replies, dictate
+ * parses the sentence with the same pure date rules the server uses. */
+export async function askAssistant(ask: AssistantAsk): Promise<AssistantAnswer> {
+  const text = ask.text ?? '';
+  const now = new Date(ask.now);
+  const distress = looksDistressed(text);
+  if (ask.mode === 'chat') {
+    const r = scriptReply(text, now, { people, events: rawEvents.map((e) => ({ ...e, person_ids: [] })) });
+    const when = resolveWhen(text, now, ask.tz);
+    if (!r.card && when.date && when.time) {
+      const title = eventTitle(text);
+      return { reply: `Add ${title}? Yes / No`, distress, proposal: { title, ...instants(when.date, when.time, ask.tz) } };
+    }
+    if (!r.card) return { reply: r.text, distress };
+    const date = when.date ?? localParts(new Date(now.getTime() + DAY), ask.tz);
+    const time = when.time ?? { h: 10, mi: 0 };
+    return { reply: r.text, distress, proposal: { title: r.card.title, ...instants(date, time, ask.tz) } };
+  }
+  const when = resolveWhen(text, now, ask.tz);
+  if (!when.date) return { reply: "I didn't catch the day. Please pick it.", distress: false };
+  const title = eventTitle(text);
+  return { reply: 'Got it.', distress: false, proposal: { title, ...instants(when.date, when.time, ask.tz) } };
+}
+
+export async function transcribeAudio(_circleId: string, _audioUrl: string): Promise<string> {
+  return '';
 }
 
 /** The "<patient> takes part" toggle on EventDetail (demo stand-in for api.real.ts). */

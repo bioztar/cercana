@@ -35,6 +35,10 @@ export const ensureFamilyCalendar = impl.ensureFamilyCalendar;
 export const addEvent = impl.addEvent;
 export const setEventIncludesPatient = impl.setEventIncludesPatient;
 
+// ---- cercana-ai-core: assistant + server-side transcription ------------------------------------
+export const askAssistant = impl.askAssistant;
+export const transcribeAudio = impl.transcribeAudio;
+
 // ---- cercana-care: important events, check-ins, device calendars --------------------------------
 export const listImportant = impl.listImportant;
 export const createImportant = impl.createImportant;
