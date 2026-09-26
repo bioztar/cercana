@@ -4,6 +4,7 @@ import { generateCode, normalizeCode, isValidCode, urlHint, uuidv4 } from './uti
 import { summarizeComments } from './voice';
 import type {
   AssistantAnswer, AssistantAsk, BriefSettings, CalendarPublic, Checkin, CheckinAnswer, Circle, Comment, CommentInput, CommentSummary,
+  Message, MessageInput,
   CreatedCircle, DeviceCalendarLink, Digest, DeviceEventRow, EventRow, ImportantEvent, ImportantInput, LeadInput,
   Medication, MedicationInput, MedicationLog, MedicationLogStatus,
   Moment, MomentInput, NewEventInput, Person, PersonInput, Ping, Proposals, Visit,
@@ -315,6 +316,7 @@ export type FeedHandlers = {
    * alongside the generic onChange above, which still drives the plain feed reload. */
   onMomentInsert?: (m: Moment) => void;
   onCommentInsert?: (c: Comment) => void;
+  onMessageInsert?: (m: Message) => void;
 };
 
 /** Realtime feed for one circle. Returns an unsubscribe function. */
@@ -332,6 +334,10 @@ export function subscribeCircle(circleId: string, h: FeedHandlers): () => void {
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments', filter }, (e) =>
       h.onCommentInsert?.(e.new as Comment),
     )
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter }, (e) =>
+      h.onMessageInsert?.(e.new as Message),
+    )
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter }, () => h.onChange?.())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'people', filter }, () => h.onChange?.())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'moments', filter }, () => h.onChange?.())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'comments', filter }, () => h.onChange?.())
@@ -516,4 +522,22 @@ export async function createVisit(circleId: string, audioUrl: string, recordedBy
 
 export async function updateVisitProposals(id: string, proposals: Proposals): Promise<void> {
   check(await getSupabase().from('visits').update({ proposals }).eq('id', id), 'Could not save your choice');
+}
+
+// ---- 1:1 chats (Mom <-> one family member) -------------------------------------------------------
+
+export async function listMessages(circleId: string): Promise<Message[]> {
+  const res = await getSupabase().from('messages').select().eq('circle_id', circleId).order('created_at', { ascending: true });
+  return check(res, 'Could not load chats') ?? [];
+}
+
+export async function sendMessage(circleId: string, m: MessageInput): Promise<Message> {
+  const res = await getSupabase().from('messages').insert({ ...m, circle_id: circleId }).select().single();
+  return check(res, 'Could not send the message') as Message;
+}
+
+export async function markMessagesRead(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const res = await getSupabase().from('messages').update({ read_at: new Date().toISOString() }).in('id', ids);
+  check(res, 'Could not mark messages read');
 }

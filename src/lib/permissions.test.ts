@@ -111,3 +111,12 @@ test('actorFor: patient, claimed family member, unclaimed family device', () => 
   assert.deepEqual(actorFor({ role: 'family' }, people), { kind: 'member', id: null, role: 'member' });
   assert.deepEqual(actorFor({ role: 'family', memberId: 'gone' }, people), { kind: 'member', id: null, role: 'member' });
 });
+
+test('chat.viewAll: lead/admin only', () => {
+  const a: Action = { type: 'chat.viewAll' };
+  assert.equal(check(lead, a), true);
+  assert.equal(check(admin, a), true);
+  assert.equal(check(member, a), false);
+  assert.equal(check(drifter, a), false);
+  assert.equal(check(patient, a), false);
+});

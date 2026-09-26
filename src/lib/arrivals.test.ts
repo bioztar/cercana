@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { arrivalFromComment, arrivalFromMoment, enqueueArrival, spokenForComment, spokenForMoment } from './arrivals.ts';
-import type { Comment, Moment, Person } from './types.ts';
+import { arrivalFromComment, arrivalFromMessage, arrivalFromMoment, enqueueArrival, spokenForComment, spokenForMoment } from './arrivals.ts';
+import type { Comment, Message, Moment, Person } from './types.ts';
 
 const person = (id: string, name: string, relation: string | null = null): Person => ({
   id, circle_id: 'c', name, relation, phone: null, photo_url: `${id}.jpg`, birthday: null, role: 'member', claimed: true,
@@ -67,4 +67,17 @@ test('enqueueArrival: dedupes by id and skips arrivals at/before the feed waterm
 
 test('enqueueArrival: ignores a null arrival', () => {
   assert.deepEqual(enqueueArrival([], new Set(), null, null), []);
+});
+
+test('arrivalFromMessage: family message announces; Mom\'s own is silent', () => {
+  const m: Message = {
+    id: 'x', circle_id: 'c', person_id: 'pedro', from_patient: false, body: 'On my way', audio_url: null,
+    transcript: null, created_at: '2026-01-01T00:00:00Z', read_at: null,
+  };
+  const a = arrivalFromMessage(m, people)!;
+  assert.equal(a.id, 'message:x');
+  assert.equal(a.name, 'Pedro');
+  assert.equal(a.spoken, 'Pedro says: On my way');
+  assert.equal(arrivalFromMessage({ ...m, audio_url: 'u.mp3' }, people)!.body, null);
+  assert.equal(arrivalFromMessage({ ...m, from_patient: true }, people), null);
 });

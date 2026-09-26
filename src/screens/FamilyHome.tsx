@@ -9,7 +9,7 @@ import { inviteUrl } from '../lib/util';
 import { ErrorText } from '../components/ui';
 import { MenuSheet } from '../components/MenuSheet';
 import { CalendarTab } from './CalendarTab';
-import { ChatsPlaceholder } from './ChatsPlaceholder';
+import { ChatsTab } from './ChatsTab';
 import { EventDetail } from './EventDetail';
 import { FamilyDashboard } from './FamilyDashboard';
 import { MomentsTab } from './MomentsTab';
@@ -116,7 +116,7 @@ export function FamilyHome({
       {content === 'People' && (
         <PeopleTab circleId={session.circleId} patientName={session.patientName} code={session.code} actor={actor} people={people} onChanged={reload} />
       )}
-      {content === 'Chats' && <ChatsPlaceholder people={people} />}
+      {content === 'Chats' && <ChatsTab circleId={session.circleId} viewer="family" people={people} actor={actor} />}
     </>
   );
 

@@ -1,9 +1,9 @@
 // Pure logic for "she hears it immediately": which realtime events announce, what gets spoken,
 // and queue ordering/dedupe. No React / RN imports — see arrivals.test.ts.
 import { authorOf } from './feed.ts';
-import type { Comment, Moment, Person } from './types.ts';
+import type { Comment, Message, Moment, Person } from './types.ts';
 
-export type ArrivalKind = 'moment' | 'comment';
+export type ArrivalKind = 'moment' | 'comment' | 'message';
 
 export type Arrival = {
   id: string; // dedupe key, unique across moments and comments
@@ -54,6 +54,17 @@ export function arrivalFromComment(c: Comment, people: Person[]): Arrival | null
     id: `comment:${c.id}`, kind: 'comment', name, relation, photoUrl,
     mediaPhotoUrl: null, audioUrl: c.audio_url, body: c.audio_url ? null : c.body,
     spoken: spokenForComment(name, c), createdAt: c.created_at,
+  };
+}
+
+/** A chat message from a family member to Mom. Null when it is Mom's own message. */
+export function arrivalFromMessage(m: Message, people: Person[]): Arrival | null {
+  if (m.from_patient) return null;
+  const { name, relation, photoUrl } = personFor(m.person_id, null, people);
+  return {
+    id: `message:${m.id}`, kind: 'message', name, relation, photoUrl,
+    mediaPhotoUrl: null, audioUrl: m.audio_url, body: m.audio_url ? null : m.body,
+    spoken: m.audio_url ? `New voice message from ${name}.` : `${name} says: ${m.body ?? ''}`, createdAt: m.created_at,
   };
 }
 

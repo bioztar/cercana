@@ -9,7 +9,7 @@ import * as Notifications from 'expo-notifications';
 import { setAudioModeAsync } from 'expo-audio';
 import { demo, missingSettings } from './src/lib/config';
 import { demoBoot, demoTriggerArrival } from './src/lib/demo';
-import { arrivalFromComment, arrivalFromMoment, enqueueArrival, type Arrival } from './src/lib/arrivals';
+import { arrivalFromComment, arrivalFromMessage, arrivalFromMoment, enqueueArrival, type Arrival } from './src/lib/arrivals';
 import { ArrivalOverlay } from './src/components/ArrivalOverlay';
 import { keepAliveEnabled, startKeepAlive, stopKeepAlive } from './src/lib/keepAlive';
 import {
@@ -38,7 +38,7 @@ import { say } from './src/lib/speech';
 import { actorFor, can } from './src/lib/permissions';
 import { parseJoinUrl } from './src/lib/util';
 import type {
-  AssistantProposal, BriefSettings, Checkin, Comment, ImportantEvent, Medication, MedicationLog, Moment, Person, Ping, Session, Visit,
+  AssistantProposal, BriefSettings, Checkin, Comment, ImportantEvent, Medication, MedicationLog, Message, Moment, Person, Ping, Session, Visit,
 } from './src/lib/types';
 import { MissingConfig } from './src/screens/MissingConfig';
 import { Welcome } from './src/screens/Welcome';
@@ -223,10 +223,11 @@ function CircleApp({ session, initialPersonId, onLeave }: CircleAppProps) {
   }, [seenArrivals, lastSeenFeedAt]);
   const onMomentInsert = useCallback((m: Moment) => announce(arrivalFromMoment(m, peopleRef.current)), [announce]);
   const onCommentInsert = useCallback((c: Comment) => announce(arrivalFromComment(c, peopleRef.current)), [announce]);
+  const onMessageInsert = useCallback((m: Message) => announce(arrivalFromMessage(m, peopleRef.current)), [announce]);
 
   const { people, events, moments, loading, error, version, reload, reloadEvents } = useCircle(
     session.circleId,
-    isPatient ? { onPing: showPing, onMomentInsert, onCommentInsert } : undefined,
+    isPatient ? { onPing: showPing, onMomentInsert, onCommentInsert, onMessageInsert } : undefined,
   );
   peopleRef.current = people;
   const actor = useMemo(() => actorFor(session, people), [session, people]);

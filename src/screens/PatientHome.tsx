@@ -15,7 +15,7 @@ import { Avatar, ErrorText } from '../components/ui';
 import { MenuSheet } from '../components/MenuSheet';
 import { PatientPeople } from './PatientPeople';
 import { PatientCalendar } from './PatientCalendar';
-import { ChatsPlaceholder } from './ChatsPlaceholder';
+import { ChatsTab } from './ChatsTab';
 import { TalkToFamily } from './TalkToFamily';
 import { AssistantChat } from './AssistantChat';
 import type { PatientTab } from '../components/FamilyTabBar';
@@ -192,7 +192,7 @@ export function PatientHome({
         <PatientCalendar events={events} people={people} important={important} checkins={checkins}
           onOpenEvent={onOpenEvent ?? (() => {})} />
       )}
-      {tab === 'Chats' && <ChatsPlaceholder people={people} big />}
+      {tab === 'Chats' && <ChatsTab circleId={session.circleId} viewer="patient" people={people} actor={{ kind: 'patient' }} />}
 
       <Pressable accessibilityRole="button" accessibilityLabel="Send to family" onPress={() => setSending(true)} style={s.fab}>
         <Text style={s.fabIcon}>+</Text>
