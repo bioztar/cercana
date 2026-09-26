@@ -61,3 +61,5 @@ export const submitMedicationLog = impl.submitMedicationLog;
 export const listVisits = impl.listVisits;
 export const createVisit = impl.createVisit;
 export const updateVisitProposals = impl.updateVisitProposals;
+// ---- cercana-digest: evening "Today with <patient>" notes ---------------------------------------
+export const listDigests = impl.listDigests;

@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../components/Text';
-import type { BriefSettings, Checkin, CommentSummary, EventRow, ImportantEvent, Medication, MedicationLog, Moment, Person } from '../lib/types';
-import { commentSummaries } from '../lib/api';
+import type { BriefSettings, Checkin, CommentSummary, Digest, EventRow, ImportantEvent, Medication, MedicationLog, Moment, Person } from '../lib/types';
+import { commentSummaries, listDigests } from '../lib/api';
+import { DigestCard } from '../components/DigestCard';
 import { dashboardImportant } from '../lib/dashboard';
 import { mergeBriefingEvents, timeLabel, todaySentences } from '../lib/briefing';
 import { cardText, todaysImportantSentences } from '../lib/important';
@@ -67,8 +68,15 @@ export function FamilyDashboard({
     .map((sum) => ({ key: `c-${sum.last.id}`, at: sum.last.created_at, text: commentText(sum.last), audioUrl: sum.last.audio_url }));
   const fromPatient = [...posts, ...replies].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 3);
 
+  const [digests, setDigests] = useState<Digest[]>([]);
+  useEffect(() => {
+    void listDigests(circleId).then(setDigests).catch(() => {}); // the card is optional: no digest yet, no card
+  }, [circleId, version]);
+
   return (
     <View style={{ gap: 20 }}>
+      <DigestCard digests={digests} patientName={patientName} />
+
       <View style={s.card}>
         <Text style={s.cardTitle}>Medicines today</Text>
         {doses.length === 0 && <Text style={s.empty}>No medicines set up yet.</Text>}

@@ -191,6 +191,32 @@ export type Visit = {
   created_at: string;
 };
 
+// ---- Evening digest "Today with <patient>" (cercana-digest) ---------------------------------------
+/** Mirrors `Metrics` in supabase/functions/_shared/digestMetrics.ts (the edge function writes it). */
+export type DigestMetrics = {
+  questions: number;
+  repeats: number;
+  repeatRate: number; // 0..1
+  night: number; // activity 23:00-06:00
+  dosesExpected: number;
+  dosesTaken: number;
+  dosesMissed: number;
+  pings: number;
+  moments: number;
+  messages: number;
+  distress: number;
+};
+
+export type Digest = {
+  id: string;
+  circle_id: string;
+  day: string; // 'YYYY-MM-DD' in the circle's time zone
+  note: string;
+  watch: string | null; // the "worth watching" line, when a metric clearly rose
+  metrics: DigestMetrics;
+  created_at: string;
+};
+
 // ---- Medications + daily "Did you take it?" logs (cercana-meds) -------------------------------
 export type Medication = {
   id: string;

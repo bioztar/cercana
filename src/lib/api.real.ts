@@ -4,7 +4,7 @@ import { generateCode, normalizeCode, isValidCode, urlHint, uuidv4 } from './uti
 import { summarizeComments } from './voice';
 import type {
   AssistantAnswer, AssistantAsk, BriefSettings, CalendarPublic, Checkin, CheckinAnswer, Circle, Comment, CommentInput, CommentSummary,
-  CreatedCircle, DeviceCalendarLink, DeviceEventRow, EventRow, ImportantEvent, ImportantInput, LeadInput,
+  CreatedCircle, DeviceCalendarLink, Digest, DeviceEventRow, EventRow, ImportantEvent, ImportantInput, LeadInput,
   Medication, MedicationInput, MedicationLog, MedicationLogStatus,
   Moment, MomentInput, NewEventInput, Person, PersonInput, Ping, Proposals, Visit,
 } from './types';
@@ -450,6 +450,12 @@ export async function updateBriefSettings(circleId: string, settings: BriefSetti
 export async function listMedications(circleId: string): Promise<Medication[]> {
   const res = await getSupabase().from('medications').select().eq('circle_id', circleId).order('created_at', { ascending: true });
   return check(res, 'Could not load medicines') ?? [];
+}
+
+/** Evening digests, newest first (written by the `digest` edge function). */
+export async function listDigests(circleId: string, limit = 14): Promise<Digest[]> {
+  const res = await getSupabase().from('digests').select().eq('circle_id', circleId).order('day', { ascending: false }).limit(limit);
+  return check(res, 'Could not load the evening notes') ?? [];
 }
 
 export async function createMedication(circleId: string, input: MedicationInput): Promise<Medication> {

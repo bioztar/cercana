@@ -4,7 +4,7 @@ import { reply as scriptReply } from './assistantScript';
 import { instants, localParts, looksDistressed, resolveWhen } from '../../supabase/functions/_shared/assistantCore';
 import type {
   AssistantAnswer, AssistantAsk, BriefSettings, CalendarPublic, Checkin, CheckinAnswer, Circle, Comment, CommentInput, CommentSummary,
-  CreatedCircle, DeviceCalendarLink, DeviceEventRow, EventRow, ImportantEvent, ImportantInput, LeadInput,
+  CreatedCircle, DeviceCalendarLink, DeviceEventRow, Digest, EventRow, ImportantEvent, ImportantInput, LeadInput,
   Medication, MedicationInput, MedicationLog, MedicationLogStatus,
   MemberRole, Moment, MomentInput, NewEventInput, Person, PersonInput, Ping, Proposals, Session, Visit,
 } from './types';
@@ -139,6 +139,35 @@ const bpTakenAt = new Date(now().getFullYear(), now().getMonth(), now().getDate(
 let medicationLogs: MedicationLog[] = [
   { id: 'medlog-bp', circle_id: CIRCLE.id, medication_id: 'med-bp', scheduled_for: bpDoseAt.toISOString(), status: 'taken', answered_at: bpTakenAt.toISOString() },
 ];
+
+// Fourteen evenings of digests, newest = today. The last three drift upward so the trend bars and the
+// "worth watching" line have something to show.
+const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const digests: Digest[] = Array.from({ length: 14 }, (_, i) => {
+  const age = 13 - i; // days ago; i = 13 is today
+  const up = Math.max(0, 3 - age); // 1..3 over the last three days
+  const questions = [6, 8, 5, 7, 6, 9, 7, 6, 8, 7][i % 10] + (i >= 11 ? 6 * up : 0);
+  const repeats = i >= 11 ? Math.round(questions * (0.15 + 0.12 * up)) : Math.round(questions * 0.12);
+  const night = i >= 11 ? up : i % 5 === 0 ? 1 : 0;
+  const dosesMissed = i >= 11 ? up - 1 + (i === 13 ? 1 : 0) : i % 6 === 0 ? 1 : 0;
+  const today = age === 0;
+  return {
+    id: `digest-${age}`, circle_id: CIRCLE.id, day: ymd(addDays(now(), -age)),
+    note: today
+      ? "Carmen had a gentle day. She asked the assistant about lunch and about when Pedro is visiting, and said good morning to Ana's photo. She took her morning blood pressure pill at 08:04, but the memory pill is still waiting. Pedro's voice note made her smile."
+      : 'A calm day for Carmen. She chatted with the assistant a few times and took her medicines.',
+    watch: today ? 'Worth watching: Carmen asked the same things over again more than usual and was up and active late at night more than usual compared with the past week. It may be nothing; it is just something to notice.' : null,
+    metrics: {
+      questions, repeats, repeatRate: Math.round((repeats / questions) * 100) / 100, night,
+      dosesExpected: 2, dosesTaken: 2 - Math.min(2, dosesMissed), dosesMissed, pings: 1, moments: 2, messages: 0, distress: 0,
+    },
+    created_at: at(addDays(now(), -age), 20),
+  };
+});
+
+export async function listDigests(_circleId: string, limit = 14): Promise<Digest[]> {
+  return [...digests].sort((a, b) => b.day.localeCompare(a.day)).slice(0, limit);
+}
 
 // ---- feed (stands in for Supabase realtime) ------------------------------------------------------
 let listeners: FeedHandlers[] = [];
