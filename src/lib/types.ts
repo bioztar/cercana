@@ -256,3 +256,7 @@ export type Message = {
 };
 
 export type MessageInput = Pick<Message, 'person_id' | 'from_patient' | 'body' | 'audio_url' | 'transcript'>;
+
+/** Result of the `see` edge function. `reply` is the text Carmen hears; it is built server-side. */
+export type SeeMode = 'who' | 'letter';
+export type SeeResult = { mode: SeeMode; reply: string; person_id?: string | null; alerted?: boolean; scam_risk?: 'low' | 'medium' | 'high' };

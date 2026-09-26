@@ -7,7 +7,7 @@ import type {
   Message, MessageInput,
   CreatedCircle, DeviceCalendarLink, Digest, DeviceEventRow, EventRow, ImportantEvent, ImportantInput, LeadInput,
   Medication, MedicationInput, MedicationLog, MedicationLogStatus,
-  Moment, MomentInput, NewEventInput, Person, PersonInput, Ping, Proposals, Visit,
+  Moment, MomentInput, NewEventInput, Person, PersonInput, Ping, Proposals, SeeMode, SeeResult, Visit,
 } from './types';
 
 function check<T>(res: { data: T | null; error: { message: string } | null }, what: string): T {
@@ -540,4 +540,11 @@ export async function markMessagesRead(ids: string[]): Promise<void> {
   if (ids.length === 0) return;
   const res = await getSupabase().from('messages').update({ read_at: new Date().toISOString() }).in('id', ids);
   check(res, 'Could not mark messages read');
+}
+
+// ---- cercana-see: "Who is this?" / "Read this for me" -------------------------------------------
+export async function seeImage(circleId: string, mode: SeeMode, imageUrl: string): Promise<SeeResult> {
+  const res = await getSupabase().functions.invoke('see', { body: { circle_id: circleId, mode, image_url: imageUrl } });
+  if (res.error) throw new Error('I could not look at that just now. Please try again.');
+  return { mode, ...(res.data as Omit<SeeResult, 'mode'>) };
 }

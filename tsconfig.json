@@ -5,5 +5,5 @@
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "exclude": ["node_modules", "supabase/functions", "dist", "src/**/*.test.ts"]
+  "exclude": ["node_modules", "supabase/functions", "scripts", "dist", "src/**/*.test.ts"]
 }
