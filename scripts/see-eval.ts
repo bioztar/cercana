@@ -7,12 +7,14 @@ import { readFileSync } from 'node:fs';
 
 (globalThis as any).Deno = { env: { get: (k: string) => process.env[k] } }; // _shared/ai.ts reads settings via Deno.env
 const { chat } = await import('../supabase/functions/_shared/ai.ts');
-const { whoMessages, parseWho } = await import('../supabase/functions/_shared/see.ts');
+const { whoMessages, parseWho, withMediaPhoto } = await import('../supabase/functions/_shared/see.ts');
+const base = process.env.SUPABASE_URL ?? ''; // reference photos must live in this project's media bucket, as in the function
 
 const cast = JSON.parse(readFileSync(process.argv[2] ?? 'cast.json', 'utf8'));
+cast.members = withMediaPhoto(cast.members, base);
 const tally = { correct: 0, wrong: 0, declined: 0 };
 for (const t of cast.trials) {
-  const match = parseWho(await chat(whoMessages(t.image_url, cast.members), { json: true, maxTokens: 200 }), cast.members);
+  const match = parseWho(await chat(whoMessages(t.image_url, cast.members, base), { json: true, maxTokens: 200 }), cast.members);
   const got = match?.id ?? null;
   const verdict = got === null ? 'declined' : got === t.expect ? 'correct' : 'wrong';
   // A decline of a real member is safe (counted as declined); naming a non-member or the wrong member is "wrong".

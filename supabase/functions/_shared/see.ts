@@ -20,10 +20,13 @@ Be strict: name someone ONLY if you are clearly sure it is the same person as on
 A wrong name is far worse than "not sure".
 Reply JSON only: {"person_id": "<id from the list>" or null, "confidence": 0.0-1.0}`;
 
-export function whoMessages(imageUrl: string, known: Known[]): Msg[] {
+/** People whose reference photo is one of our own uploads. photo_url is user-editable, so anything else
+ * (external URL) is dropped rather than handed to the model backend to fetch. */
+export const withMediaPhoto = (known: Known[], supabaseUrl: string) => known.filter((k) => isMediaUrl(k.photo_url, supabaseUrl));
+
+export function whoMessages(imageUrl: string, known: Known[], supabaseUrl: string): Msg[] {
   const parts: Part[] = [{ type: 'text', text: 'Reference photos of the family:' }];
-  for (const k of known) {
-    if (!k.photo_url) continue;
+  for (const k of withMediaPhoto(known, supabaseUrl)) {
     parts.push({ type: 'text', text: `id=${k.id} name=${k.name}${k.relation ? ` (${k.relation})` : ''}` });
     parts.push({ type: 'image_url', image_url: { url: k.photo_url } });
   }

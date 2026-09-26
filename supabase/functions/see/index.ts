@@ -7,7 +7,7 @@ import { chat } from '../_shared/ai.ts';
 import { cors, json, overDailyCap, serviceClient, writeLog } from '../_shared/aiGuard.ts';
 import {
   isMediaUrl, letterFeedBody, letterMessages, letterSpoken, parseLetter, parseWho, shouldAlert,
-  whoMessages, whoReply, type Known,
+  whoMessages, whoReply, withMediaPhoto, type Known,
 } from '../_shared/see.ts';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
@@ -48,8 +48,8 @@ Deno.serve(async (req) => {
 
   try {
     if (mode === 'who') {
-      const known = family.filter((p) => p.photo_url);
-      const match = known.length ? parseWho(await chat(whoMessages(image_url, known), { json: true, maxTokens: 200 }), known) : null;
+      const known = withMediaPhoto(family, supabaseUrl);
+      const match = known.length ? parseWho(await chat(whoMessages(image_url, known, supabaseUrl), { json: true, maxTokens: 200 }), known) : null;
       const reply = whoReply(match);
       await log({ person_id: match?.id ?? null, confident: !!match, reply });
       return json({ person_id: match?.id ?? null, confident: !!match, reply });

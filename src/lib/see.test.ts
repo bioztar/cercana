@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  isMediaUrl, letterFeedBody, letterSpoken, parseLetter, parseWho, shouldAlert, whoMessages, whoReply, UNSURE,
+  isMediaUrl, letterFeedBody, letterSpoken, parseLetter, parseWho, shouldAlert, whoMessages, whoReply, withMediaPhoto, UNSURE,
 } from '../../supabase/functions/_shared/see.ts';
 
 const known = [
@@ -26,11 +26,30 @@ test('whoReply comes from the person row, never model text', () => {
   assert.equal(whoReply(null), UNSURE);
 });
 
+const BASE = 'https://a.supabase.co';
+const media = (n: string) => `${BASE}/storage/v1/object/public/media/${n}.jpg`;
+const mediaKnown = [
+  { id: 'p1', name: 'Pedro', relation: 'your son', photo_url: media('p1') },
+  { id: 'p2', name: 'Anna', relation: null, photo_url: media('p2') },
+  { id: 'p3', name: 'Nophoto', relation: 'a friend', photo_url: null },
+];
+
 test('whoMessages labels each reference photo and skips people without one', () => {
-  const parts = whoMessages('https://x/q.jpg', known)[1].content as { type: string; text?: string }[];
+  const parts = whoMessages(media('q'), mediaKnown, BASE)[1].content as { type: string; text?: string }[];
   assert.equal(parts.filter((p) => p.type === 'image_url').length, 3); // 2 refs + target
   assert.ok(parts.some((p) => p.text === 'id=p1 name=Pedro (your son)'));
   assert.ok(!parts.some((p) => p.text?.includes('Nophoto')));
+});
+
+test('whoMessages never sends an external reference photo URL to the model (SSRF)', () => {
+  const evil = [...mediaKnown, { id: 'p4', name: 'Evil', relation: null, photo_url: 'http://169.254.169.254/latest/meta-data' },
+    { id: 'p5', name: 'Evil2', relation: null, photo_url: `${BASE}.evil.com/storage/v1/object/public/media/x.jpg` }];
+  const parts = whoMessages(media('q'), evil, BASE)[1].content as { type: string; text?: string; image_url?: { url: string } }[];
+  const urls = parts.filter((p) => p.type === 'image_url').map((p) => p.image_url!.url);
+  assert.equal(urls.length, 3);
+  assert.ok(urls.every((u) => u.startsWith(`${BASE}/storage/v1/object/public/media/`)));
+  assert.ok(!parts.some((p) => p.text?.includes('Evil')));
+  assert.deepEqual(withMediaPhoto(evil, BASE).map((k) => k.id), ['p1', 'p2']);
 });
 
 test('parseLetter fails toward caution and clamps fields', () => {
