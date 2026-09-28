@@ -1,38 +1,41 @@
 // Edge function `visit`: a recorded doctor visit -> transcript -> summary + proposed changes.
-// POST { circle_id, audio_url, recorded_by_person_id, now, tz } -> { visit }
+// POST { circle_id, code, audio_url, recorded_by_person_id, now, tz } -> { visit }
+//   (audio_url = storage path of a recording uploaded for the circle)
 // Deploy: supabase functions deploy visit  (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY injected by Supabase;
 // THALAMUS_* and DEEPGRAM_API_KEY are Supabase secrets, read in _shared/ai.ts.)
 import { chat, transcribe } from '../_shared/ai.ts';
-import { cors, json, overDailyCap, serviceClient, writeLog } from '../_shared/aiGuard.ts';
+import { cors, json, overDailyCap, serviceClient, signedMediaUrl, writeLog } from '../_shared/aiGuard.ts';
+import { authCircle } from '../_shared/circleAuth.ts';
 import { MAX_TRANSCRIPT_CHARS, parseVisit, visitPrompt } from '../_shared/visit.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
 
-  let input: { circle_id?: string; audio_url?: string; recorded_by_person_id?: string | null; now?: string; tz?: string };
+  let input: { circle_id?: string; code?: string; audio_url?: string; recorded_by_person_id?: string | null; now?: string; tz?: string };
   try {
     input = await req.json();
   } catch {
     return json({ error: 'Invalid JSON' }, 400);
   }
-  const { circle_id, audio_url } = input;
-  if (!circle_id || !audio_url) return json({ error: 'circle_id and audio_url are required' }, 400);
-
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  // The anon key is public: only fetch audio that lives in our own media bucket.
-  if (!audio_url.startsWith(`${supabaseUrl}/storage/v1/object/public/media/`)) return json({ error: 'audio_url must be a media upload' }, 400);
+  const { audio_url } = input;
+  if (typeof audio_url !== 'string' || !audio_url) return json({ error: 'circle_id, code and audio_url are required' }, 400);
   const nowIso = input.now && !Number.isNaN(Date.parse(input.now)) ? input.now : new Date().toISOString();
   const tz = (input.tz ?? 'Europe/Madrid').slice(0, 64);
 
   const db = serviceClient();
+  const auth = await authCircle(db, req, input as Record<string, unknown>);
+  if (!auth.ok) return json({ error: auth.denied.error }, auth.denied.status);
+  const circle_id = auth.caller.circle.id;
+  const circle = { data: { patient_name: auth.caller.circle.patient_name } };
 
   try {
-    const circle = await db.from('circles').select('patient_name').eq('id', circle_id).maybeSingle();
-    if (circle.error || !circle.data) return json({ error: 'unknown circle' }, 404);
+    // The anon key is public: only fetch audio that lives in our own bucket, under this circle.
+    const audioUrl = await signedMediaUrl(db, circle_id, audio_url);
+    if (!audioUrl) return json({ error: 'audio_url must be a recording uploaded for this circle' }, 400);
     if (await overDailyCap(db, circle_id)) return json({ error: 'daily limit reached' }, 429);
 
-    const { text } = await transcribe(audio_url);
+    const { text } = await transcribe(audioUrl);
     const transcript = text.trim();
     if (!transcript) return json({ error: 'nothing was heard in the recording' }, 422);
     if (transcript.length > MAX_TRANSCRIPT_CHARS) return json({ error: 'recording too long' }, 413);

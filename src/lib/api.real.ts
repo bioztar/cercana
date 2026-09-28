@@ -1,6 +1,12 @@
 // All Supabase data access lives here.
+//
+// Identity: there is no login. The 6-character circle code is the circle's credential. Reads go
+// straight to PostgREST with the anon key; every write to circles / people / pings / devices and
+// every storage access goes through an edge function that checks {circle_id, code, member_id}
+// (see supabase/functions/_shared/circleAuth.ts). The credential is kept here in memory, set from
+// the device-local Session (App.tsx) or as soon as a code has been looked up / a circle created.
 import { getSupabase } from './supabase';
-import { generateCode, normalizeCode, isValidCode, urlHint, uuidv4 } from './util';
+import { normalizeCode, isValidCode, urlHint, uuidv4 } from './util';
 import { summarizeComments } from './voice';
 import type {
   AssistantAnswer, AssistantAsk, BriefSettings, CalendarPublic, Checkin, CheckinAnswer, Circle, Comment, CommentInput, CommentSummary,
@@ -15,79 +21,89 @@ function check<T>(res: { data: T | null; error: { message: string } | null }, wh
   return res.data as T;
 }
 
+export type CircleCredential = { circleId: string; code: string; memberId?: string | null };
+
+let credential: CircleCredential | null = null;
+
+/** Called by App.tsx whenever the session changes (null on leave). */
+export function setCircleCredential(c: CircleCredential | null): void {
+  credential = c;
+}
+
+/** `{circle_id, code, member_id}` for a function call; refuses to act for a circle we hold no code for. */
+function creds(circleId?: string): { circle_id: string; code: string; member_id?: string } {
+  if (!credential || (circleId && circleId !== credential.circleId)) {
+    throw new Error('This device is not in that circle any more. Please open the invite link again.');
+  }
+  return { circle_id: credential.circleId, code: credential.code, ...(credential.memberId ? { member_id: credential.memberId } : {}) };
+}
+
+/** Invokes an edge function and surfaces its `{error}` body as the thrown message. */
+async function call<T>(fn: string, body: Record<string, unknown>, what: string): Promise<T> {
+  const res = await getSupabase().functions.invoke(fn, { body });
+  if (res.error) {
+    let detail = res.error.message;
+    const ctx = (res.error as { context?: unknown }).context;
+    if (ctx instanceof Response) {
+      try {
+        const parsed = (await ctx.json()) as { error?: unknown };
+        if (typeof parsed?.error === 'string') detail = parsed.error;
+      } catch { /* not JSON */ }
+    }
+    throw new Error(`${what}: ${detail}`);
+  }
+  return res.data as T;
+}
+
 /**
  * Creates the circle and, when given, the lead's profile (role 'lead', unclaimed until the lead
  * picks it on their own phone through the invite link).
  */
 export async function createCircle(patientName: string, lead?: LeadInput): Promise<CreatedCircle> {
-  const db = getSupabase();
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const res = await db
-      .from('circles')
-      .insert({ code: generateCode(), patient_name: patientName })
-      .select()
-      .single();
-    if (res.error) {
-      if (res.error.code !== '23505') throw new Error(`Could not create circle: ${res.error.message}`);
-      continue;
-    }
-    const circle = res.data as Circle;
-    if (!lead) return { ...circle, lead_id: null };
-    const made = await db
-      .from('people')
-      // Claimed: the relative creating the circle is on this device now, not an unclaimed profile to pick later.
-      .insert({ circle_id: circle.id, name: lead.name, relation: lead.relation || null, role: 'lead', claimed: true })
-      .select()
-      .single();
-    if (made.error) {
-      await db.from('circles').delete().eq('id', circle.id); // do not leave a circle without its lead
-      throw new Error(`Could not create the lead profile: ${made.error.message}`);
-    }
-    return { ...circle, lead_id: (made.data as Person).id };
-  }
-  throw new Error('Could not create a unique circle code, try again');
+  const out = await call<{ circle: Circle; lead_id: string | null }>(
+    'circle',
+    { action: 'create', patient_name: patientName, lead: lead ? { name: lead.name, relation: lead.relation || null } : null },
+    'Could not create circle',
+  );
+  setCircleCredential({ circleId: out.circle.id, code: out.circle.code, memberId: out.lead_id });
+  return { ...out.circle, lead_id: out.lead_id };
 }
 
 /** Claim an unclaimed profile. Atomic: fails when someone else picked it first. */
 export async function claimPerson(personId: string): Promise<Person> {
-  const res = await getSupabase()
-    .from('people')
-    .update({ claimed: true })
-    .eq('id', personId)
-    .eq('claimed', false)
-    .select()
-    .maybeSingle();
-  const person = check(res, 'Could not claim profile') as Person | null;
-  if (!person) throw new Error('Someone already picked that profile. Please choose again.');
-  return person;
+  const out = await call<{ person: Person }>('people', { ...creds(), action: 'claim', person_id: personId }, 'Could not claim profile');
+  setCircleCredential({ circleId: out.person.circle_id, code: creds().code, memberId: out.person.id });
+  return out.person;
 }
 
 /** Best effort: frees the profile when a device leaves the circle, so it can be claimed again. */
 export async function unclaimPerson(personId: string): Promise<void> {
-  const res = await getSupabase().from('people').update({ claimed: false }).eq('id', personId);
-  if (res.error) console.warn('unclaimPerson failed', res.error.message);
-}
-
-export async function setPersonRole(personId: string, role: 'admin' | 'member'): Promise<void> {
-  check(await getSupabase().from('people').update({ role }).eq('id', personId), 'Could not change role');
-}
-
-/** Lead hand-over. The old lead is demoted first (one lead per circle is a unique index); rolls back on failure. */
-export async function transferLead(fromId: string, toId: string): Promise<void> {
-  const db = getSupabase();
-  check(await db.from('people').update({ role: 'admin' }).eq('id', fromId), 'Could not hand over lead');
-  const promoted = await db.from('people').update({ role: 'lead' }).eq('id', toId);
-  if (promoted.error) {
-    await db.from('people').update({ role: 'lead' }).eq('id', fromId);
-    throw new Error(`Could not hand over lead: ${promoted.error.message}`);
+  try {
+    await call('people', { ...creds(), action: 'unclaim', person_id: personId }, 'unclaim');
+  } catch (e) {
+    console.warn('unclaimPerson failed', e instanceof Error ? e.message : e);
   }
 }
 
+export async function setPersonRole(personId: string, role: 'admin' | 'member'): Promise<void> {
+  await call('people', { ...creds(), action: 'set_role', person_id: personId, role }, 'Could not change role');
+}
+
+/** Lead hand-over to `toId`; the server demotes the calling lead (`fromId` = our own profile). */
+export async function transferLead(_fromId: string, toId: string): Promise<void> {
+  await call('people', { ...creds(), action: 'transfer_lead', person_id: toId }, 'Could not hand over lead');
+}
+
+/** Looks a circle up by its code (edge fn `circle`, throttled) and remembers the code as our credential. */
 export async function findCircleByCode(input: string): Promise<Circle | null> {
   const code = normalizeCode(input);
   if (!isValidCode(code)) return null;
-  const res = await getSupabase().from('circles').select().eq('code', code).maybeSingle();
-  return check(res, 'Could not look up circle') as Circle | null;
+  const out = await call<{ circle: Circle | null }>('circle', { action: 'lookup', code }, 'Could not look up circle');
+  if (out.circle) {
+    const keepMember = credential?.circleId === out.circle.id ? credential.memberId : null;
+    setCircleCredential({ circleId: out.circle.id, code: out.circle.code, memberId: keepMember });
+  }
+  return out.circle;
 }
 
 export async function listPeople(circleId: string): Promise<Person[]> {
@@ -99,20 +115,24 @@ export async function listPeople(circleId: string): Promise<Person[]> {
   return check(res, 'Could not load people') ?? [];
 }
 
-/** `initial` (role / claimed) applies to new profiles only; edits never change them. */
+/** Edits an existing profile (`p.id`), adds an unclaimed one (lead/admin), or — with
+ * `initial.claimed` — joins the circle as a new, claimed member. Roles are decided server-side. */
 export async function savePerson(
   circleId: string,
   p: PersonInput,
   initial?: { claimed?: boolean },
 ): Promise<Person> {
-  const row = p.id ? { ...p, circle_id: circleId } : { ...p, circle_id: circleId, ...initial };
-  const q = getSupabase().from('people');
-  const res = await (p.id ? q.update(row).eq('id', p.id) : q.insert(row)).select().single();
-  return check(res, 'Could not save person') as Person;
+  const { id, ...person } = p;
+  const body = id
+    ? { action: 'update', person_id: id, person }
+    : { action: initial?.claimed ? 'join' : 'create', person };
+  const out = await call<{ person: Person }>('people', { ...creds(circleId), ...body }, 'Could not save person');
+  if (body.action === 'join') setCircleCredential({ circleId, code: creds(circleId).code, memberId: out.person.id });
+  return out.person;
 }
 
 export async function deletePerson(id: string): Promise<void> {
-  check(await getSupabase().from('people').delete().eq('id', id), 'Could not delete person');
+  await call('people', { ...creds(), action: 'delete', person_id: id }, 'Could not delete person');
 }
 
 export async function listMoments(circleId: string, personId?: string, limit = 50): Promise<Moment[]> {
@@ -131,23 +151,33 @@ export async function addMoment(circleId: string, m: MomentInput): Promise<void>
   check(await getSupabase().from('moments').insert({ ...m, circle_id: circleId }), 'Could not post moment');
 }
 
-/** Uploads a local/blob URI to the public `media` bucket and returns its public URL. */
+/**
+ * Uploads a local/blob URI to the private `media` bucket under this circle's prefix and returns
+ * the object PATH (`<circle>/<kind>/<file>`), which is what rows store. Render with useMediaUrl().
+ */
 export async function uploadMedia(uri: string, kind: 'photo' | 'audio'): Promise<string> {
-  const db = getSupabase();
   const blob = await (await fetch(uri)).blob();
-  const type = blob.type || (kind === 'photo' ? 'image/jpeg' : 'audio/mp4');
-  const ext = type.includes('webm') ? 'webm' : type.includes('png') ? 'png' : kind === 'photo' ? 'jpg' : 'm4a';
-  const path = `${kind}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-  const up = await db.storage.from('media').upload(path, blob, { contentType: type });
+  const type = (blob.type || (kind === 'photo' ? 'image/jpeg' : 'audio/mp4')).split(';')[0];
+  const ticket = await call<{ path: string; token: string }>(
+    'media',
+    { ...creds(), action: 'upload', kind, content_type: type },
+    'Upload failed',
+  );
+  const up = await getSupabase().storage.from('media').uploadToSignedUrl(ticket.path, ticket.token, blob, { contentType: type });
   if (up.error) throw new Error(`Upload failed: ${up.error.message}`);
-  return db.storage.from('media').getPublicUrl(path).data.publicUrl;
+  return ticket.path;
 }
 
+/** Signed read URLs (1 h) for object paths of the current circle; paths we may not read are left out. */
+export async function signMedia(paths: string[]): Promise<Record<string, string>> {
+  if (paths.length === 0) return {};
+  const out = await call<{ urls: Record<string, string> }>('media', { ...creds(), action: 'sign', paths }, 'Could not load media');
+  return out.urls ?? {};
+}
+
+/** `fromName` is only used for a device without a claimed profile; the server prefers the profile's name. */
 export async function sendPing(circleId: string, fromName: string, message: string): Promise<void> {
-  const res = await getSupabase().functions.invoke('ping', {
-    body: { circle_id: circleId, from_name: fromName, message },
-  });
-  if (res.error) throw new Error(`Could not send ping: ${res.error.message}`);
+  await call('ping', { ...creds(circleId), from_name: fromName, message }, 'Could not send ping');
 }
 
 export async function registerDevice(
@@ -156,10 +186,11 @@ export async function registerDevice(
   pushToken: string,
   platform: string,
 ): Promise<void> {
-  const res = await getSupabase()
-    .from('devices')
-    .upsert({ circle_id: circleId, role, push_token: pushToken, platform }, { onConflict: 'push_token' });
-  if (res.error) console.warn('registerDevice failed', res.error.message);
+  try {
+    await call('circle', { ...creds(circleId), action: 'register_device', role, push_token: pushToken, platform }, 'registerDevice');
+  } catch (e) {
+    console.warn('registerDevice failed', e instanceof Error ? e.message : e);
+  }
 }
 
 // ---- Calendar subscriptions -------------------------------------------------------------------
@@ -288,16 +319,13 @@ export async function addEvent(
 
 /** One turn with the AI assistant (edge fn `assistant`). */
 export async function askAssistant(ask: AssistantAsk): Promise<AssistantAnswer> {
-  const res = await getSupabase().functions.invoke('assistant', { body: ask });
-  if (res.error) throw new Error(`Assistant unavailable: ${res.error.message}`);
-  return res.data as AssistantAnswer;
+  return call<AssistantAnswer>('assistant', { ...ask, ...creds(ask.circle_id) }, 'Assistant unavailable');
 }
 
-/** Server-side speech-to-text for an uploaded recording; '' when it cannot be heard. */
+/** Server-side speech-to-text for an uploaded recording (its storage path); '' when it cannot be heard. */
 export async function transcribeAudio(circleId: string, audioUrl: string): Promise<string> {
-  const res = await getSupabase().functions.invoke('transcribe', { body: { circle_id: circleId, audio_url: audioUrl } });
-  if (res.error) throw new Error(`Could not transcribe: ${res.error.message}`);
-  return ((res.data as { text?: string } | null)?.text ?? '').trim();
+  const out = await call<{ text?: string } | null>('transcribe', { ...creds(circleId), audio_url: audioUrl }, 'Could not transcribe');
+  return (out?.text ?? '').trim();
 }
 
 /** The "<patient> takes part" toggle on EventDetail (Vitaly, 2026-09-24 15:50) — app/device events
@@ -510,14 +538,15 @@ export async function listVisits(circleId: string): Promise<Visit[]> {
 
 /** Sends an uploaded recording to the `visit` edge function; resolves when the summary is saved. */
 export async function createVisit(circleId: string, audioUrl: string, recordedByPersonId: string | null): Promise<Visit> {
-  const res = await getSupabase().functions.invoke('visit', {
-    body: {
-      circle_id: circleId, audio_url: audioUrl, recorded_by_person_id: recordedByPersonId,
+  const out = await call<{ visit: Visit }>(
+    'visit',
+    {
+      ...creds(circleId), audio_url: audioUrl, recorded_by_person_id: recordedByPersonId,
       now: new Date().toISOString(), tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
     },
-  });
-  if (res.error) throw new Error(`Could not make the visit summary: ${res.error.message}`);
-  return (res.data as { visit: Visit }).visit;
+    'Could not make the visit summary',
+  );
+  return out.visit;
 }
 
 export async function updateVisitProposals(id: string, proposals: Proposals): Promise<void> {
@@ -543,8 +572,13 @@ export async function markMessagesRead(ids: string[]): Promise<void> {
 }
 
 // ---- cercana-see: "Who is this?" / "Read this for me" -------------------------------------------
+/** `imageUrl` is the storage path returned by uploadMedia(). */
 export async function seeImage(circleId: string, mode: SeeMode, imageUrl: string): Promise<SeeResult> {
-  const res = await getSupabase().functions.invoke('see', { body: { circle_id: circleId, mode, image_url: imageUrl } });
-  if (res.error) throw new Error('I could not look at that just now. Please try again.');
-  return { mode, ...(res.data as Omit<SeeResult, 'mode'>) };
+  let out: Omit<SeeResult, 'mode'>;
+  try {
+    out = await call<Omit<SeeResult, 'mode'>>('see', { ...creds(circleId), mode, image_url: imageUrl }, 'see');
+  } catch {
+    throw new Error('I could not look at that just now. Please try again.');
+  }
+  return { mode, ...out };
 }

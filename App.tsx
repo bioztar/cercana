@@ -14,7 +14,7 @@ import { ArrivalOverlay } from './src/components/ArrivalOverlay';
 import { keepAliveEnabled, startKeepAlive, stopKeepAlive } from './src/lib/keepAlive';
 import {
   findCircleByCode, getBriefSettings, listCheckins, listImportant, listMedicationLogs, listMedications, listVisits,
-  unclaimPerson,
+  setCircleCredential, unclaimPerson,
 } from './src/lib/api';
 import { DemoRibbon } from './src/components/DemoRibbon';
 import { clearSession, getFlag, loadSession, saveSession, setFlag } from './src/lib/session';
@@ -113,6 +113,13 @@ function clearJoinPath() {
   }
 }
 
+/** The session's circle code is the write credential the edge functions check; hand it to the api layer
+ * before the session renders, so the first data effects of the screens already carry it. */
+function adoptSession(s: Session | null): Session | null {
+  setCircleCredential(s ? { circleId: s.circleId, code: s.code, memberId: s.memberId ?? null } : null);
+  return s;
+}
+
 function Root() {
   const [session, setSession] = useState<Session | null | undefined>(undefined); // undefined = loading
   const [bootPerson, setBootPerson] = useState<string | undefined>(undefined);
@@ -124,10 +131,10 @@ function Root() {
     if (boot) {
       setBootPerson(boot.personId);
       setJoinCode(boot.joinCode ?? null);
-      setSession(boot.session);
+      setSession(adoptSession(boot.session));
       return;
     }
-    void loadSession().then(setSession);
+    void loadSession().then((s) => setSession(adoptSession(s)));
   }, []);
 
   // The session caches `patientName` from whenever this device joined; Andrey's re-cast (Maria →
@@ -162,7 +169,7 @@ function Root() {
     await saveSession(s);
     setJoinCode(null);
     clearJoinPath();
-    setSession(s);
+    setSession(adoptSession(s));
   }, []);
 
   const closeJoin = useCallback(() => {
@@ -173,7 +180,7 @@ function Root() {
   const leave = useCallback(async (s: Session) => {
     if (s.role === 'family' && s.memberId) await unclaimPerson(s.memberId); // free the profile for re-claiming
     await clearSession();
-    setSession(null);
+    setSession(adoptSession(null));
   }, []);
 
   const alreadyIn = session && session.role === 'family' && session.code === joinCode;

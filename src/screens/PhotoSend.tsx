@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { addMoment } from '../lib/api';
+import { MediaImage } from '../components/MediaImage';
 import { VoiceRecorder } from '../components/VoiceRecorder';
 import { BigButton, ErrorText, Field } from '../components/ui';
 import { colors, TARGET, type } from '../theme';
@@ -44,7 +45,7 @@ export function PhotoSend({ circleId, patientName, photos, eventId, eventLabel, 
       <Text style={s.title}>Caption and audience</Text>
 
       <View style={s.grid}>
-        {photos.map((u) => <Image key={u} accessibilityLabel="Photo" source={{ uri: u }} style={s.thumb} />)}
+        {photos.map((u) => <MediaImage key={u} accessibilityLabel="Photo" path={u} style={s.thumb} />)}
       </View>
 
       {eventLabel ? <Text style={s.event}>📅 Event · {eventLabel}</Text> : null}

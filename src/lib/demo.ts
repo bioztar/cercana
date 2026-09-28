@@ -10,7 +10,7 @@ import type {
   Session, Visit,
 } from './types';
 import { parseVisit } from '../../supabase/functions/_shared/visit';
-import type { FeedHandlers } from './api.real';
+import type { CircleCredential, FeedHandlers } from './api.real';
 import { defaultReminders } from './important';
 import { normalizeCode, urlHint, uuidv4 } from './util';
 import { summarizeComments, titleFromTranscript } from './voice';
@@ -254,6 +254,13 @@ export async function addMoment(circleId: string, m: MomentInput): Promise<void>
 export async function uploadMedia(uri: string, _kind: 'photo' | 'audio'): Promise<string> {
   return uri;
 }
+
+/** Demo media are plain URLs already; nothing to sign. */
+export async function signMedia(paths: string[]): Promise<Record<string, string>> {
+  return Object.fromEntries(paths.map((p) => [p, p]));
+}
+
+export function setCircleCredential(_c: CircleCredential | null): void {}
 
 export async function sendPing(circleId: string, fromName: string, message: string): Promise<void> {
   const ping: Ping = {

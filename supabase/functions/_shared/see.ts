@@ -9,9 +9,10 @@ export type Msg = { role: 'system' | 'user'; content: string | Part[] };
 export const MIN_CONFIDENCE = 0.9;
 export const UNSURE = "I'm not sure who that is. Would you like to ask your family?";
 
-/** Only our own public `media` bucket: the anon key is public, so never fetch arbitrary URLs. */
+/** Only our own `media` bucket (a signed URL we minted, or a pre-lockdown public one): never fetch arbitrary URLs. */
 export function isMediaUrl(url: unknown, supabaseUrl: string): url is string {
-  return typeof url === 'string' && url.length < 600 && url.startsWith(`${supabaseUrl}/storage/v1/object/public/media/`);
+  if (typeof url !== 'string' || url.length >= 1200) return false;
+  return url.startsWith(`${supabaseUrl}/storage/v1/object/sign/media/`) || url.startsWith(`${supabaseUrl}/storage/v1/object/public/media/`);
 }
 
 const WHO_SYSTEM = `You match a face in a photo against a fixed list of family members. Reference photos come first, each labelled with the person's id and name. The LAST image is the photo to identify.
@@ -22,7 +23,8 @@ Reply JSON only: {"person_id": "<id from the list>" or null, "confidence": 0.0-1
 
 /** People whose reference photo is one of our own uploads. photo_url is user-editable, so anything else
  * (external URL) is dropped rather than handed to the model backend to fetch. */
-export const withMediaPhoto = (known: Known[], supabaseUrl: string) => known.filter((k) => isMediaUrl(k.photo_url, supabaseUrl));
+export const withMediaPhoto = (known: Known[], supabaseUrl: string) =>
+  known.filter((k): k is Known & { photo_url: string } => isMediaUrl(k.photo_url, supabaseUrl));
 
 export function whoMessages(imageUrl: string, known: Known[], supabaseUrl: string): Msg[] {
   const parts: Part[] = [{ type: 'text', text: 'Reference photos of the family:' }];

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Image, Linking, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { MediaImage } from '../components/MediaImage';
 import { Text } from '../components/Text';
 import type { Moment, Person } from '../lib/types';
 import { authorOf } from '../lib/feed';
@@ -35,7 +36,7 @@ export function PersonPhotos({ person, moments, people, onBack }: Props) {
   if (open) {
     return (
       <View style={s.lightboxWrap}>
-        <Image accessibilityLabel="Photo" source={{ uri: open.url }} style={s.lightboxPhoto} resizeMode="contain" />
+        <MediaImage accessibilityLabel="Photo" path={open.url} style={s.lightboxPhoto} resizeMode="contain" />
         <View style={s.lightboxCaption}>
           {open.caption ? <Text style={s.lightboxText}>{open.caption}</Text> : null}
           <Text style={s.lightboxMeta}>{open.author} · {timeAgo(new Date(open.at), new Date())}</Text>
@@ -72,7 +73,7 @@ export function PersonPhotos({ person, moments, people, onBack }: Props) {
         <View style={s.grid}>
           {photos.map((p, i) => (
             <Pressable key={i} accessibilityRole="button" accessibilityLabel={p.caption ?? 'Photo'} onPress={() => setOpen(p)}>
-              <Image accessibilityLabel="Photo" source={{ uri: p.url }} style={[s.cell, { width: cellWidth, height: cellWidth }]} />
+              <MediaImage accessibilityLabel="Photo" path={p.url} style={[s.cell, { width: cellWidth, height: cellWidth }]} />
             </Pressable>
           ))}
         </View>

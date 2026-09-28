@@ -18,7 +18,7 @@ export type AssistantRequest = {
   speaker_person_id: string | null;
   mode: 'chat' | 'dictate';
   text: string;
-  audio_url: string | null;
+  audio_url: string | null; // storage path of a voice note in the `media` bucket (signed server-side)
   history: HistoryItem[];
   now: string;
   tz: string;
@@ -48,7 +48,7 @@ export function validateRequest(body: unknown): { ok: true; value: AssistantRequ
   const text = typeof b.text === 'string' ? b.text.trim() : '';
   if (text.length > CAPS.text) return { ok: false, error: 'text too long' };
   const audio = typeof b.audio_url === 'string' && b.audio_url ? b.audio_url : null;
-  if (audio && (audio.length > CAPS.url || !/^https:\/\//.test(audio))) return { ok: false, error: 'audio_url must be an https url' };
+  if (audio && (audio.length > CAPS.url || /^[a-z][a-z0-9+.-]*:/i.test(audio) || audio.includes('..'))) return { ok: false, error: 'audio_url must be a media storage path' };
   if (!text && !audio) return { ok: false, error: 'text or audio_url is required' };
   const rawHistory = Array.isArray(b.history) ? b.history : [];
   const history: HistoryItem[] = rawHistory.slice(-CAPS.historyItems).flatMap((h) => {

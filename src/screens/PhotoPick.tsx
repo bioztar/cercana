@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { uploadMedia } from '../lib/api';
+import { MediaImage } from '../components/MediaImage';
 import { BigButton, ErrorText } from '../components/ui';
 import { colors, type } from '../theme';
 
@@ -40,7 +41,7 @@ export function PhotoPick({ onNext, onCancel }: Props) {
 
       {urls.length > 0 ? (
         <View style={s.grid}>
-          {urls.map((u) => <Image key={u} accessibilityLabel="Selected photo" source={{ uri: u }} style={s.thumb} />)}
+          {urls.map((u) => <MediaImage key={u} accessibilityLabel="Selected photo" path={u} style={s.thumb} />)}
         </View>
       ) : null}
 

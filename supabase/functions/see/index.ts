@@ -4,9 +4,10 @@
 // Deploy: supabase functions deploy see   (helm deploys; needs THALAMUS_* secrets, see _shared/ai.ts)
 import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 import { chat } from '../_shared/ai.ts';
-import { cors, json, overDailyCap, serviceClient, writeLog } from '../_shared/aiGuard.ts';
+import { cors, json, overDailyCap, serviceClient, signedMediaUrl, writeLog } from '../_shared/aiGuard.ts';
+import { authCircle, readJson } from '../_shared/circleAuth.ts';
 import {
-  isMediaUrl, letterFeedBody, letterMessages, letterSpoken, parseLetter, parseWho, shouldAlert,
+  letterFeedBody, letterMessages, letterSpoken, parseLetter, parseWho, shouldAlert,
   whoMessages, whoReply, withMediaPhoto, type Known,
 } from '../_shared/see.ts';
 
@@ -16,18 +17,20 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
 
-  let input: { circle_id?: string; mode?: string; image_url?: string };
-  try {
-    input = await req.json();
-  } catch {
-    return json({ error: 'Invalid JSON' }, 400);
-  }
+  // Body: {circle_id, code, mode, image_url} — image_url is the storage PATH of a photo uploaded for the circle.
+  const input = await readJson(req);
+  if (!input) return json({ error: 'Invalid JSON' }, 400);
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const { circle_id, mode, image_url } = input;
-  if (!circle_id || (mode !== 'who' && mode !== 'letter')) return json({ error: 'circle_id and mode (who|letter) are required' }, 400);
-  if (!isMediaUrl(image_url, supabaseUrl)) return json({ error: 'image_url must be an uploaded photo' }, 400);
+  const { mode, image_url } = input;
+  if (mode !== 'who' && mode !== 'letter') return json({ error: 'mode (who|letter) is required' }, 400);
 
   const db = serviceClient();
+  const auth = await authCircle(db, req, input);
+  if (!auth.ok) return json({ error: auth.denied.error }, auth.denied.status);
+  const circle_id = auth.caller.circle.id;
+  const imagePath = typeof image_url === 'string' ? image_url : '';
+  const imageUrl = await signedMediaUrl(db, circle_id, imagePath);
+  if (!imageUrl) return json({ error: 'image_url must be a photo uploaded for this circle' }, 400);
 
   try {
     if (await overDailyCap(db, circle_id)) return json({ error: 'Daily limit reached. Please try again tomorrow.' }, 429);
@@ -44,25 +47,27 @@ Deno.serve(async (req) => {
   const family = (people ?? []) as Known[];
 
   const log = (output: unknown) =>
-    writeLog(db, { circle_id, kind: mode, speaker_person_id: null, input: image_url, output });
+    writeLog(db, { circle_id, kind: mode, speaker_person_id: null, input: imagePath, output });
 
   try {
     if (mode === 'who') {
-      const known = withMediaPhoto(family, supabaseUrl);
-      const match = known.length ? parseWho(await chat(whoMessages(image_url, known, supabaseUrl), { json: true, maxTokens: 200 }), known) : null;
+      // Reference photos: sign each family photo path (only this circle's objects get a URL).
+      const signed = await Promise.all(family.map(async (k) => ({ ...k, photo_url: await signedMediaUrl(db, circle_id, k.photo_url) })));
+      const known = withMediaPhoto(signed, supabaseUrl);
+      const match = known.length ? parseWho(await chat(whoMessages(imageUrl, known, supabaseUrl), { json: true, maxTokens: 200 }), known) : null;
       const reply = whoReply(match);
       await log({ person_id: match?.id ?? null, confident: !!match, reply });
       return json({ person_id: match?.id ?? null, confident: !!match, reply });
     }
 
-    const letter = parseLetter(await chat(letterMessages(image_url), { json: true, maxTokens: 500 }));
+    const letter = parseLetter(await chat(letterMessages(imageUrl), { json: true, maxTokens: 500 }));
     const alerted = shouldAlert(letter);
     const lead = family.find((p) => p.role === 'lead')?.name ?? null;
     const reply = letterSpoken(letter, lead);
     await log({ ...letter, alerted, reply });
     await db.from('moments').insert({
       circle_id, person_id: null, author_person_id: null, author: circle.patient_name,
-      body: letterFeedBody(circle.patient_name, letter), photo_url: image_url, audio_url: null, by_patient: true,
+      body: letterFeedBody(circle.patient_name, letter), photo_url: imagePath, audio_url: null, by_patient: true,
     });
     if (alerted) await pushFamily(db, circle_id, `${circle.patient_name} photographed a letter`, letter.scam_risk === 'high' ? 'It looks like a scam.' : letter.summary);
     return json({ ...letter, alerted, reply });

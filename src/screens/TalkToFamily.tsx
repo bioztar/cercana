@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { MediaImage } from '../components/MediaImage';
 import { Text } from '../components/Text';
 import { addMoment, uploadMedia } from '../lib/api';
 import { say } from '../lib/speech';
@@ -102,7 +103,7 @@ export function TalkToFamily({ circleId, patientName, onSent, onCancel, onOpenAs
         <Text style={s.title}>Send a photo</Text>
         {photoUri ? (
           <>
-            <Image accessibilityLabel="Photo to send" source={{ uri: photoUri }} style={s.preview} resizeMode="cover" />
+            <MediaImage accessibilityLabel="Photo to send" path={photoUri} style={s.preview} resizeMode="cover" />
             <Text style={s.hint}>Say a caption if you like</Text>
             <VoiceRecorder size="compact" onDone={(clip) => post(photoUri, clip.url, clip.transcript)} onError={setError} disabled={busy} />
             <BigButton label="Send without saying anything" onPress={() => post(photoUri, null, '')} busy={busy} tone="terracotta" />

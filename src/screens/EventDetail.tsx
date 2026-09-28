@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { MediaImage } from '../components/MediaImage';
 import { Text } from '../components/Text';
 import type { EventRow, Moment, Person } from '../lib/types';
 import { agenda, eventMoments, longDate, type AgendaItem } from '../lib/calendarView';
@@ -111,7 +112,7 @@ export function EventDetail({
             <Text style={s.cardLabel}>Photos · {photos.length}</Text>
             {photos.map((p, i) => (
               <View key={i} style={s.photoRow}>
-                <Image accessibilityLabel={`Photo from ${p.author}`} source={{ uri: p.url }} style={s.streamPhoto} resizeMode="cover" />
+                <MediaImage accessibilityLabel={`Photo from ${p.author}`} path={p.url} style={s.streamPhoto} resizeMode="cover" />
                 <Text style={s.photoAuthor}>{p.author}</Text>
               </View>
             ))}

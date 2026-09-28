@@ -1,11 +1,13 @@
 // Edge function `assistant`: Carmen's chat + family dictation.
-// POST {circle_id, speaker_person_id|null, mode:'chat'|'dictate', text?, audio_url?, history[], now, tz}
+// POST {circle_id, code, speaker_person_id|null, mode:'chat'|'dictate', text?, audio_url?, history[], now, tz}
+//   (audio_url = storage path of a voice note uploaded for the circle)
 //   → {reply, proposal?: {title, starts_at, ends_at?, location?, note?, all_day?}, distress}
 // Loads people, the next 14 days of events and today's medicines server-side; thalamus does the language,
 // assistantCore.ts does the date maths. Deploy: supabase functions deploy assistant
 import { chat, transcribe, type Msg } from '../_shared/ai.ts';
 import { buildSystemPrompt, FALLBACK_REPLY, shapeResponse, validateRequest } from '../_shared/assistantCore.ts';
-import { cors, json, overDailyCap, serviceClient, writeLog } from '../_shared/aiGuard.ts';
+import { cors, json, overDailyCap, serviceClient, signedMediaUrl, writeLog } from '../_shared/aiGuard.ts';
+import { authCircle } from '../_shared/circleAuth.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
@@ -22,16 +24,17 @@ Deno.serve(async (req) => {
   const r = v.value;
 
   const db = serviceClient();
+  const auth = await authCircle(db, req, raw as Record<string, unknown>);
+  if (!auth.ok) return json({ error: auth.denied.error }, auth.denied.status);
+  const circle = { data: { patient_name: auth.caller.circle.patient_name } };
   try {
-    const circle = await db.from('circles').select('patient_name').eq('id', r.circle_id).maybeSingle();
-    if (!circle.data) return json({ error: 'unknown circle' }, 404);
     if (await overDailyCap(db, r.circle_id)) return json({ error: 'daily limit reached' }, 429);
 
     let text = r.text;
     if (!text && r.audio_url) {
-      const allowed = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/media/`;
-      if (!r.audio_url.startsWith(allowed)) return json({ error: 'audio_url must be in the media bucket' }, 400);
-      text = (await transcribe(r.audio_url)).text.trim().slice(0, 1000);
+      const audioUrl = await signedMediaUrl(db, r.circle_id, r.audio_url);
+      if (!audioUrl) return json({ error: 'audio_url must be a voice note uploaded for this circle' }, 400);
+      text = (await transcribe(audioUrl)).text.trim().slice(0, 1000);
     }
     if (!text) return json({ reply: FALLBACK_REPLY, distress: false });
 
