@@ -1,42 +1,39 @@
 // Edge function `ping`: stores a ping and pushes it to every patient device in the circle.
+// The only writer of `pings` (anon has SELECT only): the patient's phone speaks every row aloud, so
+// the caller must hold the circle code and the circle is rate limited.
 // Deploy: supabase functions deploy ping   (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are injected by Supabase.)
-import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { cors, json, serviceClient } from '../_shared/aiGuard.ts';
+import { allow, authCircle, readJson, str } from '../_shared/circleAuth.ts';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
-
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
-
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
+const PER_MINUTE = 5;
+const PER_DAY = 100;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
 
-  let input: { circle_id?: string; from_name?: string; person_id?: string | null; message?: string };
-  try {
-    input = await req.json();
-  } catch {
-    return json({ error: 'Invalid JSON' }, 400);
+  const input = await readJson(req);
+  if (!input) return json({ error: 'Invalid JSON' }, 400);
+  const message = str(input.message, 500);
+  if (!message) return json({ error: 'message is required (max 500 chars)' }, 400);
+
+  const db = serviceClient();
+  const auth = await authCircle(db, req, input);
+  if (!auth.ok) return json({ error: auth.denied.error }, auth.denied.status);
+  const { circle, member, patient } = auth.caller;
+  if (patient) return json({ error: 'pings are sent by family members' }, 403);
+
+  const key = `ping:${circle.id}`;
+  if (!(await allow(db, `${key}:m`, PER_MINUTE, '1 minute')) || !(await allow(db, `${key}:d`, PER_DAY, '1 day'))) {
+    return json({ error: 'Too many pings, please wait a little.' }, 429);
   }
-  const message = input.message?.trim();
-  if (!input.circle_id || !message) return json({ error: 'circle_id and message are required' }, 400);
-  if (message.length > 500) return json({ error: 'message too long' }, 400);
 
-  const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-
+  // The spoken sender name is the claimed profile's name when the device has one.
+  const fromName = member?.name ?? str(input.from_name, 80);
   const { data: ping, error } = await db
     .from('pings')
-    .insert({
-      circle_id: input.circle_id,
-      from_name: input.from_name?.trim() || null,
-      person_id: input.person_id ?? null,
-      message,
-    })
+    .insert({ circle_id: circle.id, from_name: fromName, person_id: member?.id ?? null, message })
     .select()
     .single();
   if (error) return json({ error: error.message }, 400);
@@ -44,7 +41,7 @@ Deno.serve(async (req) => {
   const { data: devices, error: devErr } = await db
     .from('devices')
     .select('push_token')
-    .eq('circle_id', input.circle_id)
+    .eq('circle_id', circle.id)
     .eq('role', 'patient');
   if (devErr) return json({ ping, pushed: 0, warning: devErr.message });
 

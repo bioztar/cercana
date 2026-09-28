@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { aboutOf, authorOf } from '../lib/feed';
 import type { AgendaItem } from '../lib/calendarView';
 import { longDate } from '../lib/calendarView';
@@ -7,6 +7,7 @@ import { timeAgo } from '../lib/dates';
 import type { Moment, Person } from '../lib/types';
 import { colors, fonts, radius, TARGET, type } from '../theme';
 import { Text } from './Text';
+import { MediaImage } from './MediaImage';
 import { Avatar, BigButton } from './ui';
 import { VoicePlayer } from './VoicePlayer';
 
@@ -50,11 +51,11 @@ export function FeedItem({
           {head}
         </Pressable>
       ) : head}
-      {m.photo_url ? <Image accessibilityLabel="Photo" source={{ uri: m.photo_url }} style={s.photo} resizeMode="cover" /> : null}
+      {m.photo_url ? <MediaImage accessibilityLabel="Photo" path={m.photo_url} style={s.photo} resizeMode="cover" /> : null}
       {extra.length > 0 && (
         <View style={s.row}>
           {extra.map((u) => (
-            <Image key={u} accessibilityLabel="Photo" source={{ uri: u }} style={s.photoSmall} resizeMode="cover" />
+            <MediaImage key={u} accessibilityLabel="Photo" path={u} style={s.photoSmall} resizeMode="cover" />
           ))}
         </View>
       )}

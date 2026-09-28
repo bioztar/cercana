@@ -1,0 +1,7 @@
+{
+  "nodeModulesDir": "none",
+  "tasks": {
+    "check": "deno check functions/*/index.ts",
+    "test": "deno test --allow-net --allow-env tests/flows.test.ts"
+  }
+}

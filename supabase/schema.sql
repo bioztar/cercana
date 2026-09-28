@@ -1,8 +1,12 @@
--- Cercana schema. Apply with the Supabase SQL editor or `supabase db push`.
+-- Cercana schema. Apply with the Supabase SQL editor or `supabase db push`, then every file in
+-- supabase/migrations/ in filename order (each idempotent). The end state is described in
+-- docs/security.md.
 --
--- DEMO ONLY: anyone with the anon key can read everything.
--- There is no auth; the 6-character circle code is the only "secret" and it is not enforced by RLS.
--- Do not put real personal data here until per-circle access control is added.
+-- There is no login. The 6-character circle code is the circle's credential: it is never readable
+-- with the anon key, and every write to pings / people / circles / devices / storage goes through an
+-- edge function that checks it (service role). Anyone with the anon key can still READ the tables
+-- the app reads (people, moments, ...) — per-circle read scoping needs a real session token and is
+-- the next step.
 
 create extension if not exists pgcrypto;
 
@@ -83,6 +87,7 @@ create table if not exists calendars (
   label text not null,
   ics_url text not null, -- SECRET: read access to someone's whole calendar. Never selectable by anon (see below).
   url_hint text,         -- non-secret display hint, e.g. "basic.ics" or the host name
+  source text not null default 'ics', -- 'ics' | 'app' | 'device' (constraint added in 20260924_01)
   last_synced_at timestamptz,
   last_error text,
   created_at timestamptz default now()
@@ -111,17 +116,40 @@ create index if not exists calendars_circle_idx on calendars (circle_id);
 create index if not exists calendar_people_person_idx on calendar_people (person_id);
 create index if not exists events_circle_idx on events (circle_id, starts_at);
 
--- DEMO ONLY: permissive anon policies.
-do $$
-declare t text;
-begin
-  foreach t in array array['circles', 'people', 'moments', 'devices', 'pings'] loop
-    execute format('alter table %I enable row level security', t);
-    execute format('drop policy if exists "demo_all" on %I', t);
-    execute format(
-      'create policy "demo_all" on %I for all to anon, authenticated using (true) with check (true)', t);
-  end loop;
-end $$;
+-- DEMO ONLY (still): moments are anon-readable and anon-writable. Follow-up: route through a function.
+alter table moments enable row level security;
+drop policy if exists "demo_all" on moments;
+create policy "demo_all" on moments for all to anon, authenticated using (true) with check (true);
+
+-- Locked down (20260928_02_rls_lockdown.sql): anon reads pings / people / circles (minus the code),
+-- writes only through the ping / people / circle edge functions. Devices are function-only.
+alter table pings enable row level security;
+alter table people enable row level security;
+alter table circles enable row level security;
+alter table devices enable row level security;
+
+drop policy if exists "demo_all" on pings;
+drop policy if exists "pings_select" on pings;
+revoke all on pings from anon, authenticated;
+grant select on pings to anon, authenticated;
+create policy "pings_select" on pings for select to anon, authenticated using (true);
+
+drop policy if exists "demo_all" on people;
+drop policy if exists "people_select" on people;
+revoke all on people from anon, authenticated;
+grant select on people to anon, authenticated;
+create policy "people_select" on people for select to anon, authenticated using (true);
+
+drop policy if exists "demo_all" on circles;
+drop policy if exists "circles_select" on circles;
+drop policy if exists "circles_update_brief" on circles;
+revoke all on circles from anon, authenticated;
+grant select (id, patient_name, created_at) on circles to anon, authenticated; -- never `code`
+create policy "circles_select" on circles for select to anon, authenticated using (true);
+create policy "circles_update_brief" on circles for update to anon, authenticated using (true) with check (true);
+
+drop policy if exists "demo_all" on devices;
+revoke all on devices from anon, authenticated;
 
 -- Realtime: patient app listens to pings; both apps refresh on people/moments changes.
 do $$
@@ -137,15 +165,14 @@ begin
   end loop;
 end $$;
 
--- Public storage bucket for photos and voice notes.
+-- Private storage bucket for photos and voice notes. No anon policies: the `media` edge function
+-- (service role) signs uploads and reads under `<circle_id>/<photo|audio>/<file>`.
 insert into storage.buckets (id, name, public)
-values ('media', 'media', true)
-on conflict (id) do update set public = true;
+values ('media', 'media', false)
+on conflict (id) do update set public = false;
 
 drop policy if exists "demo_media_read" on storage.objects;
 drop policy if exists "demo_media_insert" on storage.objects;
-create policy "demo_media_read" on storage.objects for select to anon, authenticated using (bucket_id = 'media');
-create policy "demo_media_insert" on storage.objects for insert to anon, authenticated with check (bucket_id = 'media');
 
 -- ---------------------------------------------------------------------------------------------
 -- Calendar access. The one privacy rule kept despite "demo, no privacy": the secret ICS URL is

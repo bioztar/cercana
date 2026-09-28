@@ -1,10 +1,10 @@
 # Cercana
 
-> **Demo-only: no privacy.** There is no login. Anyone with the Supabase anon key can read and
-> change everything in the database and the `media` bucket. The 6-character circle code is not a
-> security boundary. **Do not put real personal data in a demo deployment.** The single exception
-> is calendar feed addresses: a secret ICS URL is write-only from clients (never selectable by
-> the anon key), see [Calendars](#calendars).
+> **No login, limited privacy.** The 6-character circle code is the circle's credential: writes
+> to people, pings, circles, push tokens and the private `media` bucket go through edge functions
+> that check it, and the code itself is never readable with the anon key. Everything else the app
+> reads is still readable by anyone with the anon key. Details, limits and the apply order:
+> [docs/security.md](docs/security.md).
 
 Cercana helps a person living with memory loss stay close to the people they love.
 One Expo codebase runs as an **iOS app** and a **web app**.
@@ -40,9 +40,10 @@ id on the device. No password, no email. "Share invite" uses the OS share sheet 
 | make/unmake admins, hand over lead, remove people | yes | no | no | no |
 
 The person who sets the circle up (on the patient's phone, "This phone is for …") becomes the lead.
-A profile nobody claimed (grandkid, nurse) is just a profile. **Enforcement is UI-only this week**
-(no login, demo RLS): a determined visitor with the anon key can still write anything. The next
-step swaps in real auth + RLS and reuses the same `can(actor, action)` vocabulary.
+A profile nobody claimed (grandkid, nurse) is just a profile. The `people` and `ping` edge functions
+enforce the same table server-side for profiles and pings, keyed on the circle code the device
+holds (see [docs/security.md](docs/security.md)); moments and reads are still open to anyone with
+the anon key.
 
 **Family feed.** The patient home shows "From your family": every moment, newest first, with the
 author's face, name and relation; tap the author for their card. A person's card shows the same
@@ -69,12 +70,17 @@ Checks: `npm test` (dates, briefing, ICS expansion, helpers), `npm run typecheck
 
 ## Backend (Supabase)
 
-1. Run `supabase/schema.sql` (idempotent) in the SQL editor: tables, demo RLS, realtime, the
-   `media` bucket, the `calendars_public` view.
-2. Deploy the edge functions: `supabase functions deploy ping` and
-   `supabase functions deploy sync-calendars`. Supabase injects the service-role key; it never
-   appears in the client or the repo.
+1. Run `supabase/schema.sql` (idempotent) in the SQL editor, then every file in
+   `supabase/migrations/` in filename order (each idempotent): tables, RLS, realtime, the private
+   `media` bucket, the `calendars_public` view, rate limits.
+2. Deploy the edge functions: `supabase functions deploy` (all of them: `circle`, `people`, `ping`,
+   `media`, `assistant`, `see`, `transcribe`, `visit`, `sync-calendars`, `digest`, `distress-alert`).
+   Supabase injects the service-role key; it never appears in the client or the repo.
 3. Optional: the commented `pg_cron` block at the end of `schema.sql` syncs calendars every 30 minutes.
+
+Local stack for the database and function tests: `supabase start`, then
+`supabase/tests/run.sh --functions` (pgTAP + Deno; see [docs/security.md](docs/security.md#tests)).
+Nothing in the repo talks to the live project.
 
 ## Deploy the web app
 
@@ -120,6 +126,10 @@ shown. Delete and re-add to change a URL.
 App.tsx                      state navigation (no router)
 src/lib/                     dates, briefing, helpers, api (real vs demo), notify, speech
 src/screens/                 Welcome, PatientHome, PersonScreen, PingOverlay, FamilyHome + tabs
-supabase/schema.sql          tables, RLS, realtime, storage
-supabase/functions/          ping, sync-calendars, _shared/ics.ts (pure, unit-tested)
+src/components/MediaImage.tsx, src/lib/mediaUrl.ts   stored media paths → signed URLs
+supabase/schema.sql          tables, RLS, realtime, storage (fresh project); then supabase/migrations/
+supabase/functions/          circle, people, ping, media (writes + signed URLs), AI functions,
+                             sync-calendars, _shared/circleAuth.ts (circle-code check)
+supabase/tests/              pgTAP + function flow tests against `supabase start`
+docs/security.md             identity model, what anon can do, apply order
 ```

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { MediaImage } from '../components/MediaImage';
 import { Text } from '../components/Text';
 import {
   RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder,
@@ -146,7 +147,7 @@ export function MomentsTab({ circleId, actor, authorName, authorId, people, vers
             About {nameOf(m.person_id)} · by {m.author ?? 'someone'} · {timeAgo(new Date(m.created_at), new Date())}
           </Text>
           {m.body ? <Text style={s.body}>{m.body}</Text> : null}
-          {m.photo_url ? <Image source={{ uri: m.photo_url }} style={s.photo} accessibilityLabel="Photo" /> : null}
+          {m.photo_url ? <MediaImage path={m.photo_url} style={s.photo} accessibilityLabel="Photo" /> : null}
           {m.audio_url ? <VoicePlayer url={m.audio_url} /> : null}
           {canDelete ? (
             <Pressable accessibilityRole="button" accessibilityLabel="Delete moment" onPress={() => removeMoment(m.id)}

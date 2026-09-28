@@ -32,7 +32,7 @@ export async function chat(messages: Msg[], opts: { json?: boolean; maxTokens?: 
   return opts.json ? JSON.parse(text) : text;
 }
 
-/** Speech-to-text for a public audio URL (Supabase `media` bucket). Language auto-detected. */
+/** Speech-to-text for a fetchable audio URL (a signed URL of the `media` bucket). Language auto-detected. */
 export async function transcribe(audioUrl: string): Promise<{ text: string; language: string | null }> {
   const res = await fetch('https://api.deepgram.com/v1/listen?model=nova-3&smart_format=true&detect_language=true', {
     method: 'POST',

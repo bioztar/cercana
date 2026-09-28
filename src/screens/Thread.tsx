@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { addComment, listComments } from '../lib/api';
 import { aboutOf, authorOf } from '../lib/feed';
 import { timeAgo } from '../lib/dates';
 import type { Comment, EventRow, Moment, Person } from '../lib/types';
+import { MediaImage } from '../components/MediaImage';
 import { Avatar, BigButton, ErrorText, Field } from '../components/ui';
 import { VoicePlayer } from '../components/VoicePlayer';
 import { VoiceRecorder } from '../components/VoiceRecorder';
@@ -52,7 +53,7 @@ export function Thread({ moment: m, people, events, authorId, authorName, isPati
       <BigButton label="← Feed" tone="plain" onPress={onBack} style={s.back} />
 
       <View style={s.header}>
-        {m.photo_url ? <Image accessibilityLabel="Photo" source={{ uri: m.photo_url }} style={s.photo} /> : null}
+        {m.photo_url ? <MediaImage accessibilityLabel="Photo" path={m.photo_url} style={s.photo} /> : null}
         {m.body ? <Text style={s.headline}>{m.body}</Text> : null}
         <Text style={s.meta}>
           {[author?.name ?? m.author, about ? `about ${about.name}` : null, timeAgo(new Date(m.created_at), new Date())]
